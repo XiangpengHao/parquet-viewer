@@ -74,7 +74,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
 
                     // Anthropic API Section
                     <div>
-                        <h3 class="text-lg font-medium mb-4">"LLM Configuration"</h3>
+                        <h3 class="text-lg font-medium mb-4">"Natural Language to SQL"</h3>
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 "Claude API Key"
@@ -96,6 +96,13 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                 prop:value=anthropic_key
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
+                            <p class="mt-2 text-sm text-gray-600 italic">
+                                "If no API key is provided, the app will use Xiangpeng's personal token. Please use reasonably and "
+                                <a href="https://github.com/XiangpengHao" class="text-blue-500 hover:underline" target="_blank">
+                                    "consider donating"
+                                </a>
+                                " to support this service or provide your own API key."
+                            </p>
                         </div>
                     </div>
 

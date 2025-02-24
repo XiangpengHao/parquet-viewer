@@ -146,8 +146,49 @@ fn schema_to_brief_str(schema: &SchemaRef) -> String {
 
 // Asynchronous function to call the Claude API
 async fn generate_sql_via_claude(prompt: &str, api_key: &str) -> Result<String> {
+    if api_key.trim().is_empty() {
+        logging::log!("No API key provided, using fallback endpoint");
+        send_request_to_fallback(prompt).await
+    } else {
+        logging::log!("Using Claude API");
+        send_request_to_claude(prompt, api_key).await
+    }
+}
+
+// Helper function to send request to fallback endpoint
+async fn send_request_to_fallback(prompt: &str) -> Result<String> {
+    let fallback_url = "https://parquet-viewer-llm.haoxiangpeng123.workers.dev/api/llm";
+
+    // Create the payload for the fallback endpoint
+    let payload = json!({
+        "prompt": prompt
+    });
+
+    // Setup request options
+    let (opts, headers) = setup_request_options("POST", RequestMode::Cors);
+    headers.set("content-type", "application/json").unwrap();
+
+    // Send request and get response
+    let response = send_http_request(fallback_url, &opts, &payload).await?;
+
+    // Parse the response
+    let json_value = parse_response_to_json(response).await?;
+
+    // Extract SQL from response
+    json_value
+        .get("response")
+        .and_then(|t| t.as_str())
+        .ok_or(anyhow::anyhow!(
+            "Failed to extract SQL from fallback response"
+        ))
+        .map(|s| s.trim().to_string())
+}
+
+// Helper function to send request to Claude API
+async fn send_request_to_claude(prompt: &str, api_key: &str) -> Result<String> {
     let url = "https://api.anthropic.com/v1/messages";
 
+    // Create the payload for Claude API
     let payload = json!({
         "model": "claude-3-haiku-20240307",
         "max_tokens": 1024,
@@ -158,26 +199,57 @@ async fn generate_sql_via_claude(prompt: &str, api_key: &str) -> Result<String> 
         "system": "You are a SQL query generator. You should only respond with the generated SQL query. Do not include any explanation, JSON wrapping, or additional text."
     });
 
-    let opts = RequestInit::new();
-    opts.set_method("POST");
-    opts.set_mode(RequestMode::Cors);
-
-    // Update headers according to docs
-    let headers = Headers::new().unwrap();
+    // Setup request options
+    let (opts, headers) = setup_request_options("POST", RequestMode::Cors);
     headers.set("content-type", "application/json").unwrap();
     headers.set("anthropic-version", "2023-06-01").unwrap();
     headers.set("x-api-key", api_key).unwrap();
     headers
         .set("anthropic-dangerous-direct-browser-access", "true")
         .unwrap();
+
+    // Send request and get response
+    let response = send_http_request(url, &opts, &payload).await?;
+
+    // Parse the response
+    let json_value = parse_response_to_json(response).await?;
+
+    // Extract SQL from Claude API response format
+    json_value
+        .get("content")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("text"))
+        .and_then(|t| t.as_str())
+        .ok_or(anyhow::anyhow!(
+            "Failed to extract SQL from Claude response"
+        ))
+        .map(|s| s.trim().to_string())
+}
+
+// Setup request options with method and mode
+fn setup_request_options(method: &str, mode: RequestMode) -> (RequestInit, Headers) {
+    let opts = RequestInit::new();
+    opts.set_method(method);
+    opts.set_mode(mode);
+
+    let headers = Headers::new().unwrap();
     opts.set_headers(&headers);
 
+    (opts, headers)
+}
+
+// Send HTTP request with given URL, options and payload
+async fn send_http_request(
+    url: &str,
+    opts: &RequestInit,
+    payload: &serde_json::Value,
+) -> Result<Response> {
     // Set body
-    let body = serde_json::to_string(&payload)?;
+    let body = serde_json::to_string(payload)?;
     opts.set_body(&JsValue::from_str(&body));
 
     // Create Request
-    let request = Request::new_with_str_and_init(url, &opts)
+    let request = Request::new_with_str_and_init(url, opts)
         .map_err(|e| anyhow::anyhow!("Request creation failed: {:?}", e))?;
 
     // Send the request
@@ -198,6 +270,11 @@ async fn generate_sql_via_claude(prompt: &str, api_key: &str) -> Result<String> 
         ));
     }
 
+    Ok(response)
+}
+
+// Parse HTTP response to JSON
+async fn parse_response_to_json(response: Response) -> Result<serde_json::Value> {
     // Parse the JSON response
     let json = JsFuture::from(
         response
@@ -207,23 +284,12 @@ async fn generate_sql_via_claude(prompt: &str, api_key: &str) -> Result<String> 
     .await
     .map_err(|e| anyhow::anyhow!("JSON parsing error: {:?}", e))?;
 
-    // Simplified response parsing
-    let json_value: serde_json::Value = serde_json::from_str(
-        &js_sys::JSON::stringify(&json)
-            .map_err(|e| anyhow::anyhow!("Failed to stringify JSON: {:?}", e))?
-            .as_string()
-            .ok_or(anyhow::anyhow!("Failed to convert to string"))?,
-    )?;
+    // Convert to serde_json Value
+    let json_string = js_sys::JSON::stringify(&json)
+        .map_err(|e| anyhow::anyhow!("Failed to stringify JSON: {:?}", e))?
+        .as_string()
+        .ok_or(anyhow::anyhow!("Failed to convert to string"))?;
 
-    // Extract the SQL directly from the content
-    let sql = json_value
-        .get("content")
-        .and_then(|c| c.get(0))
-        .and_then(|c| c.get("text"))
-        .and_then(|t| t.as_str())
-        .ok_or(anyhow::anyhow!("Failed to extract SQL from response"))?
-        .trim()
-        .to_string();
-
-    Ok(sql)
+    serde_json::from_str(&json_string)
+        .map_err(|e| anyhow::anyhow!("Failed to parse to serde_json::Value: {:?}", e))
 }
