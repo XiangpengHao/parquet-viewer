@@ -39,15 +39,17 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
         set_show.set(false);
     };
 
+    let button_close = move |ev: ev::MouseEvent| {
+        ev.stop_propagation();
+        set_show.set(false);
+    };
+
     let stop_propagation = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
     };
 
     view! {
-        <Show
-            when=move || show.get()
-            fallback=|| ()
-        >
+        <Show when=move || show.get() fallback=|| ()>
             <div
                 class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out"
                 on:click=close_modal
@@ -82,7 +84,10 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                     </div>
 
                     // Scrollable content with increased spacing
-                    <div class="space-y-8 overflow-y-auto flex-1" style="max-height: calc(90vh - 160px)">
+                    <div
+                        class="space-y-8 overflow-y-auto flex-1"
+                        style="max-height: calc(90vh - 160px)"
+                    >
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             // Anthropic API Section
                             <div class="bg-gray-50 p-4 rounded-lg">
@@ -110,10 +115,13 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                     />
                                     <p class="mt-3 text-sm text-gray-600 italic">
                                         "If no API key is provided, the app will use Xiangpeng's personal token. Please use reasonably and "
-                                        <a href="https://github.com/XiangpengHao" class="text-blue-500 hover:underline" target="_blank">
+                                        <a
+                                            href="https://github.com/XiangpengHao"
+                                            class="text-blue-500 hover:underline"
+                                            target="_blank"
+                                        >
                                             "consider donating"
-                                        </a>
-                                        " to support this service or provide your own API key."
+                                        </a> " to support this service or provide your own API key."
                                     </p>
                                 </div>
                             </div>
@@ -175,11 +183,26 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                     // Footer with Done button
                     <div class="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
                         <div class="text-sm text-gray-600 text-left">
-                            "Built by Xiangpeng Hao"
+                            "Built by"
+                            <a
+                                href="https://xiangpeng.systems"
+                                class="text-blue-500"
+                                target="_blank"
+                            >
+                                Xiangpeng Hao
+                            </a>
+                            "as part of "
+                            <a
+                                href="https://github.com/XiangpengHao/liquid-cache"
+                                class="text-blue-500"
+                                target="_blank"
+                            >
+                                LiquidCache
+                            </a>
                         </div>
                         <button
-                            on:click=close_modal
-                            class="px-4 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200"
+                            on:click=button_close
+                            class="px-5 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200 text-base font-medium"
                         >
                             "Done"
                         </button>

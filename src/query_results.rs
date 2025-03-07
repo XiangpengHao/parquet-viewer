@@ -338,7 +338,11 @@ pub fn QueryResultView(
                     })
             }}
 
-            <div class="max-h-[32rem] overflow-auto relative" node_ref=table_container on:scroll=handle_scroll>
+            <div
+                class="max-h-[32rem] overflow-auto relative"
+                node_ref=table_container
+                on:scroll=handle_scroll
+            >
                 <table class="min-w-full bg-white table-fixed">
                     <thead class="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(229,231,235)]">
                         <tr class="border-b border-gray-200">
@@ -367,9 +371,9 @@ pub fn QueryResultView(
                     </thead>
                     <tbody>
                         <For
-                            each = move || (0..visible_rows())
-                            key = |row_idx| *row_idx
-                            children = move |row_idx| {
+                            each=move || (0..visible_rows())
+                            key=|row_idx| *row_idx
+                            children=move |row_idx| {
                                 view! {
                                     <tr class="hover:bg-gray-50">
                                         {(0..result.query_result[0].num_columns())
