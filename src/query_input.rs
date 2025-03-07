@@ -103,7 +103,7 @@ pub fn QueryInput(
                             />
                         </svg>
                         <div class="absolute bottom-full right-0 mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                            "Query begins with 'SELECT' runs as SQL, otherwise it is a question to be answered by AI generated SQL"
+                            "SQL (begin with 'SELECT') or natural language, your choice!"
                         </div>
                     </div>
                 </div>

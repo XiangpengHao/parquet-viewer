@@ -202,6 +202,13 @@ async fn get_parquet_table(parquet_info: ParquetInfo) -> Result<ParquetTable> {
     }
     ctx.register_parquet(&parquet_info.table_name, &table_path, Default::default())
         .await?;
+
+    let table_name_without_extension = parquet_info.table_name.split(".parquet").next();
+    if let Some(table_name) = table_name_without_extension {
+        ctx.register_parquet(table_name, &table_path, Default::default())
+            .await?;
+    }
+
     let size = metadata.memory_size();
     Ok(ParquetTable {
         reader,
