@@ -35,130 +35,157 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
         signal(get_stored_value(S3_ACCESS_KEY_ID_KEY, ""));
     let (s3_secret_key, set_s3_secret_key) = signal(get_stored_value(S3_SECRET_KEY_KEY, ""));
 
+    let close_modal = move |_| {
+        set_show.set(false);
+    };
+
+    let stop_propagation = move |ev: ev::MouseEvent| {
+        ev.stop_propagation();
+    };
+
     view! {
-        <div class=move || {
-            if show.get() {
-                "fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50"
-            } else {
-                "hidden"
-            }
-        }>
-            <div class="relative bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full mx-4">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">"Settings"</h2>
-                    <button
-                        class="text-gray-400 hover:text-gray-600 p-2 rounded-lg"
-                        on:click=move |ev| {
-                            ev.prevent_default();
-                            set_show.set(false);
-                        }
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+        <Show
+            when=move || show.get()
+            fallback=|| ()
+        >
+            <div
+                class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out"
+                on:click=close_modal
+            >
+                <div
+                    class="relative bg-white rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300"
+                    on:click=stop_propagation
+                >
+                    // Header with close button
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-2xl font-bold">"Settings"</h2>
+                        <button
+                            class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200"
+                            on:click=close_modal
+                            aria-label="Close"
                         >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                </div>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
 
-                <div class="space-y-6">
+                    // Scrollable content with increased spacing
+                    <div class="space-y-8 overflow-y-auto flex-1" style="max-height: calc(90vh - 160px)">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            // Anthropic API Section
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h3 class="text-xl font-medium mb-5">"Natural Language to SQL"</h3>
+                                <div class="mb-5">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        "Claude API Key"
+                                        <a
+                                            href="https://console.anthropic.com/account/keys"
+                                            target="_blank"
+                                            class="text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200"
+                                        >
+                                            "(get key)"
+                                        </a>
+                                    </label>
+                                    <input
+                                        type="password"
+                                        on:input=move |ev| {
+                                            let value = event_target_value(&ev);
+                                            save_to_storage(ANTHROPIC_API_KEY, &value);
+                                            set_anthropic_key.set(value);
+                                        }
+                                        prop:value=anthropic_key
+                                        class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                    />
+                                    <p class="mt-3 text-sm text-gray-600 italic">
+                                        "If no API key is provided, the app will use Xiangpeng's personal token. Please use reasonably and "
+                                        <a href="https://github.com/XiangpengHao" class="text-blue-500 hover:underline" target="_blank">
+                                            "consider donating"
+                                        </a>
+                                        " to support this service or provide your own API key."
+                                    </p>
+                                </div>
+                            </div>
 
-                    // Anthropic API Section
-                    <div>
-                        <h3 class="text-lg font-medium mb-4">"Natural Language to SQL"</h3>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                "Claude API Key"
-                                <a
-                                    href="https://console.anthropic.com/account/keys"
-                                    target="_blank"
-                                    class="text-blue-500 hover:text-blue-700 ml-1"
-                                >
-                                    "(get key)"
-                                </a>
-                            </label>
-                            <input
-                                type="password"
-                                on:input=move |ev| {
-                                    let value = event_target_value(&ev);
-                                    save_to_storage(ANTHROPIC_API_KEY, &value);
-                                    set_anthropic_key.set(value);
-                                }
-                                prop:value=anthropic_key
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            />
-                            <p class="mt-2 text-sm text-gray-600 italic">
-                                "If no API key is provided, the app will use Xiangpeng's personal token. Please use reasonably and "
-                                <a href="https://github.com/XiangpengHao" class="text-blue-500 hover:underline" target="_blank">
-                                    "consider donating"
-                                </a>
-                                " to support this service or provide your own API key."
-                            </p>
+                            // S3 Configuration Section
+                            <div class="bg-gray-50 p-6 rounded-lg">
+                                <h3 class="text-xl font-medium mb-5">"S3 Configuration"</h3>
+                                <div class="space-y-5">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            "S3 Endpoint"
+                                        </label>
+                                        <input
+                                            type="text"
+                                            on:input=move |ev| {
+                                                let value = event_target_value(&ev);
+                                                save_to_storage(S3_ENDPOINT_KEY, &value);
+                                                set_s3_endpoint.set(value);
+                                            }
+                                            prop:value=s3_endpoint
+                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            "Access Key ID"
+                                        </label>
+                                        <input
+                                            type="text"
+                                            on:input=move |ev| {
+                                                let value = event_target_value(&ev);
+                                                save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
+                                                set_s3_access_key_id.set(value);
+                                            }
+                                            prop:value=s3_access_key_id
+                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            "Secret Access Key"
+                                        </label>
+                                        <input
+                                            type="password"
+                                            on:input=move |ev| {
+                                                let value = event_target_value(&ev);
+                                                save_to_storage(S3_SECRET_KEY_KEY, &value);
+                                                set_s3_secret_key.set(value);
+                                            }
+                                            prop:value=s3_secret_key
+                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    // S3 Configuration Section
-                    <div>
-                        <h3 class="text-lg font-medium mb-4">"S3 Configuration"</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    "S3 Endpoint"
-                                </label>
-                                <input
-                                    type="text"
-                                    on:input=move |ev| {
-                                        let value = event_target_value(&ev);
-                                        save_to_storage(S3_ENDPOINT_KEY, &value);
-                                        set_s3_endpoint.set(value);
-                                    }
-                                    prop:value=s3_endpoint
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    "Access Key ID"
-                                </label>
-                                <input
-                                    type="text"
-                                    on:input=move |ev| {
-                                        let value = event_target_value(&ev);
-                                        save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
-                                        set_s3_access_key_id.set(value);
-                                    }
-                                    prop:value=s3_access_key_id
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    "Secret Access Key"
-                                </label>
-                                <input
-                                    type="password"
-                                    on:input=move |ev| {
-                                        let value = event_target_value(&ev);
-                                        save_to_storage(S3_SECRET_KEY_KEY, &value);
-                                        set_s3_secret_key.set(value);
-                                    }
-                                    prop:value=s3_secret_key
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                />
-                            </div>
+                    // Footer with Done button
+                    <div class="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
+                        <div class="text-sm text-gray-600 text-left">
+                            "Built by Xiangpeng Hao"
                         </div>
+                        <button
+                            on:click=close_modal
+                            class="px-4 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200"
+                        >
+                            "Done"
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-    }.into_view()
+        </Show>
+    }
 }

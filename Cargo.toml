@@ -1,19 +1,19 @@
 [package]
 name = "parquet-explorer"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-arrow = { version = "53.2.0", default-features = false }
-arrow-schema = { version = "53.2.0", default-features = false }
-arrow-array = { version = "53.2.0", default-features = false }
-bytes = "1.8.0"
+arrow = { version = "54.2.1", default-features = false }
+arrow-schema = { version = "54.2.1", default-features = false }
+arrow-array = { version = "54.2.1", default-features = false }
+bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "42.2.0", default-features = false, features = [
+datafusion = { version = "45.0.0", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.7", features = ["csr", "nightly"] }
-parquet = { version = "53.2.0", features = [
+parquet = { version = "54.2.1", features = [
 	"arrow",
 	"snap",
 	"flate2",
@@ -21,9 +21,9 @@ parquet = { version = "53.2.0", features = [
 	"async",
 	"zstd",
 ], default-features = false }
-serde_json = "1.0.132"
-wasm-bindgen-futures = "0.4.45"
-web-sys = { version = "0.3.72", features = [
+serde_json = "1.0.140"
+wasm-bindgen-futures = "0.4.50"
+web-sys = { version = "0.3.77", features = [
 	"HtmlInputElement",
 	"FileList",
 	"File",
@@ -47,11 +47,12 @@ object_store_opendal = { git = "https://github.com/XiangpengHao/opendal.git", br
 	"send_wrapper",
 ] }
 
-leptos_router = { version = "0.7.0", features = ["nightly"] }
-object_store = "0.11.1"
-async-trait = "0.1.83"
+leptos_router = { version = "0.7.7", features = ["nightly"] }
+object_store = "0.11.2"
+async-trait = "0.1.87"
 url = "2.5.4"
 anyhow = "1.0"
+uuid = { version = "1.15.1", features = ["v4", "js"] }
 
 [profile.release]
 strip = true

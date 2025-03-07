@@ -26,8 +26,8 @@ mod schema;
 mod settings;
 
 use metadata::MetadataSection;
-use parquet_reader::{ParquetInfo, ParquetReader, INMEMORY_STORE};
-use query_input::{execute_query_inner, QueryInput};
+use parquet_reader::{ParquetInfo, ParquetReader};
+use query_input::{QueryInput, execute_query_inner};
 use query_results::{QueryResult, QueryResultView};
 use schema::SchemaSection;
 use settings::Settings;
@@ -37,9 +37,6 @@ pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| 
     config.options_mut().sql_parser.dialect = "PostgreSQL".to_string();
     config.options_mut().execution.parquet.pushdown_filters = true;
     let ctx = Arc::new(SessionContext::new_with_config(config));
-    let object_store_url = ObjectStoreUrl::parse("mem://").unwrap();
-    let object_store = INMEMORY_STORE.clone();
-    ctx.register_object_store(object_store_url.as_ref(), object_store);
     ctx
 });
 
@@ -172,7 +169,10 @@ impl PartialEq for ParquetTable {
 }
 
 async fn get_parquet_table(parquet_info: ParquetInfo) -> Result<ParquetTable> {
-    let meta = parquet_info.object_store.head(&parquet_info.path).await?;
+    let meta = parquet_info
+        .object_store
+        .head(&parquet_info.path_relative_to_object_store)
+        .await?;
     let mut reader = ParquetObjectReader::new(parquet_info.object_store.clone(), meta)
         .with_preload_column_index(true)
         .with_preload_offset_index(true);
@@ -200,20 +200,23 @@ async fn get_parquet_table(parquet_info: ParquetInfo) -> Result<ParquetTable> {
             parquet_info.object_store_url
         );
     }
-    ctx.register_parquet(&parquet_info.table_name, &table_path, Default::default())
-        .await?;
+    ctx.register_parquet(
+        parquet_info.table_name.as_str(),
+        &table_path,
+        Default::default(),
+    )
+    .await?;
 
-    let table_name_without_extension = parquet_info.table_name.split(".parquet").next();
-    if let Some(table_name) = table_name_without_extension {
-        ctx.register_parquet(table_name, &table_path, Default::default())
-            .await?;
-    }
+    logging::log!(
+        "registered parquet table: {}",
+        parquet_info.table_name.as_str()
+    );
 
     let size = metadata.memory_size();
     Ok(ParquetTable {
         reader,
-        table_name: parquet_info.table_name,
-        path: parquet_info.path,
+        table_name: parquet_info.table_name.as_str().to_string(),
+        path: parquet_info.path_relative_to_object_store,
         object_store_url: parquet_info.object_store_url,
         display_info: DisplayInfo::from_metadata(metadata, size as u64)?,
     })

@@ -1,22 +1,18 @@
-use std::sync::{Arc, LazyLock};
-
 use anyhow::Result;
 use datafusion::execution::object_store::ObjectStoreUrl;
-use leptos::prelude::*;
+use leptos::{logging, prelude::*};
 use leptos_router::hooks::{query_signal, use_query_map};
 use object_store::memory::InMemory;
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use object_store_opendal::OpendalStore;
-use opendal::{services::Http, services::S3, Operator};
+use opendal::{Operator, services::Http, services::S3};
+use std::sync::Arc;
 use url::Url;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
-
-pub(crate) static INMEMORY_STORE: LazyLock<Arc<InMemory>> =
-    LazyLock::new(|| Arc::new(InMemory::new()));
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -44,17 +40,60 @@ fn save_to_storage(key: &str, value: &str) {
 
 const DEFAULT_URL: &str = "https://raw.githubusercontent.com/RobinL/iris_parquet/main/gridwatch/gridwatch_2023-01-08.parquet";
 
+pub struct TableNameWithoutExtension {
+    table_name: String,
+}
+
+impl TableNameWithoutExtension {
+    fn from_parquet_file(file_name_with_extension: String) -> Result<Self> {
+        if !file_name_with_extension.ends_with(".parquet") {
+            return Err(anyhow::anyhow!("File name must end with .parquet"));
+        }
+        let file_name = file_name_with_extension.split('.').next().unwrap();
+        Ok(Self {
+            table_name: file_name.to_string(),
+        })
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.table_name
+    }
+}
+
 pub struct ParquetInfo {
-    pub table_name: String,
-    pub path: Path,
+    pub table_name: TableNameWithoutExtension,
+    pub path_relative_to_object_store: Path,
     pub object_store_url: ObjectStoreUrl,
     pub object_store: Arc<dyn ObjectStore>,
 }
 
 impl ParquetInfo {
+    fn try_new(
+        file_name_with_extension: String,
+        path_relative_to_object_store: Path,
+        object_store_url: ObjectStoreUrl,
+        object_store: Arc<dyn ObjectStore>,
+    ) -> Result<Self> {
+        logging::log!(
+            "Creating ParquetInfo: {:?}, {:?}, {:?}",
+            file_name_with_extension,
+            path_relative_to_object_store,
+            object_store_url,
+        );
+        let table_name = TableNameWithoutExtension::from_parquet_file(file_name_with_extension)?;
+        Ok(Self {
+            table_name,
+            path_relative_to_object_store,
+            object_store_url,
+            object_store,
+        })
+    }
     /// The table path used to register_parquet in DataFusion
     pub fn table_path(&self) -> String {
-        format!("{}{}", self.object_store_url, self.path)
+        format!(
+            "{}{}",
+            self.object_store_url, self.path_relative_to_object_store
+        )
     }
 }
 
@@ -65,11 +104,7 @@ pub fn ParquetReader(
     let default_tab = {
         let query = use_query_map();
         let url = query.get().get("url");
-        if url.is_some() {
-            "url"
-        } else {
-            "file"
-        }
+        if url.is_some() { "url" } else { "file" }
     };
     let (active_tab, set_active_tab) = signal(default_tab.to_string());
 
@@ -171,22 +206,28 @@ fn FileReader(
                 let uint8_array = js_sys::Uint8Array::new(&array_buffer);
                 let bytes = bytes::Bytes::from(uint8_array.to_vec());
 
-                let path = Path::parse(&table_name)?;
+                let uuid = uuid::Uuid::new_v4();
+                let path_relative_to_object_store = Path::parse(&format!("{}", table_name))?;
 
-                let (object_store, object_store_url) =
-                    (INMEMORY_STORE.clone(), ObjectStoreUrl::parse("mem://")?);
+                let (object_store, object_store_url) = (
+                    Arc::new(InMemory::new()),
+                    ObjectStoreUrl::parse(&format!("inmemory://{}", uuid))?,
+                );
 
                 object_store
-                    .put(&path, PutPayload::from_bytes(bytes))
+                    .put(
+                        &path_relative_to_object_store,
+                        PutPayload::from_bytes(bytes),
+                    )
                     .await
                     .map_err(|e| anyhow::anyhow!("Store operation failed: {:?}", e))?;
 
-                Ok(ParquetInfo {
-                    table_name: table_name.clone(),
-                    path,
+                ParquetInfo::try_new(
+                    table_name.clone(),
+                    path_relative_to_object_store,
                     object_store_url,
                     object_store,
-                })
+                )
             }
             .await;
 
@@ -229,12 +270,12 @@ fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
     let op = op.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
     let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-    Ok(ParquetInfo {
-        table_name: table_name.clone(),
-        path: Path::parse(path)?,
+    ParquetInfo::try_new(
+        table_name.clone(),
+        Path::parse(path)?,
         object_store_url,
         object_store,
-    })
+    )
 }
 
 #[component]
@@ -318,12 +359,12 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
     let op = Operator::new(cfg)?.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
     let object_store_url = ObjectStoreUrl::parse(&path)?;
-    Ok(ParquetInfo {
-        table_name: file_name.clone(),
-        path: Path::parse(s3_file_path)?,
+    ParquetInfo::try_new(
+        file_name.clone(),
+        Path::parse(s3_file_path)?,
         object_store_url,
-        object_store: object_store.clone(),
-    })
+        object_store.clone(),
+    )
 }
 
 #[component]
