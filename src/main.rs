@@ -401,7 +401,7 @@ fn App() -> impl IntoView {
                             None => {
                                 view! {
                                     <div class="text-center text-gray-500 py-8">
-                                        "No file selected"
+                                        "No file selected, try "<a class="text-blue-500" href="https://parquet-viewer.xiangpeng.systems/?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftobilg%2Faws-edge-locations%2Fmain%2Fdata%2Faws-edge-locations.parquet" target="_blank">an example?</a>
                                     </div>
                                 }
                                     .into_any()
