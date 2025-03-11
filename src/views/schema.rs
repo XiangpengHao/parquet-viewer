@@ -1,12 +1,10 @@
 use crate::{ParquetResolved, execute_query_inner};
 use arrow_array::cast::AsArray;
 use arrow_array::types::Int64Type;
-use leptos::{logging, prelude::*};
-use std::clone::Clone;
-use std::collections::HashMap;
+use leptos::prelude::*;
 use std::sync::Arc;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 struct ColumnData {
     id: usize,
     name: String,
@@ -15,6 +13,21 @@ struct ColumnData {
     uncompressed_size: u64,
     compression_ratio: f64,
     null_count: i32,
+    distinct_count: Option<LocalResource<usize>>,
+}
+
+impl PartialEq for ColumnData {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.name == other.name
+            && self.data_type == other.data_type
+            && self.compressed_size == other.compressed_size
+            && self.uncompressed_size == other.uncompressed_size
+            && self.compression_ratio == other.compression_ratio
+            && self.null_count == other.null_count
+            && (self.distinct_count.is_none() && other.distinct_count.is_none()
+                || self.distinct_count.is_some() && other.distinct_count.is_some())
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -60,14 +73,18 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let (sort_field, set_sort_field) = signal(SortField::Id);
     let (sort_ascending, set_sort_ascending) = signal(true);
 
+    let (distinct_count, set_distinct_count) =
+        signal(vec![None::<LocalResource<usize>>; schema.fields.len()]);
+
     let table_name = Memo::new(move |_| parquet_reader.table_name.clone());
     // Transform the data into ColumnData structs
     let column_data = Memo::new(move |_| {
         let mut data: Vec<ColumnData> = schema
             .fields
             .iter()
+            .zip(distinct_count.get())
             .enumerate()
-            .map(|(i, field)| {
+            .map(|(i, (field, distinct_count))| {
                 let compressed = column_info[i].0;
                 let uncompressed = column_info[i].1;
                 let null_count = column_info[i].3 as i32;
@@ -83,6 +100,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         0.0
                     },
                     null_count,
+                    distinct_count,
                 }
             })
             .collect();
@@ -131,33 +149,25 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         }
     }
 
-    fn calculate_distinct(
-        set_distinct_values: WriteSignal<HashMap<usize, String>>,
-        col_id: usize,
-        column_name: &String,
-        table_name: &String,
-    ) {
+    let calculate_distinct = move |col_id: usize, column_name: &String, table_name: &String| {
         let distinct_query = format!(
             "SELECT COUNT(DISTINCT \"{}\") from \"{}\"",
             column_name, table_name
         );
-        leptos::task::spawn_local(async move {
-            match execute_query_inner(&distinct_query).await {
-                Ok((results, _)) => {
-                    if let Some(first_batch) = results.first() {
-                        let distinct_value =
-                            first_batch.column(0).as_primitive::<Int64Type>().value(0);
-                        set_distinct_values.update(|m| {
-                            m.insert(col_id, distinct_value.to_string());
-                        });
-                    }
-                }
-                Err(e) => {
-                    logging::log!("Failed to find distinct value. Error '{}'", e);
-                }
+        let distinct_column_count = LocalResource::new(move || {
+            let query = distinct_query.clone();
+            async move {
+                let (results, _) = execute_query_inner(&query).await.unwrap();
+
+                let first_batch = results.first().unwrap();
+                let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
+                distinct_value as usize
             }
         });
-    }
+        set_distinct_count.update(|distinct_count| {
+            distinct_count[col_id] = Some(distinct_column_count);
+        });
+    };
 
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-6 flex-1 overflow-auto">
@@ -205,27 +215,19 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::NullCount)
                         >
-                            "Null Count"
+                            "Null"
                         </th>
                         <th class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left">
-                            "Distinct Count"
+                            "Distinct"
                         </th>
                     </tr>
                 </thead>
                 <tbody>
                     {move || {
-                        let (distinct_values, set_distinct_values) = signal(
-                            HashMap::<usize, String>::new(),
-                        );
                         column_data
                             .get()
                             .into_iter()
                             .map(|col| {
-                                set_distinct_values
-                                    .update(|texts| {
-                                        texts.insert(col.id, String::from("👁️‍🗨"));
-                                    });
-
                                 view! {
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 text-gray-700">{col.id}</td>
@@ -244,15 +246,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                         <td class="px-4 py-2 text-gray-500">
                                             <button
                                                 disabled=move || {
-                                                    distinct_values
+                                                    col.distinct_count
                                                         .get()
-                                                        .get(&col.id)
-                                                        .unwrap_or(&String::from("Not Available"))
-                                                        .clone() != "👁️‍🗨"
+                                                        .flatten()
+                                                        .is_some()
                                                 }
                                                 on:click=move |_| {
                                                     calculate_distinct(
-                                                        set_distinct_values,
                                                         col.id,
                                                         &col.name.clone(),
                                                         &table_name.get(),
@@ -260,11 +260,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                                 }
                                             >
                                                 {move || {
-                                                    distinct_values
+                                                    col.distinct_count
                                                         .get()
-                                                        .get(&col.id)
-                                                        .unwrap_or(&String::from("Not Available"))
-                                                        .clone()
+                                                        .map(|count| count.map(|c| c.to_string()))
+                                                        .flatten()
+                                                        .unwrap_or("👁️‍🗨".to_string())
                                                 }}
                                             </button>
                                         </td>
