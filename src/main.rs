@@ -4,7 +4,7 @@ use datafusion::{
     execution::object_store::ObjectStoreUrl,
     prelude::{SessionConfig, SessionContext},
 };
-use leptos::{logging, prelude::*};
+use leptos::prelude::*;
 use leptos_router::components::Router;
 use object_store::path::Path;
 use parquet::{
@@ -172,31 +172,13 @@ fn App() -> impl IntoView {
 
     let on_user_submit_query_call_back = move |query: String| {
         set_user_input.set(Some(query.clone()));
-        leptos::task::spawn_local(async move {
-            let Some(table) = parquet_table.get() else {
-                return;
-            };
-            let sql = match views::query_input::user_input_to_sql(&query, &table).await {
-                Ok(sql) => sql,
-                Err(e) => {
-                    set_error_message.set(Some(format!("{:#?}", e)));
-                    return;
-                }
-            };
+        let Some(table) = parquet_table.get() else {
+            return;
+        };
 
-            match execute_query_inner(&sql).await {
-                Ok((results, execution_plan)) => {
-                    let row_cnt = results.iter().map(|r| r.num_rows()).sum::<usize>();
-                    logging::log!("finished executing: {:?}, row_cnt: {}", sql, row_cnt);
-                    set_error_message.set(None);
-                    set_query_results.update(|r| {
-                        let id = r.len();
-                        r.push(QueryResult::new(id, sql, Arc::new(results), execution_plan));
-                    });
-                    logging::log!("finished updating results");
-                }
-                Err(e) => set_error_message.set(Some(format!("{:#?}", e))),
-            }
+        set_query_results.update(|v| {
+            let id = v.len();
+            v.push(QueryResult::new(id, query, table));
         });
     };
 

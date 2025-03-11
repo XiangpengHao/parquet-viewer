@@ -246,10 +246,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                         <td class="px-4 py-2 text-gray-500">
                                             <button
                                                 disabled=move || {
-                                                    col.distinct_count
-                                                        .get()
-                                                        .flatten()
-                                                        .is_some()
+                                                    col.distinct_count.get().flatten().is_some()
                                                 }
                                                 on:click=move |_| {
                                                     calculate_distinct(

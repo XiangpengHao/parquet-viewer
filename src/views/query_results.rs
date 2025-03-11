@@ -13,7 +13,9 @@ use datafusion::{
 use leptos::{logging, prelude::*};
 use parquet::arrow::ArrowWriter;
 use web_sys::js_sys;
-use web_sys::wasm_bindgen::JsCast;
+use web_sys::wasm_bindgen::{JsCast, JsValue};
+
+use crate::{ParquetResolved, execute_query_inner};
 
 fn download_data(file_name: &str, data: Vec<u8>) {
     let blob =
@@ -61,27 +63,54 @@ pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
     download_data("query_results.parquet", buf);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct QueryResult {
     id: usize,
-    sql_query: String,
-    query_result: Arc<Vec<RecordBatch>>,
-    physical_plan: Arc<dyn ExecutionPlan>,
+    query_result: LocalResource<std::result::Result<ExecutionResult, String>>,
+    generated_sql: LocalResource<Result<String, String>>,
     display: bool,
+    user_input: String,
 }
 
+#[derive(Clone)]
+pub(crate) struct ExecutionResult {
+    record_batches: Arc<Vec<RecordBatch>>,
+    physical_plan: Arc<dyn ExecutionPlan>,
+}
+
+const TOOLTIP_CLASSES: &str = "absolute bottom-full left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none";
+const BASE_BUTTON_CLASSES: &str = "p-1 text-gray-500 hover:text-gray-700 relative group";
+const SVG_CLASSES: &str = "h-5 w-5";
+
 impl QueryResult {
-    pub fn new(
-        id: usize,
-        sql_query: String,
-        query_result: Arc<Vec<RecordBatch>>,
-        physical_plan: Arc<dyn ExecutionPlan>,
-    ) -> Self {
+    pub fn new(id: usize, user_query: String, parquet_table: Arc<ParquetResolved>) -> Self {
+        let user_query_clone = user_query.clone();
+        let generated_sql = LocalResource::new(move || {
+            let user_query = user_query.clone();
+            let parquet_table = parquet_table.clone();
+            async move {
+                crate::views::query_input::user_input_to_sql(&user_query, &parquet_table)
+                    .await
+                    .map_err(|e| e.to_string())
+            }
+        });
+        let query_result = LocalResource::new(move || async move {
+            let sql = generated_sql.await?;
+            let (results, execution_plan) =
+                execute_query_inner(&sql).await.map_err(|e| e.to_string())?;
+            let row_cnt = results.iter().map(|r| r.num_rows()).sum::<usize>();
+            logging::log!("finished executing: {:?}, row_cnt: {}", sql, row_cnt);
+            Ok(ExecutionResult {
+                record_batches: Arc::new(results),
+                physical_plan: execution_plan,
+            })
+        });
+
         Self {
             id,
-            sql_query,
             query_result,
-            physical_plan,
+            generated_sql,
+            user_input: user_query_clone,
             display: true,
         }
     }
@@ -100,17 +129,12 @@ impl QueryResult {
 }
 
 #[component]
-pub fn QueryResultView(
-    result: QueryResult,
-    toggle_display: impl Fn(usize) + 'static,
-) -> impl IntoView {
+pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> impl IntoView {
     let (show_plan, set_show_plan) = signal(false);
-    let query_result_clone1 = result.query_result.clone();
-    let query_result_clone2 = result.query_result.clone();
-    let sql = result.sql_query.clone();
+    let query_result_clone1 = result.record_batches.clone();
+    let query_result_clone2 = result.record_batches.clone();
     let sql_clone = sql.clone();
-    let id = result.id();
-    let total_rows = result.query_result[0].num_rows();
+    let total_rows = result.record_batches[0].num_rows();
     let (current_page, set_current_page) = signal(1);
     let visible_rows = move || (current_page.get() * 20).min(total_rows);
     let table_container = NodeRef::<leptos::html::Div>::new();
@@ -132,231 +156,295 @@ pub fn QueryResultView(
         }
     };
 
-    Effect::new(move |_| {
-        let _window = web_sys::window().unwrap();
-        let _ = js_sys::eval("hljs.highlightAll()");
-        || ()
-    });
-    let tooltip_classes = "absolute bottom-full left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none";
-    let base_button_classes = "p-1 text-gray-500 hover:text-gray-700 relative group";
-    let svg_classes = "h-5 w-5";
+    let highlighted_sql_input = format!(
+        "hljs.highlight({},{{ language: 'sql' }}).value",
+        js_sys::JSON::stringify(&JsValue::from_str(&sql)).unwrap()
+    );
+    let highlighted_sql_input = js_sys::eval(&highlighted_sql_input)
+        .unwrap()
+        .as_string()
+        .unwrap();
 
     view! {
-        <div class="p-3 bg-white border border-gray-300 rounded-md hover:shadow-md transition-shadow duration-200">
-            <div class="flex items-center mb-4">
-                <div class="w-3/4 font-mono text-sm overflow-auto relative group max-h-[200px]">
-                    <pre class="whitespace-pre">
-                        <code class="language-sql">{sql_clone}</code>
-                    </pre>
-                </div>
-                <div class="w-1/4">
-                    <div class="flex justify-end">
-                        <div class="flex items-center rounded-md">
-                            <div class="text-sm text-gray-500 font-mono relative group">
-                                <span class=tooltip_classes>
-                                    {format!("SELECT * FROM view_{}", id)}
-                                </span>
-                                {format!("view_{}", id)}
-                            </div>
-                            {
-                                view! {
-                                    <button
-                                        class=base_button_classes
-                                        aria-label="Export to CSV"
-                                        on:click=move |_| export_to_csv_inner(&query_result_clone2)
-                                    >
-                                        <span class=tooltip_classes>"Export to CSV"</span>
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class=svg_classes
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                                            />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        class=base_button_classes
-                                        aria-label="Export to Parquet"
-                                        on:click=move |_| export_to_parquet_inner(
-                                            &query_result_clone1,
-                                        )
-                                    >
-                                        <span class=tooltip_classes>"Export to Parquet"</span>
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class=svg_classes
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                                            />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        class=format!("{} animate-on-click", base_button_classes)
-                                        aria-label="Copy SQL"
-                                        on:click=move |_| {
-                                            let window = web_sys::window().unwrap();
-                                            let navigator = window.navigator();
-                                            let clipboard = navigator.clipboard();
-                                            let _ = clipboard.write_text(&sql);
-                                        }
-                                    >
-                                        <style>
-                                            {".animate-on-click:active { animation: quick-bounce 0.2s; }
-                                            @keyframes quick-bounce {
-                                            0%, 100% { transform: scale(1); }
-                                            50% { transform: scale(0.95); }
-                                            }"}
-                                        </style>
-                                        <span class=tooltip_classes>"Copy SQL"</span>
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class=svg_classes
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                                            />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        class=format!(
-                                            "{} {}",
-                                            base_button_classes,
-                                            if show_plan() { "text-blue-600" } else { "" },
-                                        )
-                                        aria-label="Execution plan"
-                                        on:click=move |_| set_show_plan.update(|v| *v = !*v)
-                                    >
-                                        <span class=tooltip_classes>"Execution plan"</span>
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class=svg_classes
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                                            />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        class=format!("{} hover:text-red-600", base_button_classes)
-                                        aria-label="Hide"
-                                        on:click=move |_| toggle_display(id)
-                                    >
-                                        <span class=tooltip_classes>"Hide"</span>
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class=svg_classes
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12"
-                                            />
-                                        </svg>
-                                    </button>
-                                }
-                            }
+        <div class="flex items-center mb-4">
+            <div class="w-3/4 font-mono text-sm overflow-auto relative group max-h-[200px]">
+                <pre class="whitespace-pre bg-gray-100 p-2 rounded">
+                    <code class="language-sql" inner_html=highlighted_sql_input></code>
+                </pre>
+            </div>
+            <div class="w-1/4">
+                <div class="flex justify-end">
+                    <div class="flex items-center rounded-md">
+                        <div class="text-sm text-gray-500 font-mono relative group">
+                            <span class=TOOLTIP_CLASSES>
+                                {format!("SELECT * FROM view_{}", id)}
+                            </span>
+                            {format!("view_{}", id)}
                         </div>
+                        {
+                            view! {
+                                <button
+                                    class=BASE_BUTTON_CLASSES
+                                    aria-label="Export to CSV"
+                                    on:click=move |_| export_to_csv_inner(&query_result_clone2)
+                                >
+                                    <span class=TOOLTIP_CLASSES>"Export to CSV"</span>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class=SVG_CLASSES
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    class=BASE_BUTTON_CLASSES
+                                    aria-label="Export to Parquet"
+                                    on:click=move |_| export_to_parquet_inner(&query_result_clone1)
+                                >
+                                    <span class=TOOLTIP_CLASSES>"Export to Parquet"</span>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class=SVG_CLASSES
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    class=format!("{} animate-on-click", BASE_BUTTON_CLASSES)
+                                    aria-label="Copy SQL"
+                                    on:click=move |_| {
+                                        let window = web_sys::window().unwrap();
+                                        let navigator = window.navigator();
+                                        let clipboard = navigator.clipboard();
+                                        let _ = clipboard.write_text(&sql_clone);
+                                    }
+                                >
+                                    <style>
+                                        {".animate-on-click:active { animation: quick-bounce 0.2s; }
+                                        @keyframes quick-bounce {
+                                        0%, 100% { transform: scale(1); }
+                                        50% { transform: scale(0.95); }
+                                        }"}
+                                    </style>
+                                    <span class=TOOLTIP_CLASSES>"Copy SQL"</span>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class=SVG_CLASSES
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    class=format!(
+                                        "{} {}",
+                                        BASE_BUTTON_CLASSES,
+                                        if show_plan() { "text-blue-600" } else { "" },
+                                    )
+                                    aria-label="Execution plan"
+                                    on:click=move |_| set_show_plan.update(|v| *v = !*v)
+                                >
+                                    <span class=TOOLTIP_CLASSES>"Execution plan"</span>
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class=SVG_CLASSES
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                                        />
+                                    </svg>
+                                </button>
+                            }
+                        }
                     </div>
                 </div>
             </div>
+        </div>
 
-            {move || {
-                show_plan()
-                    .then(|| {
-                        view! {
-                            <div class="mb-4">
-                                <PhysicalPlan physical_plan=result.physical_plan.clone() />
-                            </div>
+        {move || {
+            show_plan()
+                .then(|| {
+                    view! {
+                        <div class="mb-4">
+                            <PhysicalPlan physical_plan=result.physical_plan.clone() />
+                        </div>
+                    }
+                })
+        }}
+
+        <div
+            class="max-h-[32rem] overflow-auto relative"
+            node_ref=table_container
+            on:scroll=handle_scroll
+        >
+            <table class="min-w-full bg-white table-fixed">
+                <thead class="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(229,231,235)]">
+                    <tr class="border-b border-gray-200">
+                        {result
+                            .record_batches[0]
+                            .schema()
+                            .fields()
+                            .iter()
+                            .map(|field| {
+                                view! {
+                                    <th class="px-4 py-1 text-left w-48 min-w-48 leading-tight text-gray-700">
+                                        <div class="truncate" title=field.name().clone()>
+                                            {field.name().clone()}
+                                        </div>
+                                        <div
+                                            class="text-xs text-gray-600 truncate"
+                                            title=field.data_type().to_string()
+                                        >
+                                            {field.data_type().to_string()}
+                                        </div>
+                                    </th>
+                                }
+                            })
+                            .collect::<Vec<_>>()}
+                    </tr>
+                </thead>
+                <tbody>
+                    <For
+                        each=move || (0..visible_rows())
+                        key=|row_idx| *row_idx
+                        children=move |row_idx| {
+                            view! {
+                                <tr class="hover:bg-gray-50">
+                                    {(0..result.record_batches[0].num_columns())
+                                        .map(|col_idx| {
+                                            let column = result.record_batches[0].column(col_idx);
+                                            let cell_value = column.as_ref().value_to_string(row_idx);
+                                            view! {
+                                                <td class="px-4 py-1 w-48 min-w-48 leading-tight text-gray-700">
+                                                    {cell_value}
+                                                </td>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
+                                </tr>
+                            }
+                        }
+                    />
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+#[component]
+pub fn QueryResultView(
+    result: QueryResult,
+    toggle_display: impl Fn(usize) + 'static + Send + Clone,
+) -> impl IntoView {
+    let id = result.id;
+
+    let (progress, set_progress) = signal("Generating SQL...");
+
+    let toggle_display = toggle_display.clone();
+
+    view! {
+        <div class="p-3 bg-white border border-gray-300 rounded-md hover:shadow-md transition-shadow duration-200">
+            <div class="flex justify-between items-center border-b border-gray-100 mb-2">
+                <div class="text-sm text-gray-500">
+                    {result.user_input}
+                </div>
+                <div class="flex items-center">
+                    <div class="text-sm text-gray-500 mr-2">
+                        {move || {
+                            let now = js_sys::Date::new_0();
+                            format!(
+                                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                                now.get_full_year(),
+                                now.get_month() + 1,
+                                now.get_date(),
+                                now.get_hours(),
+                                now.get_minutes(),
+                                now.get_seconds()
+                            )
+                        }}
+                    </div>
+                    <div>
+                        <button
+                            class=format!("{} hover:text-red-600", BASE_BUTTON_CLASSES)
+                            aria-label="Hide"
+                            on:click=move |_| toggle_display(id)
+                        >
+                            <span class=TOOLTIP_CLASSES>"Hide"</span>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class=SVG_CLASSES
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <Suspense fallback=move || {
+                view! { <div>{move || progress()}</div> }
+            }>
+                {move || {
+                    Suspend::new(async move {
+                        let sql = match result.generated_sql.await {
+                            Ok(sql) => sql,
+                            Err(e) => {
+                                return view! { <pre>Error generating SQL: {e}</pre> }.into_any();
+                            }
+                        };
+
+                        set_progress.set("Executing query...");
+
+                        let result = result.query_result.await;
+                        match result {
+                            Ok(result) => {
+                                view! { <QueryResultViewInner result=result sql=sql id=id /> }
+                                    .into_any()
+                            }
+                            Err(e) => {
+                                let message = format!("Error executing query, context below:\nSQL:\t{sql}\nError:\t{e}");
+                                view! { <pre>{message}</pre> }.into_any()
+                            }
                         }
                     })
-            }}
-
-            <div
-                class="max-h-[32rem] overflow-auto relative"
-                node_ref=table_container
-                on:scroll=handle_scroll
-            >
-                <table class="min-w-full bg-white table-fixed">
-                    <thead class="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(229,231,235)]">
-                        <tr class="border-b border-gray-200">
-                            {result
-                                .query_result[0]
-                                .schema()
-                                .fields()
-                                .iter()
-                                .map(|field| {
-                                    view! {
-                                        <th class="px-4 py-1 text-left w-48 min-w-48 leading-tight text-gray-700">
-                                            <div class="truncate" title=field.name().clone()>
-                                                {field.name().clone()}
-                                            </div>
-                                            <div
-                                                class="text-xs text-gray-600 truncate"
-                                                title=field.data_type().to_string()
-                                            >
-                                                {field.data_type().to_string()}
-                                            </div>
-                                        </th>
-                                    }
-                                })
-                                .collect::<Vec<_>>()}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <For
-                            each=move || (0..visible_rows())
-                            key=|row_idx| *row_idx
-                            children=move |row_idx| {
-                                view! {
-                                    <tr class="hover:bg-gray-50">
-                                        {(0..result.query_result[0].num_columns())
-                                            .map(|col_idx| {
-                                                let column = result.query_result[0].column(col_idx);
-                                                let cell_value = column.as_ref().value_to_string(row_idx);
-                                                view! {
-                                                    <td class="px-4 py-1 w-48 min-w-48 leading-tight text-gray-700">
-                                                        {cell_value}
-                                                    </td>
-                                                }
-                                            })
-                                            .collect::<Vec<_>>()}
-                                    </tr>
-                                }
-                            }
-                        />
-                    </tbody>
-                </table>
-            </div>
+                }}
+            </Suspense>
         </div>
     }
 }
