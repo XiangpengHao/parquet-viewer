@@ -218,7 +218,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             "Null"
                         </th>
                         <th class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left">
-                            "Distinct"
+                            "Distinct Count"
                         </th>
                     </tr>
                 </thead>
@@ -262,8 +262,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                                 {move || {
                                                     col.distinct_count
                                                         .get()
-                                                        .map(|count| count.map(|c| c.to_string()))
-                                                        .flatten()
+                                                        .and_then(|count| count.map(|c| c.to_string()))
                                                         .unwrap_or("👁️‍🗨".to_string())
                                                 }}
                                             </button>
