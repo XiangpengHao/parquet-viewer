@@ -16,7 +16,7 @@ use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
 use crate::utils::{get_stored_value, save_to_storage};
-use crate::{DisplayInfo, ParquetTable};
+use crate::{MetadataDisplay, ParquetResolved};
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -27,6 +27,7 @@ const S3_FILE_PATH_KEY: &str = "s3_file_path";
 
 const DEFAULT_URL: &str = "https://raw.githubusercontent.com/RobinL/iris_parquet/main/gridwatch/gridwatch_2023-01-08.parquet";
 
+#[derive(Clone)]
 pub struct TableNameWithoutExtension {
     table_name: String,
 }
@@ -47,6 +48,7 @@ impl TableNameWithoutExtension {
     }
 }
 
+#[derive(Clone)]
 pub struct ParquetUnresolved {
     pub table_name: TableNameWithoutExtension,
     pub path_relative_to_object_store: Path,
@@ -83,7 +85,7 @@ impl ParquetUnresolved {
         )
     }
 
-    pub async fn try_into_resolved(self, ctx: &SessionContext) -> Result<ParquetTable> {
+    pub async fn try_into_resolved(self, ctx: &SessionContext) -> Result<ParquetResolved> {
         let meta = self
             .object_store
             .head(&self.path_relative_to_object_store)
@@ -117,12 +119,12 @@ impl ParquetUnresolved {
         logging::log!("registered parquet table: {}", self.table_name.as_str());
 
         let size = metadata.memory_size();
-        Ok(ParquetTable {
+        Ok(ParquetResolved {
             reader,
             table_name: self.table_name.as_str().to_string(),
             path: self.path_relative_to_object_store,
             object_store_url: self.object_store_url,
-            display_info: DisplayInfo::from_metadata(metadata, size as u64)?,
+            display_info: MetadataDisplay::from_metadata(metadata, size as u64)?,
         })
     }
 }

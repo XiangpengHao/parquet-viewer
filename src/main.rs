@@ -34,7 +34,7 @@ pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| 
 });
 
 #[derive(Debug, Clone, PartialEq)]
-struct DisplayInfo {
+struct MetadataDisplay {
     file_size: u64,
     uncompressed_size: u64,
     compression_ratio: f64,
@@ -50,7 +50,7 @@ struct DisplayInfo {
     metadata_len: u64,
 }
 
-impl DisplayInfo {
+impl MetadataDisplay {
     fn from_metadata(metadata: Arc<ParquetMetaData>, metadata_len: u64) -> Result<Self> {
         let compressed_size = metadata
             .row_groups()
@@ -101,7 +101,7 @@ impl DisplayInfo {
     }
 }
 
-impl std::fmt::Display for DisplayInfo {
+impl std::fmt::Display for MetadataDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -135,15 +135,15 @@ impl std::fmt::Display for DisplayInfo {
 }
 
 #[derive(Debug, Clone)]
-struct ParquetTable {
+struct ParquetResolved {
     reader: ParquetObjectReader,
     table_name: String,
     path: Path,
     object_store_url: ObjectStoreUrl,
-    display_info: DisplayInfo,
+    display_info: MetadataDisplay,
 }
 
-impl PartialEq for ParquetTable {
+impl PartialEq for ParquetResolved {
     fn eq(&self, other: &Self) -> bool {
         self.table_name == other.table_name
             && self.path == other.path
@@ -154,7 +154,7 @@ impl PartialEq for ParquetTable {
 #[component]
 fn App() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
-    let (parquet_table, set_parquet_table) = signal(None::<Arc<ParquetTable>>);
+    let (parquet_table, set_parquet_table) = signal(None::<Arc<ParquetResolved>>);
     let (user_input, set_user_input) = signal(Option::<String>::None);
 
     let (query_results, set_query_results) = signal(Vec::<QueryResult>::new());

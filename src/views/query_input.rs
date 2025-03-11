@@ -11,7 +11,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response, js_sys};
 
 use crate::utils::get_stored_value;
-use crate::{ParquetTable, SESSION_CTX, views::settings::ANTHROPIC_API_KEY};
+use crate::{ParquetResolved, SESSION_CTX, views::settings::ANTHROPIC_API_KEY};
 
 pub(crate) async fn execute_query_inner(
     query: &str,
@@ -110,7 +110,7 @@ pub fn QueryInput(
     }
 }
 
-pub(crate) async fn user_input_to_sql(input: &str, table: &ParquetTable) -> Result<String> {
+pub(crate) async fn user_input_to_sql(input: &str, table: &ParquetResolved) -> Result<String> {
     // if the input seems to be a SQL query, return it as is
     if input.starts_with("select") || input.starts_with("SELECT") {
         return Ok(input.to_string());

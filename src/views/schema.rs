@@ -1,4 +1,4 @@
-use crate::{ParquetTable, execute_query_inner};
+use crate::{ParquetResolved, execute_query_inner};
 use arrow_array::cast::AsArray;
 use arrow_array::types::Int64Type;
 use leptos::{logging, prelude::*};
@@ -29,7 +29,7 @@ enum SortField {
 }
 
 #[component]
-pub fn SchemaSection(parquet_reader: Arc<ParquetTable>) -> impl IntoView {
+pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let parquet_info = parquet_reader.display_info.clone();
     let schema = parquet_info.schema.clone();
     let metadata = parquet_info.metadata.clone();
