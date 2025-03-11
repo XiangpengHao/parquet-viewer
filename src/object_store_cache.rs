@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     fmt::{Display, Formatter},
     ops::Range,
 };
@@ -9,8 +9,8 @@ use bytes::Bytes;
 use futures::{lock::Mutex, stream::BoxStream};
 use leptos::logging::log;
 use object_store::{
-    path::Path, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta, ObjectStore,
-    PutMultipartOpts, PutOptions, PutPayload, PutResult,
+    GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOpts,
+    PutOptions, PutPayload, PutResult, path::Path,
 };
 use object_store_opendal::OpendalStore;
 

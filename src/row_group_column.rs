@@ -12,7 +12,7 @@ use parquet::{
     },
 };
 
-use crate::{format_rows, ParquetTable};
+use crate::{ParquetTable, format_rows};
 
 fn stats_to_string(stats: Option<Statistics>) -> String {
     match stats {

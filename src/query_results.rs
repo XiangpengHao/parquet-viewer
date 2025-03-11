@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use arrow::array::{types::*, Array};
+use arrow::array::{Array, types::*};
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use datafusion::{
     common::cast::{as_binary_array, as_binary_view_array, as_string_view_array},
     physical_plan::{
-        accept, display::DisplayableExecutionPlan, DisplayFormatType, ExecutionPlan,
-        ExecutionPlanVisitor,
+        DisplayFormatType, ExecutionPlan, ExecutionPlanVisitor, accept,
+        display::DisplayableExecutionPlan,
     },
 };
 use leptos::{logging, prelude::*};

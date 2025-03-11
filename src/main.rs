@@ -35,8 +35,7 @@ pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| 
     let mut config = SessionConfig::new();
     config.options_mut().sql_parser.dialect = "PostgreSQL".to_string();
     config.options_mut().execution.parquet.pushdown_filters = true;
-    let ctx = Arc::new(SessionContext::new_with_config(config));
-    ctx
+    Arc::new(SessionContext::new_with_config(config))
 });
 
 #[derive(Debug, Clone, PartialEq)]

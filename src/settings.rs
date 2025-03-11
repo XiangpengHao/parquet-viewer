@@ -190,8 +190,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                 target="_blank"
                             >
                                 Xiangpeng Hao
-                            </a>
-                            "as part of "
+                            </a> "as part of "
                             <a
                                 href="https://github.com/XiangpengHao/liquid-cache"
                                 class="text-blue-500"

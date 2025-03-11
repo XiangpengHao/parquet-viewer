@@ -17,25 +17,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4 # repo checkout
-      - name: Install nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Add WASM target
-        run: rustup target add wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: Unit tests
-        run: cargo test
-      - name: Wasm tests
-        run: wasm-pack test --headless --chrome
-      
-
   Github-Pages-Release:
     timeout-minutes: 10
     environment:
@@ -44,8 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # repo checkout
-
-      # Install Rust Nightly Toolchain, with Clippy & Rustfmt
+      - uses: Swatinem/rust-cache@v2
       - name: Install nightly Rust
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -53,9 +33,18 @@ jobs:
       - name: Add WASM target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-      - name: lint
-        run: cargo clippy & cargo fmt
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Unit tests
+        run: cargo test
+      - name: Wasm tests
+        run: wasm-pack test --headless --chrome
 
 
       # If using tailwind...
@@ -67,33 +56,19 @@ jobs:
         run: wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
 
       - name: Build with Trunk
-        # "${GITHUB_REPOSITORY#*/}" evaluates into the name of the repository
-        # using --public-url something will allow trunk to modify all the href paths like from favicon.ico to repo_name/favicon.ico .
-        # this is necessary for github pages where the site is deployed to username.github.io/repo_name and all files must be requested
-        # relatively as favicon.ico. if we skip public-url option, the href paths will instead request username.github.io/favicon.ico which
-        # will obviously return error 404 not found.
         run: ./trunk build --release
 
 
-      # Deploy to gh-pages branch
-      # - name: Deploy 🚀
-      #   uses: JamesIves/github-pages-deploy-action@v4
-      #   with:
-      #     folder: dist
 
-
-      # Deploy with Github Static Pages
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
           enablement: true
-          # token:
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload dist dir
           path: './dist'
 
       - name: Deploy to GitHub Pages 🚀

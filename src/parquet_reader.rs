@@ -253,11 +253,11 @@ fn FileReader(
                 let bytes = bytes::Bytes::from(uint8_array.to_vec());
 
                 let uuid = uuid::Uuid::new_v4();
-                let path_relative_to_object_store = Path::parse(&format!("{}", table_name))?;
+                let path_relative_to_object_store = Path::parse(&table_name)?;
 
                 let (object_store, object_store_url) = (
                     Arc::new(InMemory::new()),
-                    ObjectStoreUrl::parse(&format!("inmemory://{}", uuid))?,
+                    ObjectStoreUrl::parse(format!("inmemory://{}", uuid))?,
                 );
 
                 object_store

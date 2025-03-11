@@ -1,4 +1,4 @@
-use crate::{execute_query_inner, ParquetTable};
+use crate::{ParquetTable, execute_query_inner};
 use arrow_array::cast::AsArray;
 use arrow_array::types::Int64Type;
 use leptos::{logging, prelude::*};

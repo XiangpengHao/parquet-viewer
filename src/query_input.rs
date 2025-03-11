@@ -3,16 +3,16 @@ use std::sync::Arc;
 use anyhow::Result;
 use arrow_array::RecordBatch;
 use arrow_schema::SchemaRef;
-use datafusion::physical_plan::{collect, ExecutionPlan};
+use datafusion::physical_plan::{ExecutionPlan, collect};
 use leptos::wasm_bindgen::{JsCast, JsValue};
 use leptos::{logging, prelude::*};
 use serde_json::json;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{js_sys, Headers, Request, RequestInit, RequestMode, Response};
+use web_sys::{Headers, Request, RequestInit, RequestMode, Response, js_sys};
 
 use crate::{
-    settings::{get_stored_value, ANTHROPIC_API_KEY},
     ParquetTable, SESSION_CTX,
+    settings::{ANTHROPIC_API_KEY, get_stored_value},
 };
 
 pub(crate) async fn execute_query_inner(
