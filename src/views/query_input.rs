@@ -10,10 +10,8 @@ use serde_json::json;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response, js_sys};
 
-use crate::{
-    ParquetTable, SESSION_CTX,
-    settings::{ANTHROPIC_API_KEY, get_stored_value},
-};
+use crate::utils::get_stored_value;
+use crate::{ParquetTable, SESSION_CTX, views::settings::ANTHROPIC_API_KEY};
 
 pub(crate) async fn execute_query_inner(
     query: &str,

@@ -2,27 +2,13 @@ use leptos::html::*;
 use leptos::prelude::*;
 use leptos::*;
 
+use crate::utils::get_stored_value;
+use crate::utils::save_to_storage;
+
 pub(crate) const ANTHROPIC_API_KEY: &str = "claude_api_key";
 pub(crate) const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 pub(crate) const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
 pub(crate) const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
-
-pub(crate) fn get_stored_value(key: &str, default: &str) -> String {
-    let window = web_sys::window().unwrap();
-    let storage = window.local_storage().unwrap().unwrap();
-    storage
-        .get_item(key)
-        .unwrap()
-        .unwrap_or_else(|| default.to_string())
-}
-
-fn save_to_storage(key: &str, value: &str) {
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(storage)) = window.local_storage() {
-            let _ = storage.set_item(key, value);
-        }
-    }
-}
 
 #[component]
 pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl IntoView {

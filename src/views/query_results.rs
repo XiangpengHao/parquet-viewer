@@ -15,39 +15,9 @@ use parquet::arrow::ArrowWriter;
 use web_sys::js_sys;
 use web_sys::wasm_bindgen::JsCast;
 
-pub(crate) fn export_to_csv_inner(query_result: &[RecordBatch]) {
-    let mut csv_data = String::new();
-
-    // Headers remain the same as they're based on schema
-    let headers: Vec<String> = query_result[0]
-        .schema()
-        .fields()
-        .iter()
-        .map(|field| field.name().clone())
-        .collect();
-    csv_data.push_str(&headers.join(","));
-    csv_data.push('\n');
-
-    // Process all record batches
-    for batch in query_result {
-        for row_idx in 0..batch.num_rows() {
-            let row: Vec<String> = (0..batch.num_columns())
-                .map(|col_idx| {
-                    let column = batch.column(col_idx);
-                    if column.is_null(row_idx) {
-                        "NULL".to_string()
-                    } else {
-                        column.as_ref().value_to_string(row_idx)
-                    }
-                })
-                .collect();
-            csv_data.push_str(&row.join(","));
-            csv_data.push('\n');
-        }
-    }
-
-    // Rest of the function remains the same
-    let blob = web_sys::Blob::new_with_str_sequence(&js_sys::Array::of1(&csv_data.into())).unwrap();
+fn download_data(file_name: &str, data: Vec<u8>) {
+    let blob =
+        web_sys::Blob::new_with_u8_array_sequence(&js_sys::Array::of1(&data.into())).unwrap();
     let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
     let a = web_sys::window()
         .unwrap()
@@ -56,9 +26,19 @@ pub(crate) fn export_to_csv_inner(query_result: &[RecordBatch]) {
         .create_element("a")
         .unwrap();
     a.set_attribute("href", &url).unwrap();
-    a.set_attribute("download", "query_results.csv").unwrap();
+    a.set_attribute("download", file_name).unwrap();
     a.dyn_ref::<web_sys::HtmlElement>().unwrap().click();
     web_sys::Url::revoke_object_url(&url).unwrap();
+}
+
+pub(crate) fn export_to_csv_inner(query_result: &[RecordBatch]) {
+    let mut data = Vec::new();
+    let mut writer = arrow::csv::WriterBuilder::new().build(&mut data);
+    for batch in query_result {
+        writer.write(batch).unwrap();
+    }
+    drop(writer);
+    download_data("query_results.csv", data);
 }
 
 pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
@@ -78,24 +58,7 @@ pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
 
     writer.close().expect("Failed to close writer");
 
-    let array = js_sys::Uint8Array::from(&buf[..]);
-    let blob = web_sys::Blob::new_with_u8_array_sequence(&js_sys::Array::of1(&array))
-        .expect("Failed to create blob");
-
-    // Create a download link
-    let url =
-        web_sys::Url::create_object_url_with_blob(&blob).expect("Failed to create object URL");
-    let a = web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .create_element("a")
-        .unwrap();
-    a.set_attribute("href", &url).unwrap();
-    a.set_attribute("download", "query_results.parquet")
-        .unwrap();
-    a.dyn_ref::<web_sys::HtmlElement>().unwrap().click();
-    web_sys::Url::revoke_object_url(&url).unwrap();
+    download_data("query_results.parquet", buf);
 }
 
 #[derive(Debug, Clone)]

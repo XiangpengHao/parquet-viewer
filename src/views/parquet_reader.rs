@@ -15,6 +15,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
+use crate::utils::{get_stored_value, save_to_storage};
 use crate::{DisplayInfo, ParquetTable};
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
@@ -23,23 +24,6 @@ const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 const S3_BUCKET_KEY: &str = "s3_bucket";
 const S3_REGION_KEY: &str = "s3_region";
 const S3_FILE_PATH_KEY: &str = "s3_file_path";
-
-pub(crate) fn get_stored_value(key: &str, default: &str) -> String {
-    let window = web_sys::window().unwrap();
-    let storage = window.local_storage().unwrap().unwrap();
-    storage
-        .get_item(key)
-        .unwrap()
-        .unwrap_or_else(|| default.to_string())
-}
-
-fn save_to_storage(key: &str, value: &str) {
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(storage)) = window.local_storage() {
-            let _ = storage.set_item(key, value);
-        }
-    }
-}
 
 const DEFAULT_URL: &str = "https://raw.githubusercontent.com/RobinL/iris_parquet/main/gridwatch/gridwatch_2023-01-08.parquet";
 
@@ -63,14 +47,14 @@ impl TableNameWithoutExtension {
     }
 }
 
-pub struct ParquetInfo {
+pub struct ParquetUnresolved {
     pub table_name: TableNameWithoutExtension,
     pub path_relative_to_object_store: Path,
     pub object_store_url: ObjectStoreUrl,
     pub object_store: Arc<dyn ObjectStore>,
 }
 
-impl ParquetInfo {
+impl ParquetUnresolved {
     fn try_new(
         file_name_with_extension: String,
         path_relative_to_object_store: Path,
@@ -78,7 +62,7 @@ impl ParquetInfo {
         object_store: Arc<dyn ObjectStore>,
     ) -> Result<Self> {
         logging::log!(
-            "Creating ParquetInfo: {:?}, {:?}, {:?}",
+            "Creating ParquetUnresolved: {:?}, {:?}, {:?}",
             file_name_with_extension,
             path_relative_to_object_store,
             object_store_url,
@@ -99,7 +83,7 @@ impl ParquetInfo {
         )
     }
 
-    pub async fn try_into_parquet_table(self, ctx: &SessionContext) -> Result<ParquetTable> {
+    pub async fn try_into_resolved(self, ctx: &SessionContext) -> Result<ParquetTable> {
         let meta = self
             .object_store
             .head(&self.path_relative_to_object_store)
@@ -145,7 +129,7 @@ impl ParquetInfo {
 
 #[component]
 pub fn ParquetReader(
-    read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy + Sync,
+    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy + Sync,
 ) -> impl IntoView {
     let default_tab = {
         let query = use_query_map();
@@ -235,7 +219,7 @@ pub fn ParquetReader(
 
 #[component]
 fn FileReader(
-    read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy,
+    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
 ) -> impl IntoView {
     let on_file_select = move |ev: web_sys::Event| {
         let input: web_sys::HtmlInputElement = event_target(&ev);
@@ -268,7 +252,7 @@ fn FileReader(
                     .await
                     .map_err(|e| anyhow::anyhow!("Store operation failed: {:?}", e))?;
 
-                ParquetInfo::try_new(
+                ParquetUnresolved::try_new(
                     table_name.clone(),
                     path_relative_to_object_store,
                     object_store_url,
@@ -298,7 +282,7 @@ fn FileReader(
 /// Reads a parquet file from a URL and returns a ParquetInfo object.
 /// This function parses the URL, creates an HTTP object store, and returns
 /// the necessary information to read the parquet file.
-pub fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
+pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
     let url = Url::parse(url_str)?;
     let endpoint = format!(
         "{}://{}{}",
@@ -319,7 +303,7 @@ pub fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
     let op = op.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
     let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-    ParquetInfo::try_new(
+    ParquetUnresolved::try_new(
         table_name.clone(),
         Path::parse(path)?,
         object_store_url,
@@ -329,7 +313,7 @@ pub fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
 
 #[component]
 pub fn UrlReader(
-    read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy,
+    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
 ) -> impl IntoView {
     let (url_query, set_url_query) = query_signal::<String>("url");
     let default_url = {
@@ -381,7 +365,7 @@ pub fn UrlReader(
     }
 }
 
-fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<ParquetInfo> {
+fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<ParquetUnresolved> {
     let endpoint = get_stored_value(S3_ENDPOINT_KEY, "https://s3.amazonaws.com");
     let access_key_id = get_stored_value(S3_ACCESS_KEY_ID_KEY, "");
     let secret_key = get_stored_value(S3_SECRET_KEY_KEY, "");
@@ -408,7 +392,7 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
     let op = Operator::new(cfg)?.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
     let object_store_url = ObjectStoreUrl::parse(&path)?;
-    ParquetInfo::try_new(
+    ParquetUnresolved::try_new(
         file_name.clone(),
         Path::parse(s3_file_path)?,
         object_store_url,
@@ -417,7 +401,9 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
 }
 
 #[component]
-fn S3Reader(read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy) -> impl IntoView {
+fn S3Reader(
+    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
+) -> impl IntoView {
     let (s3_bucket, set_s3_bucket) = signal(get_stored_value(S3_BUCKET_KEY, ""));
     let (s3_region, set_s3_region) = signal(get_stored_value(S3_REGION_KEY, "us-east-1"));
     let (s3_file_path, set_s3_file_path) = signal(get_stored_value(S3_FILE_PATH_KEY, ""));

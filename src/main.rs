@@ -13,23 +13,18 @@ use parquet::{
 };
 use std::{sync::Arc, sync::LazyLock};
 
-mod metadata;
 mod object_store_cache;
-mod parquet_reader;
-mod query_input;
-mod query_results;
-mod row_group_column;
-mod schema;
-mod settings;
 #[cfg(test)]
 mod tests;
+mod utils;
+mod views;
 
-use metadata::MetadataSection;
-use parquet_reader::{ParquetInfo, ParquetReader};
-use query_input::{QueryInput, execute_query_inner};
-use query_results::{QueryResult, QueryResultView};
-use schema::SchemaSection;
-use settings::Settings;
+use views::metadata::MetadataSection;
+use views::parquet_reader::{ParquetReader, ParquetUnresolved};
+use views::query_input::{QueryInput, execute_query_inner};
+use views::query_results::{QueryResult, QueryResultView};
+use views::schema::SchemaSection;
+use views::settings::Settings;
 
 pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| {
     let mut config = SessionConfig::new();
@@ -104,16 +99,6 @@ impl DisplayInfo {
             metadata_len,
         })
     }
-}
-
-fn format_rows(rows: u64) -> String {
-    let mut result = rows.to_string();
-    let mut i = result.len();
-    while i > 3 {
-        i -= 3;
-        result.insert(i, ',');
-    }
-    result
 }
 
 impl std::fmt::Display for DisplayInfo {
@@ -191,7 +176,7 @@ fn App() -> impl IntoView {
             let Some(table) = parquet_table.get() else {
                 return;
             };
-            let sql = match query_input::user_input_to_sql(&query, &table).await {
+            let sql = match views::query_input::user_input_to_sql(&query, &table).await {
                 Ok(sql) => sql,
                 Err(e) => {
                     set_error_message.set(Some(format!("{:#?}", e)));
@@ -215,27 +200,25 @@ fn App() -> impl IntoView {
         });
     };
 
-    let on_parquet_read_call_back = move |parquet_info: Result<ParquetInfo>| match parquet_info {
-        Ok(parquet_info) => {
-            leptos::task::spawn_local(async move {
-                match parquet_info
-                    .try_into_parquet_table(SESSION_CTX.as_ref())
-                    .await
-                {
-                    Ok(table) => {
-                        let default_query =
-                            format!("select * from \"{}\" limit 10", table.table_name);
-                        set_parquet_table.set(Some(Arc::new(table)));
-                        on_user_submit_query_call_back(default_query);
+    let on_parquet_read_call_back =
+        move |parquet_info: Result<ParquetUnresolved>| match parquet_info {
+            Ok(parquet_info) => {
+                leptos::task::spawn_local(async move {
+                    match parquet_info.try_into_resolved(SESSION_CTX.as_ref()).await {
+                        Ok(table) => {
+                            let default_query =
+                                format!("select * from \"{}\" limit 10", table.table_name);
+                            set_parquet_table.set(Some(Arc::new(table)));
+                            on_user_submit_query_call_back(default_query);
+                        }
+                        Err(e) => {
+                            set_error_message.set(Some(format!("{:#?}", e)));
+                        }
                     }
-                    Err(e) => {
-                        set_error_message.set(Some(format!("{:#?}", e)));
-                    }
-                }
-            });
-        }
-        Err(e) => set_error_message.set(Some(format!("{:#?}", e))),
-    };
+                });
+            }
+            Err(e) => set_error_message.set(Some(format!("{:#?}", e))),
+        };
 
     view! {
         <div class="container mx-auto px-4 py-8 max-w-6xl">

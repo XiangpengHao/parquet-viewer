@@ -1,4 +1,4 @@
-use crate::parquet_reader::read_from_url;
+use crate::views::parquet_reader::read_from_url;
 use arrow::{array::AsArray, datatypes::Int64Type};
 use datafusion::prelude::SessionContext;
 use wasm_bindgen_test::*;
@@ -12,7 +12,7 @@ async fn test_read_parquet() {
     let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
     let result = read_from_url(url).unwrap();
     let table = result
-        .try_into_parquet_table(&ctx)
+        .try_into_resolved(&ctx)
         .await
         .expect("Should successfully parse a valid parquet URL");
 
