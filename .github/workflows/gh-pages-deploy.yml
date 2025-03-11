@@ -17,16 +17,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # repo checkout
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Add WASM target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Unit tests
+        run: cargo test
+      - name: Wasm tests
+        run: wasm-pack test --headless --chrome
+      
+
   Github-Pages-Release:
-
     timeout-minutes: 10
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4 # repo checkout
 

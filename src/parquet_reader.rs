@@ -1,5 +1,6 @@
 use anyhow::Result;
 use datafusion::execution::object_store::ObjectStoreUrl;
+use datafusion::prelude::SessionContext;
 use leptos::{logging, prelude::*};
 use leptos_router::hooks::{query_signal, use_query_map};
 use object_store::memory::InMemory;
@@ -7,12 +8,14 @@ use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
 use object_store_opendal::OpendalStore;
 use opendal::{Operator, services::Http, services::S3};
+use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
 use url::Url;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
+use crate::{DisplayInfo, ParquetTable};
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -94,6 +97,49 @@ impl ParquetInfo {
             "{}{}",
             self.object_store_url, self.path_relative_to_object_store
         )
+    }
+
+    pub async fn try_into_parquet_table(self, ctx: &SessionContext) -> Result<ParquetTable> {
+        let meta = self
+            .object_store
+            .head(&self.path_relative_to_object_store)
+            .await?;
+        let mut reader = ParquetObjectReader::new(self.object_store.clone(), meta)
+            .with_preload_column_index(true)
+            .with_preload_offset_index(true);
+        let metadata = reader.get_metadata().await?;
+
+        let table_path = self.table_path();
+
+        if ctx
+            .runtime_env()
+            .object_store(&self.object_store_url)
+            .is_err()
+        {
+            logging::log!(
+                "Object store {} not found, registering",
+                self.object_store_url
+            );
+            ctx.register_object_store(self.object_store_url.as_ref(), self.object_store);
+        } else {
+            logging::log!(
+                "Object store {} found, using existing store",
+                self.object_store_url
+            );
+        }
+        ctx.register_parquet(self.table_name.as_str(), &table_path, Default::default())
+            .await?;
+
+        logging::log!("registered parquet table: {}", self.table_name.as_str());
+
+        let size = metadata.memory_size();
+        Ok(ParquetTable {
+            reader,
+            table_name: self.table_name.as_str().to_string(),
+            path: self.path_relative_to_object_store,
+            object_store_url: self.object_store_url,
+            display_info: DisplayInfo::from_metadata(metadata, size as u64)?,
+        })
     }
 }
 
@@ -249,7 +295,10 @@ fn FileReader(
     }
 }
 
-fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
+/// Reads a parquet file from a URL and returns a ParquetInfo object.
+/// This function parses the URL, creates an HTTP object store, and returns
+/// the necessary information to read the parquet file.
+pub fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
     let url = Url::parse(url_str)?;
     let endpoint = format!(
         "{}://{}{}",
@@ -279,7 +328,7 @@ fn read_from_url(url_str: &str) -> Result<ParquetInfo> {
 }
 
 #[component]
-fn UrlReader(
+pub fn UrlReader(
     read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy,
 ) -> impl IntoView {
     let (url_query, set_url_query) = query_signal::<String>("url");
@@ -446,5 +495,46 @@ fn S3Reader(read_call_back: impl Fn(Result<ParquetInfo>) + 'static + Send + Copy
                 </div>
             </form>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_from_url_non_parquet() {
+        let url = "not-a-url";
+        let result = read_from_url(url);
+        assert!(result.is_err(), "Should fail for an invalid URL");
+
+        let url = "https://example.com/file.csv";
+        let result = read_from_url(url);
+
+        assert!(result.is_err(), "Should fail for non-parquet files");
+
+        let url = "file:///path/to/file.parquet";
+        let result = read_from_url(url);
+
+        assert!(result.is_err(), "Should fail for URLs without a host");
+    }
+
+    #[test]
+    fn test_read_from_url_valid_parquet_url() {
+        // This test uses a known public Parquet file
+        let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
+        let result = read_from_url(url);
+
+        let result = result.expect("Should successfully parse a valid parquet URL");
+
+        assert_eq!(result.table_name.as_str(), "aws-edge-locations",);
+        assert_eq!(
+            result.path_relative_to_object_store.to_string(),
+            "tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet",
+        );
+        assert_eq!(
+            result.object_store_url.to_string(),
+            "https://raw.githubusercontent.com/",
+        );
     }
 }

@@ -43,6 +43,13 @@ trunk serve --open
 trunk build --release
 ```
 
+#### Run tests
+
+```bash
+cargo install wasm-pack --locked
+wasm-pack test --headless --firefox
+```
+
 ## License
 
 Licensed under either of

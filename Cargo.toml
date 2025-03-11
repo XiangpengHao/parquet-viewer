@@ -59,3 +59,6 @@ strip = true
 opt-level = "s"
 # lto = true
 panic = "abort"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.50"

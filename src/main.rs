@@ -8,10 +8,7 @@ use leptos::{logging, prelude::*};
 use leptos_router::components::Router;
 use object_store::path::Path;
 use parquet::{
-    arrow::{
-        async_reader::{AsyncFileReader, ParquetObjectReader},
-        parquet_to_arrow_schema,
-    },
+    arrow::{async_reader::ParquetObjectReader, parquet_to_arrow_schema},
     file::metadata::ParquetMetaData,
 };
 use std::{sync::Arc, sync::LazyLock};
@@ -24,6 +21,8 @@ mod query_results;
 mod row_group_column;
 mod schema;
 mod settings;
+#[cfg(test)]
+mod tests;
 
 use metadata::MetadataSection;
 use parquet_reader::{ParquetInfo, ParquetReader};
@@ -168,60 +167,6 @@ impl PartialEq for ParquetTable {
     }
 }
 
-async fn get_parquet_table(parquet_info: ParquetInfo) -> Result<ParquetTable> {
-    let meta = parquet_info
-        .object_store
-        .head(&parquet_info.path_relative_to_object_store)
-        .await?;
-    let mut reader = ParquetObjectReader::new(parquet_info.object_store.clone(), meta)
-        .with_preload_column_index(true)
-        .with_preload_offset_index(true);
-    let metadata = reader.get_metadata().await?;
-
-    let table_path = parquet_info.table_path();
-
-    let ctx = SESSION_CTX.as_ref();
-    if ctx
-        .runtime_env()
-        .object_store(&parquet_info.object_store_url)
-        .is_err()
-    {
-        logging::log!(
-            "Object store {} not found, registering",
-            parquet_info.object_store_url
-        );
-        ctx.register_object_store(
-            parquet_info.object_store_url.as_ref(),
-            parquet_info.object_store,
-        );
-    } else {
-        logging::log!(
-            "Object store {} found, using existing store",
-            parquet_info.object_store_url
-        );
-    }
-    ctx.register_parquet(
-        parquet_info.table_name.as_str(),
-        &table_path,
-        Default::default(),
-    )
-    .await?;
-
-    logging::log!(
-        "registered parquet table: {}",
-        parquet_info.table_name.as_str()
-    );
-
-    let size = metadata.memory_size();
-    Ok(ParquetTable {
-        reader,
-        table_name: parquet_info.table_name.as_str().to_string(),
-        path: parquet_info.path_relative_to_object_store,
-        object_store_url: parquet_info.object_store_url,
-        display_info: DisplayInfo::from_metadata(metadata, size as u64)?,
-    })
-}
-
 #[component]
 fn App() -> impl IntoView {
     let (error_message, set_error_message) = signal(Option::<String>::None);
@@ -274,7 +219,10 @@ fn App() -> impl IntoView {
     let on_parquet_read_call_back = move |parquet_info: Result<ParquetInfo>| match parquet_info {
         Ok(parquet_info) => {
             leptos::task::spawn_local(async move {
-                match get_parquet_table(parquet_info).await {
+                match parquet_info
+                    .try_into_parquet_table(SESSION_CTX.as_ref())
+                    .await
+                {
                     Ok(table) => {
                         let default_query =
                             format!("select * from \"{}\" limit 10", table.table_name);
