@@ -100,14 +100,14 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                         class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                     />
                                     <p class="mt-3 text-sm text-gray-600 italic">
-                                        "If no API key is provided, the app will use Xiangpeng's personal token. Please use reasonably and "
+                                        "If no API key is provided, it uses Xiangpeng's personal token -- \
+                                        use reasonably and "
                                         <a
                                             href="https://github.com/XiangpengHao"
                                             class="text-blue-500 hover:underline"
                                             target="_blank"
                                         >
-                                            "consider donating"
-                                        </a> " to support this service or provide your own API key."
+                                            "consider donating"</a>"; no data is collected, but CloudFlare may temporarily log the prompt and schema."
                                     </p>
                                 </div>
                             </div>
@@ -176,7 +176,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                 target="_blank"
                             >
                                 Xiangpeng Hao
-                            </a> "as part of "
+                            </a> "as a part of "
                             <a
                                 href="https://github.com/XiangpengHao/liquid-cache"
                                 class="text-blue-500"
