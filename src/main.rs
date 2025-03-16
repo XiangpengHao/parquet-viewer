@@ -33,6 +33,9 @@ pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| 
     Arc::new(SessionContext::new_with_config(config))
 });
 
+const DEFAULT_URL: &str = "https://parquet-viewer.xiangpeng.systems/?url=https%3A%2F%2Fhuggingface.co%2Fdatasets%2Fopen-r1%2FOpenR1-Math-220k%2Fresolve%2Fmain%2Fdata%2Ftrain-00003-of-00010.parquet";
+const DEFAULT_QUERY: &str = "show first 10 rows";
+
 #[derive(Debug, Clone, PartialEq)]
 struct MetadataDisplay {
     file_size: u64,
@@ -188,10 +191,8 @@ fn App() -> impl IntoView {
                 leptos::task::spawn_local(async move {
                     match parquet_info.try_into_resolved(SESSION_CTX.as_ref()).await {
                         Ok(table) => {
-                            let default_query =
-                                format!("select * from \"{}\" limit 10", table.table_name);
                             set_parquet_table.set(Some(Arc::new(table)));
-                            on_user_submit_query_call_back(default_query);
+                            on_user_submit_query_call_back(DEFAULT_QUERY.to_string());
                         }
                         Err(e) => {
                             set_error_message.set(Some(format!("{:#?}", e)));
@@ -319,7 +320,7 @@ fn App() -> impl IntoView {
                                         "No file selected, try "
                                         <a
                                             class="text-blue-500"
-                                            href="https://parquet-viewer.xiangpeng.systems/?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftobilg%2Faws-edge-locations%2Fmain%2Fdata%2Faws-edge-locations.parquet"
+                                            href=DEFAULT_URL
                                             target="_blank"
                                         >
                                             an example?

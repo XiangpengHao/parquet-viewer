@@ -30,14 +30,14 @@ pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let has_row_group_stats = metadata_display.has_row_group_stats;
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-6">
+        <div class="bg-white rounded-lg border border-gray-300 p-6 text-sm">
             <div class="grid grid-cols-2 gap-6">
                 <div>
-                    <h2 class="text-xl font-semibold mb-4">"Metadata"</h2>
+                    <h2 class="font-semibold text-normal mb-4">"Metadata"</h2>
                     <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md mb-8">
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"File size"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"File size"</span>
+                            <span class="block">
                                 {format!(
                                     "{:.2} MB",
                                     metadata_display.file_size as f64 / 1_048_576.0,
@@ -45,14 +45,14 @@ pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Metadata size"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"Metadata size"</span>
+                            <span class="block">
                                 {format!("{:.2} KB", metadata_display.metadata_len as f64 / 1024.0)}
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Uncompressed size"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"Uncompressed size"</span>
+                            <span class="block">
                                 {format!(
                                     "{:.2} MB",
                                     metadata_display.uncompressed_size as f64 / 1_048_576.0,
@@ -60,38 +60,36 @@ pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Compression ratio"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"Compression ratio"</span>
+                            <span class="block">
                                 {format!("{:.2}%", metadata_display.compression_ratio * 100.0)}
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Row groups"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"Row groups"</span>
+                            <span class="block">
                                 {metadata_display.row_group_count}
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Total rows"</span>
-                            <span class="block font-medium">
+                            <span class="text-gray-400">"Total rows"</span>
+                            <span class="block">
                                 {format_rows(metadata_display.row_count)}
                             </span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Columns"</span>
-                            <span class="block font-medium">{metadata_display.columns}</span>
+                            <span class="text-gray-400">"Columns"</span>
+                            <span class="block">{metadata_display.columns}</span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Created by"</span>
-                            <span class="block font-medium">{created_by}</span>
+                            <span class="text-gray-400">"Created by"</span>
+                            <span class="block">{created_by}</span>
                         </div>
                         <div class="space-y-2">
-                            <span class="text-gray-600 text-sm">"Version"</span>
-                            <span class="block font-medium">{version}</span>
+                            <span class="text-gray-400">"Version"</span>
+                            <span class="block">{version}</span>
                         </div>
                     </div>
-
-                    <h2 class="text-xl font-semibold mt-6 mb-4">"Features"</h2>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="p-2 rounded ".to_owned()
                             + if has_row_group_stats {
@@ -352,15 +350,14 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     view! {
         <div class="space-y-8">
-            // Row Group Selection
             <div class="flex flex-col space-y-2">
                 <div class="flex items-center">
-                    <label for="row-group-select" class="text-sm font-medium text-gray-700 w-32">
+                    <label for="row-group-select" class="text-sm text-gray-700 w-32">
                         "Row Group"
                     </label>
                     <select
                         id="row-group-select"
-                        class="w-full bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 px-4 py-2.5 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23666%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.5em] bg-[right_0.5em_center] bg-no-repeat"
+                        class="w-full bg-white text-gray-700 text-sm rounded-lg border border-gray-200 px-4 py-2.5 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                         on:change=move |ev| {
                             set_selected_row_group
                                 .set(event_target_value(&ev).parse::<usize>().unwrap_or(0))
@@ -384,25 +381,25 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compressed"</div>
-                                <div class="font-medium">
+                                <div>
                                     {format!("{:.2} MB", compressed_size)}
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Uncompressed"</div>
-                                <div class="font-medium">
+                                <div>
                                     {format!("{:.2} MB", uncompressed_size)}
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compression ratio"</div>
-                                <div class="font-medium">
+                                <div>
                                     {format!("{:.1}%", compressed_size / uncompressed_size * 100.0)}
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Rows"</div>
-                                <div class="font-medium">{format_rows(num_rows)}</div>
+                                <div>{format_rows(num_rows)}</div>
                             </div>
                         </div>
                     }
@@ -412,12 +409,12 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             // Column Selection
             <div class="flex flex-col space-y-2">
                 <div class="flex items-center">
-                    <label for="column-select" class="text-sm font-medium text-gray-700 w-32">
+                    <label for="column-select" class="text-sm text-gray-700 w-32">
                         "Column"
                     </label>
                     <select
                         id="column-select"
-                        class="w-full bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 px-4 py-2.5 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23666%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.5em] bg-[right_0.5em_center] bg-no-repeat"
+                        class="w-full bg-white text-gray-700 text-sm rounded-lg border border-gray-200 px-4 py-2.5 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer "
                         on:change=move |ev| {
                             set_selected_column
                                 .set(event_target_value(&ev).parse::<usize>().unwrap_or(0))
@@ -448,19 +445,19 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compressed"</div>
-                                    <div class="font-medium">
+                                    <div>
                                         {format!("{:.2} MB", column_info.compressed_size)}
                                     </div>
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Uncompressed"</div>
-                                    <div class="font-medium">
+                                    <div>
                                         {format!("{:.2} MB", column_info.uncompressed_size)}
                                     </div>
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compression ratio"</div>
-                                    <div class="font-medium">
+                                    <div>
                                         {format!(
                                             "{:.1}%",
                                             column_info.compressed_size / column_info.uncompressed_size
@@ -470,13 +467,13 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compression Type"</div>
-                                    <div class="font-medium">
+                                    <div>
                                         {format!("{:?}", column_info.compression)}
                                     </div>
                                 </div>
                                 <div class="col-span-2 space-y-1">
                                     <div class="text-sm text-gray-500">"Statistics"</div>
-                                    <div class="font-medium text-sm">
+                                    <div class="text-sm">
                                         {stats_to_string(&column_info.statistics)}
                                     </div>
                                 </div>

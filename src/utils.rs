@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use arrow_schema::{DataType, Field};
+
 pub fn format_rows(rows: u64) -> String {
     let mut result = rows.to_string();
     let mut i = result.len();
@@ -23,4 +27,27 @@ pub(crate) fn save_to_storage(key: &str, value: &str) {
             let _ = storage.set_item(key, value);
         }
     }
+}
+
+pub fn format_arrow_type(data_type: &DataType) -> String {
+    match data_type {
+        DataType::Boolean => "Boolean".to_string(),
+        DataType::Utf8 => "String".to_string(),
+        DataType::Struct(fields) => format_struct_type(fields),
+        DataType::List(child) => format!("List<{}>", format_arrow_type(child.data_type())),
+        _ => data_type.to_string(),
+    }
+}
+
+pub fn format_struct_type(fields: &[Arc<Field>]) -> String {
+    if fields.is_empty() {
+        return "Struct{}".to_string();
+    }
+
+    let field_strs: Vec<String> = fields
+        .iter()
+        .map(|f| format!("{}: {}", f.name(), format_arrow_type(f.data_type())))
+        .collect();
+
+    format!("Struct{{{}}}", field_strs.join(", "))
 }

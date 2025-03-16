@@ -15,6 +15,7 @@ use parquet::arrow::ArrowWriter;
 use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
 
+use crate::utils::format_arrow_type;
 use crate::{ParquetResolved, execute_query_inner};
 
 fn download_data(file_name: &str, data: Vec<u8>) {
@@ -166,9 +167,9 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
         .unwrap();
 
     view! {
-        <div class="flex items-center mb-4">
+        <div class="flex items-center mb-4 mt-4">
             <div class="w-3/4 font-mono text-sm overflow-auto relative group max-h-[200px]">
-                <pre class="whitespace-pre bg-gray-100 p-2 rounded">
+                <pre class="whitespace-pre p-2 rounded">
                     <code class="language-sql" inner_html=highlighted_sql_input></code>
                 </pre>
             </div>
@@ -302,13 +303,13 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
         }}
 
         <div
-            class="max-h-[32rem] overflow-auto relative"
+            class="max-h-[32rem] overflow-auto relative text-sm"
             node_ref=table_container
             on:scroll=handle_scroll
         >
             <table class="min-w-full bg-white table-fixed">
-                <thead class="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(229,231,235)]">
-                    <tr class="border-b border-gray-200">
+                <thead class="sticky top-0 z-10 bg-gray-50">
+                    <tr>
                         {result
                             .record_batches[0]
                             .schema()
@@ -316,15 +317,15 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                             .iter()
                             .map(|field| {
                                 view! {
-                                    <th class="px-4 py-1 text-left w-48 min-w-48 leading-tight text-gray-700">
+                                    <th class="px-4 py-1 text-left min-w-[300px] max-w-[300px] leading-tight">
                                         <div class="truncate" title=field.name().clone()>
                                             {field.name().clone()}
                                         </div>
                                         <div
-                                            class="text-xs text-gray-600 truncate"
-                                            title=field.data_type().to_string()
+                                            class="text-xs text-gray-400 truncate"
+                                            title=format_arrow_type(field.data_type())
                                         >
-                                            {field.data_type().to_string()}
+                                            {format_arrow_type(field.data_type())}
                                         </div>
                                     </th>
                                 }
@@ -343,9 +344,36 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                         .map(|col_idx| {
                                             let column = result.record_batches[0].column(col_idx);
                                             let cell_value = column.as_ref().value_to_string(row_idx);
+
                                             view! {
-                                                <td class="px-4 py-1 w-48 min-w-48 leading-tight text-gray-700">
-                                                    {cell_value}
+                                                <td class="px-4 py-1 leading-tight text-gray-700 min-w-[300px] max-w-[300px] break-words">
+                                                    {if cell_value.len() > 100 {
+                                                        view! {
+                                                            <details class="custom-details relative">
+                                                                <style>
+                                                                    {".custom-details > summary { list-style: none; }
+                                                                    .custom-details > summary::-webkit-details-marker { display: none; }
+                                                                    .custom-details > summary::after {
+                                                                        content: '...';
+                                                                        font-size: 0.7em;
+                                                                        margin-left: 5px;
+                                                                        color: #6B7280;
+                                                                        display: inline-block;
+                                                                        transition: transform 0.2s;
+                                                                    }
+                                                                    .custom-details[open] > summary::after {
+                                                                        content: '';
+                                                                    }"}
+                                                                </style>
+                                                                <summary class="outline-none cursor-pointer">
+                                                                    <span class="text-gray-700">{cell_value[..100].to_string()}</span>
+                                                                </summary>
+                                                                <div class="mt-1 text-gray-700">{cell_value[100..].to_string()}</div>
+                                                            </details>
+                                                        }.into_any()
+                                                    } else {
+                                                        view! { <span>{cell_value}</span> }.into_any()
+                                                    }}
                                                 </td>
                                             }
                                         })
@@ -463,6 +491,10 @@ impl ArrayExt for dyn Array {
             array => {
                 format!("{:?}", array.value(index))
             }
+            DataType::Boolean => {
+                let array = as_boolean_array(array);
+                array.value(index).to_string()
+            }
             DataType::Utf8 => {
                 let array = as_string_array(array);
                 array.value(index).to_string()
@@ -480,6 +512,12 @@ impl ArrayExt for dyn Array {
                 let array = as_binary_view_array(array).unwrap();
                 let value = array.value(index);
                 String::from_utf8_lossy(value).to_string()
+            }
+            DataType::List(_) => {
+                let array = as_list_array(array);
+                let value = array.value(index);
+                let len = value.len();
+                format!("[{}]",  (0..len).map(|i| value.value_to_string(i)).collect::<Vec<_>>().join(", "))
             }
             DataType::Dictionary(key_type, _) => {
                 match key_type.as_ref() {

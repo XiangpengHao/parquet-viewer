@@ -25,7 +25,7 @@ const S3_BUCKET_KEY: &str = "s3_bucket";
 const S3_REGION_KEY: &str = "s3_region";
 const S3_FILE_PATH_KEY: &str = "s3_file_path";
 
-const DEFAULT_URL: &str = "https://raw.githubusercontent.com/RobinL/iris_parquet/main/gridwatch/gridwatch_2023-01-08.parquet";
+const DEFAULT_URL: &str = "https://huggingface.co/datasets/open-r1/OpenR1-Math-220k/resolve/main/data/train-00003-of-00010.parquet";
 
 #[derive(Clone)]
 pub struct TableNameWithoutExtension {

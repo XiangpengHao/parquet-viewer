@@ -1,4 +1,4 @@
-use crate::{ParquetResolved, execute_query_inner};
+use crate::{ParquetResolved, execute_query_inner, utils::format_arrow_type};
 use arrow_array::cast::AsArray;
 use arrow_array::types::Int64Type;
 use leptos::prelude::*;
@@ -13,7 +13,6 @@ struct ColumnData {
     uncompressed_size: u64,
     compression_ratio: f64,
     null_count: i32,
-    distinct_count: Option<LocalResource<usize>>,
 }
 
 impl PartialEq for ColumnData {
@@ -25,8 +24,6 @@ impl PartialEq for ColumnData {
             && self.uncompressed_size == other.uncompressed_size
             && self.compression_ratio == other.compression_ratio
             && self.null_count == other.null_count
-            && (self.distinct_count.is_none() && other.distinct_count.is_none()
-                || self.distinct_count.is_some() && other.distinct_count.is_some())
     }
 }
 
@@ -45,28 +42,19 @@ enum SortField {
 pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let parquet_info = parquet_reader.display_info.clone();
     let schema = parquet_info.schema.clone();
+
     let metadata = parquet_info.metadata.clone();
-    let mut column_info = vec![
-        (
-            0,
-            0,
-            metadata
-                .row_groups()
-                .first()
-                .and_then(|rg| rg.columns().first().map(|c| c.compression())),
-            0,
-        );
-        schema.fields.len()
-    ];
+
+    let mut aggregated_column_info = vec![(0, 0, None, 0); metadata.row_group(0).columns().len()];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
-            column_info[i].0 += col.compressed_size() as u64;
-            column_info[i].1 += col.uncompressed_size() as u64;
-            column_info[i].2 = Some(col.compression());
-            column_info[i].3 = match col.statistics() {
+            aggregated_column_info[i].0 += col.compressed_size() as u64;
+            aggregated_column_info[i].1 += col.uncompressed_size() as u64;
+            aggregated_column_info[i].2 = Some(col.compression());
+            aggregated_column_info[i].3 += match col.statistics() {
                 None => 0,
                 Some(statistics) => statistics.null_count_opt().unwrap_or(0),
-            }
+            };
         }
     }
 
@@ -79,19 +67,19 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let table_name = Memo::new(move |_| parquet_reader.table_name.clone());
     // Transform the data into ColumnData structs
     let column_data = Memo::new(move |_| {
-        let mut data: Vec<ColumnData> = schema
-            .fields
+        let mut data: Vec<ColumnData> = aggregated_column_info
             .iter()
-            .zip(distinct_count.get())
             .enumerate()
-            .map(|(i, (field, distinct_count))| {
-                let compressed = column_info[i].0;
-                let uncompressed = column_info[i].1;
-                let null_count = column_info[i].3 as i32;
+            .map(|(i, aggregated)| {
+                let compressed = aggregated.0;
+                let uncompressed = aggregated.1;
+                let null_count = aggregated.3 as i32;
+                let field_name = metadata.row_group(0).columns()[i].column_descr().name();
+                let data_type = metadata.row_group(0).columns()[i].column_type();
                 ColumnData {
                     id: i,
-                    name: field.name().to_string(),
-                    data_type: format!("{}", field.data_type()),
+                    name: field_name.to_string(),
+                    data_type: format!("{}", data_type),
                     compressed_size: compressed,
                     uncompressed_size: uncompressed,
                     compression_ratio: if uncompressed > 0 {
@@ -100,7 +88,6 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         0.0
                     },
                     null_count,
-                    distinct_count,
                 }
             })
             .collect();
@@ -171,10 +158,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-6 flex-1 overflow-auto">
-            <h2 class="text-xl font-semibold mb-4">"Arrow Schema"</h2>
-            <table class="min-w-full table-fixed">
+            <h2 class="font-semibold mb-4">"Parquet Columns"</h2>
+            <table class="min-w-full table-fixed text-sm">
                 <thead>
-                    <tr class="bg-gray-50">
+                    <tr class="bg-gray-50 text-gray-700 font-medium">
                         <th
                             class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::Id)
@@ -217,12 +204,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         >
                             "Null"
                         </th>
-                        <th class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left">
-                            "Distinct Count"
-                        </th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="text-gray-700">
                     {move || {
                         column_data
                             .get()
@@ -230,40 +214,19 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             .map(|col| {
                                 view! {
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-2 text-gray-700">{col.id}</td>
-                                        <td class="px-4 py-2 text-gray-700">{col.name.clone()}</td>
-                                        <td class="px-4 py-2 text-gray-500">{col.data_type}</td>
-                                        <td class="px-4 py-2 text-gray-500">
+                                        <td class="px-4 py-2">{col.id}</td>
+                                        <td class="px-4 py-2">{col.name.clone()}</td>
+                                        <td class="px-4 py-2">{col.data_type}</td>
+                                        <td class="px-4 py-2">
                                             {format_size(col.compressed_size)}
                                         </td>
-                                        <td class="px-4 py-2 text-gray-500">
+                                        <td class="px-4 py-2">
                                             {format_size(col.uncompressed_size)}
                                         </td>
-                                        <td class="px-4 py-2 text-gray-500">
+                                        <td class="px-4 py-2">
                                             {format!("{:.2}%", col.compression_ratio * 100.0)}
                                         </td>
-                                        <td class="px-4 py-2 text-gray-500">{col.null_count}</td>
-                                        <td class="px-4 py-2 text-gray-500">
-                                            <button
-                                                disabled=move || {
-                                                    col.distinct_count.get().flatten().is_some()
-                                                }
-                                                on:click=move |_| {
-                                                    calculate_distinct(
-                                                        col.id,
-                                                        &col.name.clone(),
-                                                        &table_name.get(),
-                                                    );
-                                                }
-                                            >
-                                                {move || {
-                                                    col.distinct_count
-                                                        .get()
-                                                        .and_then(|count| count.map(|c| c.to_string()))
-                                                        .unwrap_or("👁️‍🗨".to_string())
-                                                }}
-                                            </button>
-                                        </td>
+                                        <td class="px-4 py-2">{col.null_count}</td>
                                     </tr>
                                 }
                             })
@@ -271,6 +234,70 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-700 font-medium">
+                        <th class="px-4 py-2 text-left">Field Name</th>
+                        <th class="px-4 py-2 text-left">Data Type</th>
+                        <th class="px-4 py-2 text-left">Nullable</th>
+                        <th class="px-4 py-2 text-left">Distinct Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {schema.fields().iter().enumerate().map(|(idx, field)| {
+                        let type_display = format_arrow_type(field.data_type());
+
+                        let field_name = field.name().to_string();
+                        let field_id = idx as i32;
+
+                        view! {
+                            <tr class="border-b hover:bg-gray-50 text-gray-700">
+                                <td class="px-4 py-2 font-medium">{field_name.clone()}</td>
+                                <td class="px-4 py-2 font-mono">{type_display}</td>
+                                <td class="px-4 py-2">{if field.is_nullable() { "✓" } else { "✗" }}</td>
+                                <td class="px-4 py-2">
+                                    <button
+                                        on:click=move |_| {
+                                            calculate_distinct(
+                                                field_id as usize,
+                                                &field_name,
+                                                &table_name.get(),
+                                            );
+                                        }
+                                        class="hover:bg-gray-100 px-2 py-1 rounded"
+                                    >
+                                        {move || {
+                                            // Find if this field has a corresponding distinct count
+                                            distinct_count.with(|distinct_count| {
+                                                distinct_count[field_id as usize]
+                                                    .as_ref()
+                                                    .and_then(|count| count.get().map(|c| c.to_string()))
+                                                    .unwrap_or("👁️‍🗨".to_string())
+                                            })
+                                        }}
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }).collect::<Vec<_>>()}
+                </tbody>
+            </table>
+
+            {(!schema.metadata().is_empty()).then(|| view! {
+                <div class="mt-4">
+                    <details>
+                        <summary class="cursor-pointer text-sm font-medium text-gray-700 py-2">
+                            Metadata
+                        </summary>
+                        <div class="pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm">
+                            <pre class="whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60">
+                                {format!("{:#?}", schema.metadata())}
+                            </pre>
+                        </div>
+                    </details>
+                </div>
+            })}
         </div>
     }
 }
