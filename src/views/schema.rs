@@ -245,59 +245,68 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody>
-                    {schema.fields().iter().enumerate().map(|(idx, field)| {
-                        let type_display = format_arrow_type(field.data_type());
+                    {schema
+                        .fields()
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, field)| {
+                            let type_display = format_arrow_type(field.data_type());
+                            let field_name = field.name().to_string();
+                            let field_id = idx as i32;
 
-                        let field_name = field.name().to_string();
-                        let field_id = idx as i32;
-
-                        view! {
-                            <tr class="border-b hover:bg-gray-50 text-gray-700">
-                                <td class="px-4 py-2 font-medium">{field_name.clone()}</td>
-                                <td class="px-4 py-2 font-mono">{type_display}</td>
-                                <td class="px-4 py-2">{if field.is_nullable() { "✓" } else { "✗" }}</td>
-                                <td class="px-4 py-2">
-                                    <button
-                                        on:click=move |_| {
-                                            calculate_distinct(
-                                                field_id as usize,
-                                                &field_name,
-                                                &table_name.get(),
-                                            );
-                                        }
-                                        class="hover:bg-gray-100 px-2 py-1 rounded"
-                                    >
-                                        {move || {
-                                            // Find if this field has a corresponding distinct count
-                                            distinct_count.with(|distinct_count| {
-                                                distinct_count[field_id as usize]
-                                                    .as_ref()
-                                                    .and_then(|count| count.get().map(|c| c.to_string()))
-                                                    .unwrap_or("👁️‍🗨".to_string())
-                                            })
-                                        }}
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    }).collect::<Vec<_>>()}
+                            view! {
+                                <tr class="border-b hover:bg-gray-50 text-gray-700">
+                                    <td class="px-4 py-2 font-medium">{field_name.clone()}</td>
+                                    <td class="px-4 py-2 font-mono">{type_display}</td>
+                                    <td class="px-4 py-2">
+                                        {if field.is_nullable() { "✓" } else { "✗" }}
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <button
+                                            on:click=move |_| {
+                                                calculate_distinct(
+                                                    field_id as usize,
+                                                    &field_name,
+                                                    &table_name.get(),
+                                                );
+                                            }
+                                            class="hover:bg-gray-100 px-2 py-1 rounded"
+                                        >
+                                            {move || {
+                                                distinct_count
+                                                    .with(|distinct_count| {
+                                                        distinct_count[field_id as usize]
+                                                            .as_ref()
+                                                            .and_then(|count| count.get().map(|c| c.to_string()))
+                                                            .unwrap_or("👁️‍🗨".to_string())
+                                                    })
+                                            }}
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        })
+                        .collect::<Vec<_>>()}
                 </tbody>
             </table>
 
-            {(!schema.metadata().is_empty()).then(|| view! {
-                <div class="mt-4">
-                    <details>
-                        <summary class="cursor-pointer text-sm font-medium text-gray-700 py-2">
-                            Metadata
-                        </summary>
-                        <div class="pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm">
-                            <pre class="whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60">
-                                {format!("{:#?}", schema.metadata())}
-                            </pre>
+            {(!schema.metadata().is_empty())
+                .then(|| {
+                    view! {
+                        <div class="mt-4">
+                            <details>
+                                <summary class="cursor-pointer text-sm font-medium text-gray-700 py-2">
+                                    Metadata
+                                </summary>
+                                <div class="pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm">
+                                    <pre class="whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60">
+                                        {format!("{:#?}", schema.metadata())}
+                                    </pre>
+                                </div>
+                            </details>
                         </div>
-                    </details>
-                </div>
-            })}
+                    }
+                })}
         </div>
     }
 }

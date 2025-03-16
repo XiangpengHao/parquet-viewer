@@ -318,11 +318,7 @@ fn App() -> impl IntoView {
                                 view! {
                                     <div class="text-center text-gray-500 py-8">
                                         "No file selected, try "
-                                        <a
-                                            class="text-blue-500"
-                                            href=DEFAULT_URL
-                                            target="_blank"
-                                        >
+                                        <a class="text-blue-500" href=DEFAULT_URL target="_blank">
                                             an example?
                                         </a>
                                     </div>

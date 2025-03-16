@@ -354,23 +354,28 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                                                     {".custom-details > summary { list-style: none; }
                                                                     .custom-details > summary::-webkit-details-marker { display: none; }
                                                                     .custom-details > summary::after {
-                                                                        content: '...';
-                                                                        font-size: 0.7em;
-                                                                        margin-left: 5px;
-                                                                        color: #6B7280;
-                                                                        display: inline-block;
-                                                                        transition: transform 0.2s;
+                                                                       content: '...';
+                                                                       font-size: 0.7em;
+                                                                       margin-left: 5px;
+                                                                       color: #6B7280;
+                                                                       display: inline-block;
+                                                                       transition: transform 0.2s;
                                                                     }
                                                                     .custom-details[open] > summary::after {
-                                                                        content: '';
+                                                                       content: '';
                                                                     }"}
                                                                 </style>
                                                                 <summary class="outline-none cursor-pointer">
-                                                                    <span class="text-gray-700">{cell_value[..100].to_string()}</span>
+                                                                    <span class="text-gray-700">
+                                                                        {cell_value[..100].to_string()}
+                                                                    </span>
                                                                 </summary>
-                                                                <div class="mt-1 text-gray-700">{cell_value[100..].to_string()}</div>
+                                                                <div class="mt-1 text-gray-700">
+                                                                    {cell_value[100..].to_string()}
+                                                                </div>
                                                             </details>
-                                                        }.into_any()
+                                                        }
+                                                            .into_any()
                                                     } else {
                                                         view! { <span>{cell_value}</span> }.into_any()
                                                     }}
@@ -402,9 +407,7 @@ pub fn QueryResultView(
     view! {
         <div class="p-3 bg-white border border-gray-300 rounded-md hover:shadow-md transition-shadow duration-200">
             <div class="flex justify-between items-center border-b border-gray-100 mb-2">
-                <div class="text-sm text-gray-500">
-                    {result.user_input}
-                </div>
+                <div class="text-sm text-gray-500">{result.user_input}</div>
                 <div class="flex items-center">
                     <div class="text-sm text-gray-500 mr-2">
                         {move || {
@@ -416,7 +419,7 @@ pub fn QueryResultView(
                                 now.get_date(),
                                 now.get_hours(),
                                 now.get_minutes(),
-                                now.get_seconds()
+                                now.get_seconds(),
                             )
                         }}
                     </div>
@@ -456,17 +459,18 @@ pub fn QueryResultView(
                                 return view! { <pre>Error generating SQL: {e}</pre> }.into_any();
                             }
                         };
-
                         set_progress.set("Executing query...");
-
                         let result = result.query_result.await;
                         match result {
                             Ok(result) => {
+
                                 view! { <QueryResultViewInner result=result sql=sql id=id /> }
                                     .into_any()
                             }
                             Err(e) => {
-                                let message = format!("Error executing query, context below:\nSQL:\t{sql}\nError:\t{e}");
+                                let message = format!(
+                                    "Error executing query, context below:\nSQL:\t{sql}\nError:\t{e}",
+                                );
                                 view! { <pre>{message}</pre> }.into_any()
                             }
                         }

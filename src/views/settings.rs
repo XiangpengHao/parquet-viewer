@@ -107,7 +107,9 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                             class="text-blue-500 hover:underline"
                                             target="_blank"
                                         >
-                                            "consider donating"</a>"; no data is collected, but CloudFlare may temporarily log the prompt and schema."
+                                            "consider donating"
+                                        </a>
+                                        "; no data is collected, but CloudFlare may temporarily log the prompt and schema."
                                     </p>
                                 </div>
                             </div>

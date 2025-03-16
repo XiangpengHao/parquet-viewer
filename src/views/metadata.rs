@@ -67,15 +67,11 @@ pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         </div>
                         <div class="space-y-2">
                             <span class="text-gray-400">"Row groups"</span>
-                            <span class="block">
-                                {metadata_display.row_group_count}
-                            </span>
+                            <span class="block">{metadata_display.row_group_count}</span>
                         </div>
                         <div class="space-y-2">
                             <span class="text-gray-400">"Total rows"</span>
-                            <span class="block">
-                                {format_rows(metadata_display.row_count)}
-                            </span>
+                            <span class="block">{format_rows(metadata_display.row_count)}</span>
                         </div>
                         <div class="space-y-2">
                             <span class="text-gray-400">"Columns"</span>
@@ -381,15 +377,11 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compressed"</div>
-                                <div>
-                                    {format!("{:.2} MB", compressed_size)}
-                                </div>
+                                <div>{format!("{:.2} MB", compressed_size)}</div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Uncompressed"</div>
-                                <div>
-                                    {format!("{:.2} MB", uncompressed_size)}
-                                </div>
+                                <div>{format!("{:.2} MB", uncompressed_size)}</div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compression ratio"</div>
@@ -445,15 +437,11 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compressed"</div>
-                                    <div>
-                                        {format!("{:.2} MB", column_info.compressed_size)}
-                                    </div>
+                                    <div>{format!("{:.2} MB", column_info.compressed_size)}</div>
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Uncompressed"</div>
-                                    <div>
-                                        {format!("{:.2} MB", column_info.uncompressed_size)}
-                                    </div>
+                                    <div>{format!("{:.2} MB", column_info.uncompressed_size)}</div>
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compression ratio"</div>
@@ -467,9 +455,7 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                 </div>
                                 <div class="space-y-1">
                                     <div class="text-sm text-gray-500">"Compression Type"</div>
-                                    <div>
-                                        {format!("{:?}", column_info.compression)}
-                                    </div>
+                                    <div>{format!("{:?}", column_info.compression)}</div>
                                 </div>
                                 <div class="col-span-2 space-y-1">
                                     <div class="text-sm text-gray-500">"Statistics"</div>
