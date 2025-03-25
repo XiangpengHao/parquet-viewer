@@ -403,7 +403,7 @@ pub fn QueryResultView(
 ) -> impl IntoView {
     let id = result.id;
 
-    let (progress, set_progress) = signal("Generating SQL...");
+    let (progress, set_progress) = signal("Generating SQL...".to_string());
 
     let toggle_display = toggle_display.clone();
 
@@ -462,7 +462,8 @@ pub fn QueryResultView(
                                 return view! { <pre>Error generating SQL: {e}</pre> }.into_any();
                             }
                         };
-                        set_progress.set("Executing query...");
+                        let message = format!("Executing SQL...\n\n{sql}");
+                        set_progress.set(message);
                         let result = result.query_result.await;
                         match result {
                             Ok(result) => {
