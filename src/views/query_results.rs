@@ -135,7 +135,12 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
     let query_result_clone1 = result.record_batches.clone();
     let query_result_clone2 = result.record_batches.clone();
     let sql_clone = sql.clone();
-    let total_rows = result.record_batches[0].num_rows();
+    let schema = result.physical_plan.schema();
+    let total_rows = result
+        .record_batches
+        .iter()
+        .map(|b| b.num_rows())
+        .sum::<usize>();
     let (current_page, set_current_page) = signal(1);
     let visible_rows = move || (current_page.get() * 20).min(total_rows);
     let table_container = NodeRef::<leptos::html::Div>::new();
@@ -310,9 +315,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
             <table class="min-w-full bg-white table-fixed">
                 <thead class="sticky top-0 z-10 bg-gray-50">
                     <tr>
-                        {result
-                            .record_batches[0]
-                            .schema()
+                        {schema
                             .fields()
                             .iter()
                             .map(|field| {
