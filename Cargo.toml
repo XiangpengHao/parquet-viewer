@@ -38,7 +38,6 @@ zstd = { version = "*", features = ["wasm", "thin"], default-features = false }
 zstd-sys = { version = "=2.0.9", default-features = false }
 serde = { version = "1.0" }
 
-# Use our fork until https://github.com/apache/opendal/pull/5530
 opendal = { version = "0.52.0", default-features = false, features = [
 	"services-s3",
 	"services-http",

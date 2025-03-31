@@ -370,11 +370,11 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                                                 </style>
                                                                 <summary class="outline-none cursor-pointer">
                                                                     <span class="text-gray-700">
-                                                                        {cell_value[..100].to_string()}
+                                                                        {cell_value.chars().take(100).collect::<String>()}
                                                                     </span>
                                                                 </summary>
                                                                 <div class="mt-1 text-gray-700">
-                                                                    {cell_value[100..].to_string()}
+                                                                    {cell_value.chars().skip(100).collect::<String>()}
                                                                 </div>
                                                             </details>
                                                         }
