@@ -1,6 +1,13 @@
 use std::sync::Arc;
 
+use anyhow::Result;
+use arrow_array::RecordBatch;
 use arrow_schema::{DataType, Field};
+use datafusion::{
+    physical_plan::{ExecutionPlan, collect},
+    prelude::SessionContext,
+};
+use leptos::logging;
 
 pub fn format_rows(rows: u64) -> String {
     let mut result = rows.to_string();
@@ -50,4 +57,21 @@ pub fn format_struct_type(fields: &[Arc<Field>]) -> String {
         .collect();
 
     format!("Struct{{{}}}", field_strs.join(", "))
+}
+
+pub(crate) async fn execute_query_inner(
+    query: &str,
+    ctx: &SessionContext,
+) -> Result<(Vec<RecordBatch>, Arc<dyn ExecutionPlan>)> {
+    let plan = ctx.sql(query).await?;
+
+    let (state, plan) = plan.into_parts();
+    let plan = state.optimize(&plan)?;
+
+    logging::log!("{}", &plan.display_indent());
+
+    let physical_plan = state.create_physical_plan(&plan).await?;
+
+    let results = collect(physical_plan.clone(), ctx.task_ctx().clone()).await?;
+    Ok((results, physical_plan))
 }

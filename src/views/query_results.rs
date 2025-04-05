@@ -15,8 +15,9 @@ use parquet::arrow::ArrowWriter;
 use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
 
+use crate::SESSION_CTX;
 use crate::utils::format_arrow_type;
-use crate::{ParquetResolved, execute_query_inner};
+use crate::{ParquetResolved, utils::execute_query_inner};
 
 fn download_data(file_name: &str, data: Vec<u8>) {
     let blob =
@@ -97,8 +98,9 @@ impl QueryResult {
         });
         let query_result = LocalResource::new(move || async move {
             let sql = generated_sql.await?;
-            let (results, execution_plan) =
-                execute_query_inner(&sql).await.map_err(|e| e.to_string())?;
+            let (results, execution_plan) = execute_query_inner(&sql, &SESSION_CTX)
+                .await
+                .map_err(|e| e.to_string())?;
             let row_cnt = results.iter().map(|r| r.num_rows()).sum::<usize>();
             logging::log!("finished executing: {:?}, row_cnt: {}", sql, row_cnt);
             Ok(ExecutionResult {

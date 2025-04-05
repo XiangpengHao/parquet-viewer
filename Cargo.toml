@@ -50,6 +50,7 @@ async-trait = "0.1.87"
 url = "2.5.4"
 anyhow = "1.0"
 uuid = { version = "1.15.1", features = ["v4", "js"] }
+tokio = { version = "1.44.1", features = ["rt"] }
 
 [profile.release]
 strip = true

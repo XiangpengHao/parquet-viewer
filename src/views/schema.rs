@@ -1,4 +1,7 @@
-use crate::{ParquetResolved, execute_query_inner, utils::format_arrow_type};
+use crate::{
+    ParquetResolved, SESSION_CTX,
+    utils::{execute_query_inner, format_arrow_type},
+};
 use arrow_array::cast::AsArray;
 use arrow_array::types::Int64Type;
 use leptos::prelude::*;
@@ -144,7 +147,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         let distinct_column_count = LocalResource::new(move || {
             let query = distinct_query.clone();
             async move {
-                let (results, _) = execute_query_inner(&query).await.unwrap();
+                let (results, _) = execute_query_inner(&query, &SESSION_CTX).await.unwrap();
 
                 let first_batch = results.first().unwrap();
                 let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);

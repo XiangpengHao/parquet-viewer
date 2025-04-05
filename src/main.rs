@@ -21,13 +21,13 @@ mod views;
 
 use views::metadata::MetadataSection;
 use views::parquet_reader::{ParquetReader, ParquetUnresolved};
-use views::query_input::{QueryInput, execute_query_inner};
+use views::query_input::QueryInput;
 use views::query_results::{QueryResult, QueryResultView};
 use views::schema::SchemaSection;
 use views::settings::Settings;
 
 pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| {
-    let mut config = SessionConfig::new();
+    let mut config = SessionConfig::new().with_target_partitions(1);
     config.options_mut().sql_parser.dialect = "PostgreSQL".to_string();
     config.options_mut().execution.parquet.pushdown_filters = true;
     Arc::new(SessionContext::new_with_config(config))

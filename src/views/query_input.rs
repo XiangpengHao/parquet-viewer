@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
 use anyhow::Result;
-use arrow_array::RecordBatch;
 use arrow_schema::SchemaRef;
-use datafusion::physical_plan::{ExecutionPlan, collect};
 use leptos::wasm_bindgen::{JsCast, JsValue};
 use leptos::{logging, prelude::*};
 use serde_json::json;
@@ -11,24 +7,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response, js_sys};
 
 use crate::utils::get_stored_value;
-use crate::{ParquetResolved, SESSION_CTX, views::settings::ANTHROPIC_API_KEY};
-
-pub(crate) async fn execute_query_inner(
-    query: &str,
-) -> Result<(Vec<RecordBatch>, Arc<dyn ExecutionPlan>)> {
-    let ctx = SESSION_CTX.as_ref();
-    let plan = ctx.sql(query).await?;
-
-    let (state, plan) = plan.into_parts();
-    let plan = state.optimize(&plan)?;
-
-    logging::log!("{}", &plan.display_indent());
-
-    let physical_plan = state.create_physical_plan(&plan).await?;
-
-    let results = collect(physical_plan.clone(), ctx.task_ctx().clone()).await?;
-    Ok((results, physical_plan))
-}
+use crate::{ParquetResolved, views::settings::ANTHROPIC_API_KEY};
 
 #[component]
 pub fn QueryInput(
