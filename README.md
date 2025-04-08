@@ -35,12 +35,11 @@ It compiles [Parquet](https://github.com/apache/arrow-rs), [Arrow](https://githu
 
 Checkout the awesome [Leptos](https://github.com/leptos-rs/leptos) framework.
 
+#### Run locally
 ```bash
 cargo install trunk --locked
 
-trunk serve --open
-
-trunk build --release
+trunk serve --release  --no-autoreload
 ```
 
 #### Run tests

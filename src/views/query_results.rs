@@ -359,15 +359,15 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                                                     {".custom-details > summary { list-style: none; }
                                                                     .custom-details > summary::-webkit-details-marker { display: none; }
                                                                     .custom-details > summary::after {
-                                                                       content: '...';
-                                                                       font-size: 0.7em;
-                                                                       margin-left: 5px;
-                                                                       color: #6B7280;
-                                                                       display: inline-block;
-                                                                       transition: transform 0.2s;
+                                                                      content: '...';
+                                                                      font-size: 0.7em;
+                                                                      margin-left: 5px;
+                                                                      color: #6B7280;
+                                                                      display: inline-block;
+                                                                      transition: transform 0.2s;
                                                                     }
                                                                     .custom-details[open] > summary::after {
-                                                                       content: '';
+                                                                      content: '';
                                                                     }"}
                                                                 </style>
                                                                 <summary class="outline-none cursor-pointer">

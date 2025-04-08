@@ -1,15 +1,13 @@
 {
-	"rust-analyzer.procMacro.ignored": {
-		"leptos_macro": [
-			// optional:
-			// "component",
-			"server"
-		],
-	},
-	"rust-analyzer.cargo.target": "wasm32-unknown-unknown",
-	"rust-analyzer.cargo.features": [
-		// "ssr"
+	"rust-analyzer.rustfmt.overrideCommand": [
+		"leptosfmt",
+		"--stdin",
+		"--rustfmt"
 	],
+	"editor.formatOnSave": true,
+	"[rust]": {
+		"editor.defaultFormatter": "rust-lang.rust-analyzer",
+	},
 	"emmet.includeLanguages": {
 		"rust": "html",
 		"*.rs": "html"
@@ -27,4 +25,15 @@
 		"strings": true
 	},
 	"css.validate": false,
+	"rust-analyzer.procMacro.ignored": {
+		"leptos_macro": [
+			// optional:
+			// "component",
+			"server"
+		],
+	},
+	"rust-analyzer.cargo.target": "wasm32-unknown-unknown",
+	"rust-analyzer.cargo.features": [
+		// "ssr"
+	],
 }
