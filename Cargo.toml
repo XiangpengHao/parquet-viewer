@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-arrow = { version = "54.2.1", default-features = false }
-arrow-schema = { version = "54.2.1", default-features = false }
-arrow-array = { version = "54.2.1", default-features = false }
+arrow = { version = "54.3.1", default-features = false }
+arrow-schema = { version = "54.3.1", default-features = false }
+arrow-array = { version = "54.3.1", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "46.0.0", default-features = false, features = [
+datafusion = { version = "46.0.1", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.7", features = ["csr", "nightly"] }
-parquet = { version = "54.2.1", features = [
+parquet = { version = "54.3.1", features = [
 	"arrow",
 	"snap",
 	"flate2",
@@ -35,20 +35,19 @@ web-sys = { version = "0.3.77", features = [
 chrono = { version = "0.4", features = ["wasmbind"] }
 futures = "0.3.31"
 zstd = { version = "*", features = ["wasm", "thin"], default-features = false }
-zstd-sys = { version = "=2.0.9", default-features = false }
 serde = { version = "1.0" }
 opendal = { version = "0.52.0", default-features = false, features = [
 	"services-s3",
 	"services-http",
 ] }
 object_store_opendal = { version = "0.50.0", features = ["send_wrapper"] }
-leptos_router = { version = "0.7.7", features = ["nightly"] }
+leptos_router = { version = "0.7.8", features = ["nightly"] }
 object_store = "0.11.2"
-async-trait = "0.1.87"
+async-trait = "0.1.88"
 url = "2.5.4"
 anyhow = "1.0"
-uuid = { version = "1.15.1", features = ["v4", "js"] }
-tokio = { version = "1.44.1", features = ["rt"] }
+uuid = { version = "1.16.0", features = ["v4", "js"] }
+tokio = { version = "1.44.2", features = ["rt"] }
 
 [profile.release]
 strip = true
