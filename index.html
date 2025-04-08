@@ -12,13 +12,24 @@
 		content="parquet, data viewer, SQL query, data analysis, big data, data tools, rust, webAssembly, datafusion" />
 	<meta name="author" content="Xiangpeng Hao" />
 
+	<!-- PWA Meta Tags -->
+	<meta name="theme-color" content="#4a5568" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="mobile-web-app-title" content="Parquet Viewer" />
+	<link rel="manifest" href="public/manifest.json" />
+	<link rel="apple-touch-icon" href="public/icon-192x192.png" />
+
 	<!-- Open Graph / Social Media Meta Tags -->
 	<meta property="og:title" content="Parquet Viewer - View and Query Parquet Files" />
 	<meta property="og:description" content="A web-based Parquet file viewer and query tool." />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://parquet-viewer.xiangpeng.systems" />
 
+	<!-- Trunk managed resources -->
 	<link data-trunk rel="tailwind-css" href="doc/tailwind.css" />
+	<link data-trunk rel="copy-dir" href="public" />
+	<link data-trunk rel="copy-file" href="public/sw.js" />
 
 	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
@@ -46,6 +57,21 @@
 	</style>
 </head>
 
-<body class="bg-gray-50"></body>
+<body class="bg-gray-50">
+	<script>
+		// Service worker registration
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', () => {
+				navigator.serviceWorker.register('/sw.js')
+					.then(registration => {
+						console.log('Service Worker registered with scope:', registration.scope);
+					})
+					.catch(err => {
+						console.log('Service Worker registration failed:', err);
+					});
+			});
+		}
+	</script>
+</body>
 
 </html>

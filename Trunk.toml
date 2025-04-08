@@ -1,3 +1,7 @@
-
 [build]
 minify = "on_release"
+
+
+# Watch configuration
+[watch]
+ignore = ["./dist"]
