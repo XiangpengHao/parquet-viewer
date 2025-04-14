@@ -5,16 +5,16 @@ use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use datafusion::{
     common::cast::{as_binary_array, as_binary_view_array, as_string_view_array},
-    physical_plan::ExecutionPlan, 
+    physical_plan::ExecutionPlan,
 };
 use leptos::{logging, prelude::*};
 use parquet::arrow::ArrowWriter;
 use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
 
-use crate::views::plan_visualizer::PhysicalPlan;
 use crate::SESSION_CTX;
 use crate::utils::format_arrow_type;
+use crate::views::plan_visualizer::PhysicalPlan;
 use crate::{ParquetResolved, utils::execute_query_inner};
 
 fn download_data(file_name: &str, data: Vec<u8>) {

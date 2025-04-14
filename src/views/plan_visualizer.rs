@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use datafusion::physical_plan::{accept, display::DisplayableExecutionPlan, DisplayFormatType, ExecutionPlan, ExecutionPlanVisitor};
+use datafusion::physical_plan::{
+    DisplayFormatType, ExecutionPlan, ExecutionPlanVisitor, accept,
+    display::DisplayableExecutionPlan,
+};
 use leptos::{logging, prelude::*};
 
 #[derive(Debug, Clone)]
