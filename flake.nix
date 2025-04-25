@@ -29,12 +29,19 @@
               pkg-config
               eza
               fd
-			        trunk
+              trunk
               wasm-pack
               wabt
               libiconv
+              llvmPackages_19.clang-unwrapped
+              llvmPackages_19.libcxx
               (rust-bin.fromRustupToolchainFile (./rust-toolchain.toml))
             ];
+            shellHook = ''
+              export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+              export C_INCLUDE_PATH="${pkgs.llvmPackages_19.libcxx.dev}/include/c++/v1:${pkgs.llvmPackages_19.clang-unwrapped.lib}/lib/clang/19/include"
+              export CPLUS_INCLUDE_PATH="${pkgs.llvmPackages_19.libcxx.dev}/include/c++/v1:${pkgs.llvmPackages_19.clang-unwrapped.lib}/lib/clang/19/include"
+            '';
           };
       }
     );
