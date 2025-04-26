@@ -19,8 +19,7 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     let schema_str = schema_to_brief_str(schema);
 
     let prompt = format!(
-        "Generate a SQL query to answer the following question: {}. You should generate PostgreSQL SQL dialect, all field names and table names should be double quoted, and the output SQL should be executable, be careful about the available columns. The table name is: \"{}\" (without quotes), the schema of the table is: {}.  ",
-        input, file_name, schema_str
+        "Generate a SQL query to answer the following question: {input}. You should generate PostgreSQL SQL dialect, all field names and table names should be double quoted, and the output SQL should be executable, be careful about the available columns. The table name is: \"{file_name}\" (without quotes), the schema of the table is: {schema_str}.  ",
     );
     logging::log!("{}", prompt);
 

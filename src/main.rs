@@ -196,12 +196,12 @@ fn App() -> impl IntoView {
                             on_user_submit_query_call_back(DEFAULT_QUERY.to_string());
                         }
                         Err(e) => {
-                            set_error_message.set(Some(format!("{:#?}", e)));
+                            set_error_message.set(Some(format!("{e:#?}")));
                         }
                     }
                 });
             }
-            Err(e) => set_error_message.set(Some(format!("{:#?}", e))),
+            Err(e) => set_error_message.set(Some(format!("{e:#?}"))),
         };
 
     view! {

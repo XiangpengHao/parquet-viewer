@@ -159,11 +159,10 @@ pub fn ParquetReader(
                         class=move || {
                             let base = "py-2 px-1 border-b-2 font-medium text-sm";
                             if active_tab.get() == "file" {
-                                return format!("{} border-green-500 text-green-600", base);
+                                return format!("{base} border-green-500 text-green-600");
                             }
                             format!(
-                                "{} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                base,
+                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
                             )
                         }
                         on:click=move |_| set_active_tab_fn("file")
@@ -174,11 +173,10 @@ pub fn ParquetReader(
                         class=move || {
                             let base = "py-2 px-1 border-b-2 font-medium text-sm";
                             if active_tab.get() == "url" {
-                                return format!("{} border-green-500 text-green-600", base);
+                                return format!("{base} border-green-500 text-green-600");
                             }
                             format!(
-                                "{} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                base,
+                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
                             )
                         }
                         on:click=move |_| set_active_tab_fn("url")
@@ -189,11 +187,10 @@ pub fn ParquetReader(
                         class=move || {
                             let base = "py-2 px-1 border-b-2 font-medium text-sm";
                             if active_tab.get() == "s3" {
-                                return format!("{} border-green-500 text-green-600", base);
+                                return format!("{base} border-green-500 text-green-600");
                             }
                             format!(
-                                "{} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                base,
+                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
                             )
                         }
                         on:click=move |_| set_active_tab_fn("s3")
@@ -243,7 +240,7 @@ fn FileReader(
 
                 let (object_store, object_store_url) = (
                     Arc::new(InMemory::new()),
-                    ObjectStoreUrl::parse(format!("inmemory://{}", uuid))?,
+                    ObjectStoreUrl::parse(format!("inmemory://{uuid}"))?,
                 );
 
                 object_store
@@ -290,7 +287,7 @@ pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
         "{}://{}{}",
         url.scheme(),
         url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
-        url.port().map_or("".to_string(), |p| format!(":{}", p))
+        url.port().map_or("".to_string(), |p| format!(":{p}"))
     );
     let path = url.path().to_string();
 
@@ -390,7 +387,7 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
         .bucket(s3_bucket)
         .region(s3_region);
 
-    let path = format!("s3://{}", s3_bucket);
+    let path = format!("s3://{s3_bucket}");
 
     let op = Operator::new(cfg)?.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));

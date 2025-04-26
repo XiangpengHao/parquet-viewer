@@ -183,9 +183,9 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                     <div class="flex items-center rounded-md">
                         <div class="text-sm text-gray-500 font-mono relative group">
                             <span class=TOOLTIP_CLASSES>
-                                {format!("SELECT * FROM view_{}", id)}
+                                {format!("SELECT * FROM view_{id}")}
                             </span>
-                            {format!("view_{}", id)}
+                            {format!("view_{id}")}
                         </div>
                         {
                             view! {
@@ -569,10 +569,10 @@ impl ArrayExt for dyn Array {
                         let values = array.values();
                         values.value_to_string(array.key(index).unwrap_or_default())
                     }
-                    _ => format!("Unsupported dictionary key type {}", key_type),
+                    _ => format!("Unsupported dictionary key type {key_type}"),
                 }
             }
-            t => format!("Unsupported datatype {}", t)
+            t => format!("Unsupported datatype {t}"),
         )
     }
 }

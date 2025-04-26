@@ -82,7 +82,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 ColumnData {
                     id: i,
                     name: field_name.to_string(),
-                    data_type: format!("{}", data_type),
+                    data_type: data_type.to_string(),
                     compressed_size: compressed,
                     uncompressed_size: uncompressed,
                     compression_ratio: if uncompressed > 0 {
@@ -135,15 +135,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             // 1KB
             format!("{:.2} KB", size as f64 / 1024.0)
         } else {
-            format!("{} B", size)
+            format!("{size} B")
         }
     }
 
     let calculate_distinct = move |col_id: usize, column_name: &String, table_name: &String| {
-        let distinct_query = format!(
-            "SELECT COUNT(DISTINCT \"{}\") from \"{}\"",
-            column_name, table_name
-        );
+        let distinct_query =
+            format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
         let distinct_column_count = LocalResource::new(move || {
             let query = distinct_query.clone();
             async move {

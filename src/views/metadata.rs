@@ -142,73 +142,73 @@ fn stats_to_string(stats: &Option<Statistics>) -> String {
             match stats {
                 Statistics::Int32(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {}", min));
+                        parts.push(format!("min: {min}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {}", max));
+                        parts.push(format!("max: {max}"));
                     }
                 }
                 Statistics::Int64(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {}", min));
+                        parts.push(format!("min: {min}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {}", max));
+                        parts.push(format!("max: {max}"));
                     }
                 }
                 Statistics::Int96(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {}", min));
+                        parts.push(format!("min: {min}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {}", max));
+                        parts.push(format!("max: {max}"));
                     }
                 }
                 Statistics::Boolean(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {}", min));
+                        parts.push(format!("min: {min}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {}", max));
+                        parts.push(format!("max: {max}"));
                     }
                 }
                 Statistics::Float(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {:.2}", min));
+                        parts.push(format!("min: {min:.2}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {:.2}", max));
+                        parts.push(format!("max: {max:.2}"));
                     }
                 }
                 Statistics::Double(s) => {
                     if let Some(min) = s.min_opt() {
-                        parts.push(format!("min: {:.2}", min));
+                        parts.push(format!("min: {min:.2}"));
                     }
                     if let Some(max) = s.max_opt() {
-                        parts.push(format!("max: {:.2}", max));
+                        parts.push(format!("max: {max:.2}"));
                     }
                 }
                 Statistics::ByteArray(s) => {
                     if let Some(min) = s.min_opt() {
                         if let Ok(min_utf8) = min.as_utf8() {
-                            parts.push(format!("min: {:?}", min_utf8));
+                            parts.push(format!("min: {min_utf8}"));
                         }
                     }
                     if let Some(max) = s.max_opt() {
                         if let Ok(max_utf8) = max.as_utf8() {
-                            parts.push(format!("max: {:?}", max_utf8));
+                            parts.push(format!("max: {max_utf8}"));
                         }
                     }
                 }
                 Statistics::FixedLenByteArray(s) => {
                     if let Some(min) = s.min_opt() {
                         if let Ok(min_utf8) = min.as_utf8() {
-                            parts.push(format!("min: {:?}", min_utf8));
+                            parts.push(format!("min: {min_utf8}"));
                         }
                     }
                     if let Some(max) = s.max_opt() {
                         if let Ok(max_utf8) = max.as_utf8() {
-                            parts.push(format!("max: {:?}", max_utf8));
+                            parts.push(format!("max: {max_utf8}"));
                         }
                     }
                 }
@@ -363,7 +363,7 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             .map(|i| {
                                 view! {
                                     <option value=i.to_string() class="py-2">
-                                        {format!("{}", i)}
+                                        {format!("{i}")}
                                     </option>
                                 }
                             })
@@ -377,11 +377,11 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compressed"</div>
-                                <div>{format!("{:.2} MB", compressed_size)}</div>
+                                <div>{format!("{compressed_size:.2} MB")}</div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Uncompressed"</div>
-                                <div>{format!("{:.2} MB", uncompressed_size)}</div>
+                                <div>{format!("{uncompressed_size:.2} MB")}</div>
                             </div>
                             <div class="space-y-1">
                                 <div class="text-sm text-gray-500">"Compression ratio"</div>
@@ -480,13 +480,13 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                                 .map(|(i, (page_type, size, values, encoding))| {
                                                     view! {
                                                         <div class="flex gap-4 text-sm">
-                                                            <span class="w-4">{format!("{}", i)}</span>
-                                                            <span class="w-32">{format!("{:?}", page_type)}</span>
+                                                            <span class="w-4">{format!("{i}")}</span>
+                                                            <span class="w-32">{format!("{page_type:?}")}</span>
                                                             <span class="w-16">
                                                                 {format!("{} KB", size.round() as i64)}
                                                             </span>
                                                             <span class="w-16">{format_rows(*values as u64)}</span>
-                                                            <span>{format!("{:?}", encoding)}</span>
+                                                            <span>{format!("{encoding:?}")}</span>
                                                         </div>
                                                     }
                                                 })
