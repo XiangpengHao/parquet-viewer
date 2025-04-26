@@ -13,6 +13,7 @@ use parquet::{
 };
 use std::{sync::Arc, sync::LazyLock};
 
+mod nl_to_sql;
 mod object_store_cache;
 #[cfg(test)]
 mod tests;

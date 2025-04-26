@@ -48,6 +48,7 @@ url = "2.5.4"
 anyhow = "1.0"
 uuid = { version = "1.16.0", features = ["v4", "js"] }
 tokio = { version = "1.44.2", features = ["rt"] }
+gloo-net = "0.6.0"
 
 [profile.release]
 strip = true

@@ -12,14 +12,14 @@ pub(crate) const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 
 #[component]
 pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl IntoView {
-    let (anthropic_key, set_anthropic_key) = signal(get_stored_value(ANTHROPIC_API_KEY, ""));
-    let (s3_endpoint, set_s3_endpoint) = signal(get_stored_value(
-        S3_ENDPOINT_KEY,
-        "https://s3.amazonaws.com",
-    ));
+    let (anthropic_key, set_anthropic_key) =
+        signal(get_stored_value(ANTHROPIC_API_KEY).unwrap_or_default());
+    let (s3_endpoint, set_s3_endpoint) =
+        signal(get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string()));
     let (s3_access_key_id, set_s3_access_key_id) =
-        signal(get_stored_value(S3_ACCESS_KEY_ID_KEY, ""));
-    let (s3_secret_key, set_s3_secret_key) = signal(get_stored_value(S3_SECRET_KEY_KEY, ""));
+        signal(get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default());
+    let (s3_secret_key, set_s3_secret_key) =
+        signal(get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default());
 
     let close_modal = move |_| {
         set_show.set(false);

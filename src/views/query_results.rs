@@ -89,7 +89,7 @@ impl QueryResult {
             let user_query = user_query.clone();
             let parquet_table = parquet_table.clone();
             async move {
-                crate::views::query_input::user_input_to_sql(&user_query, &parquet_table)
+                crate::nl_to_sql::user_input_to_sql(&user_query, &parquet_table)
                     .await
                     .map_err(|e| e.to_string())
             }

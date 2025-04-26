@@ -19,13 +19,10 @@ pub fn format_rows(rows: u64) -> String {
     result
 }
 
-pub(crate) fn get_stored_value(key: &str, default: &str) -> String {
-    let window = web_sys::window().unwrap();
-    let storage = window.local_storage().unwrap().unwrap();
-    storage
-        .get_item(key)
-        .unwrap()
-        .unwrap_or_else(|| default.to_string())
+pub(crate) fn get_stored_value(key: &str) -> Option<String> {
+    let window = web_sys::window()?;
+    let storage = window.local_storage().unwrap()?;
+    storage.get_item(key).unwrap()
 }
 
 pub(crate) fn save_to_storage(key: &str, value: &str) {

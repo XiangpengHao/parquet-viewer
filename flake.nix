@@ -32,7 +32,7 @@
               trunk
               wasm-pack
               wabt
-              libiconv
+              leptosfmt
               llvmPackages_19.clang-unwrapped
               llvmPackages_19.libcxx
               (rust-bin.fromRustupToolchainFile (./rust-toolchain.toml))

@@ -368,9 +368,10 @@ pub fn UrlReader(
 }
 
 fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<ParquetUnresolved> {
-    let endpoint = get_stored_value(S3_ENDPOINT_KEY, "https://s3.amazonaws.com");
-    let access_key_id = get_stored_value(S3_ACCESS_KEY_ID_KEY, "");
-    let secret_key = get_stored_value(S3_SECRET_KEY_KEY, "");
+    let endpoint =
+        get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string());
+    let access_key_id = get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default();
+    let secret_key = get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default();
 
     // Validate inputs
     if endpoint.is_empty() || s3_bucket.is_empty() || s3_file_path.is_empty() {
@@ -406,9 +407,11 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
 fn S3Reader(
     read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
 ) -> impl IntoView {
-    let (s3_bucket, set_s3_bucket) = signal(get_stored_value(S3_BUCKET_KEY, ""));
-    let (s3_region, set_s3_region) = signal(get_stored_value(S3_REGION_KEY, "us-east-1"));
-    let (s3_file_path, set_s3_file_path) = signal(get_stored_value(S3_FILE_PATH_KEY, ""));
+    let (s3_bucket, set_s3_bucket) = signal(get_stored_value(S3_BUCKET_KEY).unwrap_or_default());
+    let (s3_region, set_s3_region) =
+        signal(get_stored_value(S3_REGION_KEY).unwrap_or("us-east-1".to_string()));
+    let (s3_file_path, set_s3_file_path) =
+        signal(get_stored_value(S3_FILE_PATH_KEY).unwrap_or_default());
 
     let on_s3_bucket_change = move |ev| {
         let value = event_target_value(&ev);
