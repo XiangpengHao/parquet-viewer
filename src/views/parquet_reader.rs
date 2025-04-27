@@ -129,6 +129,56 @@ impl ParquetUnresolved {
     }
 }
 
+pub(crate) fn read_from_vscode(
+    obj: js_sys::Object,
+    call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
+) {
+    let file_data = js_sys::Reflect::get(&obj, &"data".into()).unwrap();
+    let file_name = js_sys::Reflect::get(&obj, &"filename".into()).unwrap();
+    let file_name = file_name.as_string().unwrap();
+
+    leptos::task::spawn_local({
+        let file_name = file_name.clone();
+        async move {
+            let result = async {
+                let array = js_sys::Uint8Array::new(&file_data);
+                let bytes = bytes::Bytes::from(array.to_vec());
+
+                logging::log!(
+                    "Received parquet file from VS Code: {}, length: {}",
+                    file_name,
+                    bytes.len()
+                );
+                let uuid = uuid::Uuid::new_v4();
+                let path_relative_to_object_store = Path::parse(&file_name)?;
+
+                let (object_store, object_store_url) = (
+                    Arc::new(InMemory::new()),
+                    ObjectStoreUrl::parse(format!("inmemory://{uuid}"))?,
+                );
+
+                object_store
+                    .put(
+                        &path_relative_to_object_store,
+                        PutPayload::from_bytes(bytes),
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Store operation failed: {:?}", e))?;
+
+                ParquetUnresolved::try_new(
+                    file_name.clone(),
+                    path_relative_to_object_store,
+                    object_store_url,
+                    object_store,
+                )
+            }
+            .await;
+
+            call_back(result);
+        }
+    });
+}
+
 #[component]
 pub fn ParquetReader(
     read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy + Sync,

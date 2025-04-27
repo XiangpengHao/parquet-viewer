@@ -8,6 +8,10 @@ use datafusion::{
     prelude::SessionContext,
 };
 use leptos::logging;
+use web_sys::{
+    js_sys,
+    wasm_bindgen::{JsCast, JsValue},
+};
 
 pub fn format_rows(rows: u64) -> String {
     let mut result = rows.to_string();
@@ -71,4 +75,25 @@ pub(crate) async fn execute_query_inner(
 
     let results = collect(physical_plan.clone(), ctx.task_ctx().clone()).await?;
     Ok((results, physical_plan))
+}
+
+pub(crate) fn vscode_env() -> Option<JsValue> {
+    let vscode =
+        js_sys::eval("typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null").ok()?;
+    if vscode.is_null() { None } else { Some(vscode) }
+}
+
+pub(crate) fn send_message_to_vscode(message_type: &str, vscode: &JsValue) {
+    let message = js_sys::Object::new();
+    js_sys::Reflect::set(&message, &"type".into(), &message_type.into()).unwrap();
+
+    if let Ok(post_message) = js_sys::Reflect::get(vscode, &"postMessage".into()) {
+        if post_message.is_function() {
+            let post_message_fn = post_message.dyn_ref::<js_sys::Function>().unwrap();
+
+            let _ = js_sys::Reflect::apply(post_message_fn, vscode, &js_sys::Array::of1(&message));
+
+            logging::log!("Sent message to VS Code: {}", message_type);
+        }
+    }
 }

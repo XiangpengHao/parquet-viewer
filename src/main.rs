@@ -4,7 +4,7 @@ use datafusion::{
     execution::object_store::ObjectStoreUrl,
     prelude::{SessionConfig, SessionContext},
 };
-use leptos::prelude::*;
+use leptos::{logging, prelude::*};
 use leptos_router::components::Router;
 use object_store::path::Path;
 use parquet::{
@@ -12,6 +12,8 @@ use parquet::{
     file::metadata::ParquetMetaData,
 };
 use std::{sync::Arc, sync::LazyLock};
+use utils::{send_message_to_vscode, vscode_env};
+use web_sys::js_sys;
 
 mod nl_to_sql;
 mod object_store_cache;
@@ -20,12 +22,12 @@ mod tests;
 mod utils;
 mod views;
 
-use views::metadata::MetadataSection;
 use views::parquet_reader::{ParquetReader, ParquetUnresolved};
 use views::query_input::QueryInput;
 use views::query_results::{QueryResult, QueryResultView};
 use views::schema::SchemaSection;
 use views::settings::Settings;
+use views::{metadata::MetadataSection, parquet_reader::read_from_vscode};
 
 pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| {
     let mut config = SessionConfig::new().with_target_partitions(1);
@@ -204,6 +206,30 @@ fn App() -> impl IntoView {
             Err(e) => set_error_message.set(Some(format!("{e:#?}"))),
         };
 
+    let vscode_env = vscode_env();
+    let is_in_vscode = vscode_env.is_some();
+    if let Some(vscode) = vscode_env {
+        send_message_to_vscode("ready", &vscode);
+
+        window_event_listener(leptos::ev::message, move |event: web_sys::MessageEvent| {
+            let data = event.data();
+            if !data.is_object() {
+                return;
+            }
+            let obj = js_sys::Object::from(data);
+            if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into()) {
+                if let Some(type_str) = type_val.as_string() {
+                    match type_str.as_str() {
+                        "parquetData" => {
+                            read_from_vscode(obj, on_parquet_read_call_back);
+                        }
+                        _ => logging::log!("Unknown message type: {}", type_str),
+                    }
+                }
+            }
+        });
+    }
+
     view! {
         <div class="container mx-auto px-4 py-8 max-w-6xl">
             <h1 class="text-3xl font-bold mb-8 flex items-center justify-between">
@@ -244,8 +270,14 @@ fn App() -> impl IntoView {
                 </div>
             </h1>
             <div class="space-y-6">
-                <ParquetReader read_call_back=on_parquet_read_call_back />
-
+                {move || {
+                    if is_in_vscode {
+                        ().into_any()
+                    } else {
+                        view! { <ParquetReader read_call_back=on_parquet_read_call_back /> }
+                            .into_any()
+                    }
+                }}
                 {move || {
                     error_message
                         .get()
@@ -259,9 +291,7 @@ fn App() -> impl IntoView {
                             }
                         })
                 }}
-
                 <div class="border-t border-gray-300 my-4"></div>
-
                 <div class="mt-4">
                     {move || {
                         parquet_table
@@ -281,7 +311,6 @@ fn App() -> impl IntoView {
                             })
                     }}
                 </div>
-
                 <div class="space-y-4">
                     <For
                         each=move || query_results.get().into_iter().filter(|r| r.display()).rev()
@@ -295,9 +324,7 @@ fn App() -> impl IntoView {
                         }
                     />
                 </div>
-
                 <div class="border-t border-gray-300 my-4"></div>
-
                 <div class="mt-8">
                     {move || {
                         let table = parquet_table.get();

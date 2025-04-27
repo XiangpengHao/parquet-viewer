@@ -1,0 +1,49 @@
+{
+  "name": "parquet-viewer",
+  "displayName": "Parquet Viewer",
+  "description": "View and query Parquet files directly in VSCode",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XiangpengHao/parquet-viewer"
+  },
+  "license": "MIT or Apache-2.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && npm run copy-dist",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "copy-dist": "node scripts/copy-dist.js"
+  },
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "parquetViewer.parquet",
+        "displayName": "Parquet Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.parquet"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "activationEvents": [],
+  "devDependencies": {
+    "@types/node": "^16.11.7",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "fs-extra": "^11.3.0",
+    "typescript": "^4.9.5"
+  }
+}

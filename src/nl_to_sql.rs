@@ -4,12 +4,27 @@ use gloo_net::http::Request;
 use leptos::logging;
 use serde_json::json;
 
-use crate::{ParquetResolved, utils::get_stored_value, views::settings::ANTHROPIC_API_KEY};
+use crate::{
+    DEFAULT_QUERY, ParquetResolved, utils::get_stored_value, views::settings::ANTHROPIC_API_KEY,
+};
+
+fn nl_cache(key: &str, file_name: &str) -> Option<String> {
+    if key == DEFAULT_QUERY {
+        return Some(format!("SELECT * FROM \"{file_name}\" LIMIT 10"));
+    }
+    None
+}
 
 pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) -> Result<String> {
     // if the input seems to be a SQL query, return it as is
     if input.starts_with("select") || input.starts_with("SELECT") {
         return Ok(input.to_string());
+    }
+
+    // check if the input is in the cache
+    let cached_sql = nl_cache(input, &context.table_name);
+    if let Some(sql) = cached_sql {
+        return Ok(sql);
     }
 
     // otherwise, treat it as some natural language
