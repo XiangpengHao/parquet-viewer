@@ -49,6 +49,17 @@ cargo install wasm-pack --locked
 wasm-pack test --headless --firefox
 ```
 
+#### Build VS Code extension
+
+```bash
+cd vscode-extension
+npm install
+npm run compile
+vsce login xiangpeng-systems
+vsce package
+vsce publish
+```
+
 ## License
 
 Licensed under either of

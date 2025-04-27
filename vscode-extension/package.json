@@ -1,8 +1,10 @@
 {
-  "name": "parquet-viewer",
-  "displayName": "Parquet Viewer",
-  "description": "View and query Parquet files directly in VSCode",
-  "version": "0.1.0",
+  "name": "parquet-querier",
+  "displayName": "Parquet Querier",
+  "description": "View and query Parquet files with SQL and natural language",
+  "version": "0.1.2",
+  "publisher": "xiangpeng-systems",
+  "icon": "dist/public/icon-192x192.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/XiangpengHao/parquet-viewer"
@@ -26,7 +28,7 @@
     "customEditors": [
       {
         "viewType": "parquetViewer.parquet",
-        "displayName": "Parquet Viewer",
+        "displayName": "Parquet Querier",
         "selector": [
           {
             "filenamePattern": "*.parquet"
