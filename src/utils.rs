@@ -8,6 +8,7 @@ use datafusion::{
     prelude::SessionContext,
 };
 use leptos::logging;
+use parquet::arrow::ArrowWriter;
 use web_sys::{
     js_sys,
     wasm_bindgen::{JsCast, JsValue},
@@ -96,4 +97,50 @@ pub(crate) fn send_message_to_vscode(message_type: &str, vscode: &JsValue) {
             logging::log!("Sent message to VS Code: {}", message_type);
         }
     }
+}
+
+fn download_data(file_name: &str, data: Vec<u8>) {
+    let blob =
+        web_sys::Blob::new_with_u8_array_sequence(&js_sys::Array::of1(&data.into())).unwrap();
+    let url = web_sys::Url::create_object_url_with_blob(&blob).unwrap();
+    let a = web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .create_element("a")
+        .unwrap();
+    a.set_attribute("href", &url).unwrap();
+    a.set_attribute("download", file_name).unwrap();
+    a.dyn_ref::<web_sys::HtmlElement>().unwrap().click();
+    web_sys::Url::revoke_object_url(&url).unwrap();
+}
+
+pub(crate) fn export_to_csv_inner(query_result: &[RecordBatch]) {
+    let mut data = Vec::new();
+    let mut writer = arrow::csv::WriterBuilder::new().build(&mut data);
+    for batch in query_result {
+        writer.write(batch).unwrap();
+    }
+    drop(writer);
+    download_data("query_results.csv", data);
+}
+
+pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
+    let mut buf = Vec::new();
+
+    let props = parquet::file::properties::WriterProperties::builder()
+        .set_compression(parquet::basic::Compression::LZ4)
+        .build();
+
+    let mut writer = ArrowWriter::try_new(&mut buf, query_result[0].schema(), Some(props))
+        .expect("Failed to create parquet writer");
+
+    // Write all record batches
+    for batch in query_result {
+        writer.write(batch).expect("Failed to write record batch");
+    }
+
+    writer.close().expect("Failed to close writer");
+
+    download_data("query_results.parquet", buf);
 }

@@ -15,8 +15,8 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
+use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
 use crate::utils::{get_stored_value, save_to_storage};
-use crate::{MetadataDisplay, ParquetResolved};
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -119,13 +119,13 @@ impl ParquetUnresolved {
         logging::log!("registered parquet table: {}", self.table_name.as_str());
 
         let size = metadata.memory_size();
-        Ok(ParquetResolved {
+        Ok(ParquetResolved::new(
             reader,
-            table_name: self.table_name.as_str().to_string(),
-            path: self.path_relative_to_object_store,
-            object_store_url: self.object_store_url,
-            display_info: MetadataDisplay::from_metadata(metadata, size as u64)?,
-        })
+            self.table_name.as_str().to_string(),
+            self.path_relative_to_object_store,
+            self.object_store_url,
+            MetadataDisplay::from_metadata(metadata, size as u64)?,
+        ))
     }
 }
 

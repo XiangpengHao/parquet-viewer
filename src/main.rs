@@ -1,22 +1,15 @@
 use anyhow::Result;
-use arrow::datatypes::SchemaRef;
-use datafusion::{
-    execution::object_store::ObjectStoreUrl,
-    prelude::{SessionConfig, SessionContext},
-};
+use datafusion::prelude::{SessionConfig, SessionContext};
 use leptos::{logging, prelude::*};
 use leptos_router::components::Router;
-use object_store::path::Path;
-use parquet::{
-    arrow::{async_reader::ParquetObjectReader, parquet_to_arrow_schema},
-    file::metadata::ParquetMetaData,
-};
+use parquet_ctx::ParquetResolved;
 use std::{sync::Arc, sync::LazyLock};
 use utils::{send_message_to_vscode, vscode_env};
 use web_sys::js_sys;
 
 mod nl_to_sql;
 mod object_store_cache;
+mod parquet_ctx;
 #[cfg(test)]
 mod tests;
 mod utils;
@@ -38,124 +31,6 @@ pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| 
 
 const DEFAULT_URL: &str = "https://parquet-viewer.xiangpeng.systems/?url=https%3A%2F%2Fhuggingface.co%2Fdatasets%2Fopen-r1%2FOpenR1-Math-220k%2Fresolve%2Fmain%2Fdata%2Ftrain-00003-of-00010.parquet";
 const DEFAULT_QUERY: &str = "show first 10 rows";
-
-#[derive(Debug, Clone, PartialEq)]
-struct MetadataDisplay {
-    file_size: u64,
-    uncompressed_size: u64,
-    compression_ratio: f64,
-    row_group_count: u64,
-    row_count: u64,
-    columns: u64,
-    has_row_group_stats: bool,
-    has_column_index: bool,
-    has_page_index: bool,
-    has_bloom_filter: bool,
-    schema: SchemaRef,
-    metadata: Arc<ParquetMetaData>,
-    metadata_len: u64,
-}
-
-impl MetadataDisplay {
-    fn from_metadata(metadata: Arc<ParquetMetaData>, metadata_len: u64) -> Result<Self> {
-        let compressed_size = metadata
-            .row_groups()
-            .iter()
-            .map(|rg| rg.compressed_size())
-            .sum::<i64>() as u64;
-        let uncompressed_size = metadata
-            .row_groups()
-            .iter()
-            .map(|rg| rg.total_byte_size())
-            .sum::<i64>() as u64;
-
-        let schema = parquet_to_arrow_schema(
-            metadata.file_metadata().schema_descr(),
-            metadata.file_metadata().key_value_metadata(),
-        )?;
-        let first_row_group = metadata.row_groups().first();
-        let first_column = first_row_group.and_then(|rg| rg.columns().first());
-
-        let has_column_index = metadata
-            .column_index()
-            .and_then(|ci| ci.first().map(|c| !c.is_empty()))
-            .unwrap_or(false);
-        let has_page_index = metadata
-            .offset_index()
-            .and_then(|ci| ci.first().map(|c| !c.is_empty()))
-            .unwrap_or(false);
-
-        Ok(Self {
-            file_size: compressed_size,
-            uncompressed_size,
-            compression_ratio: compressed_size as f64 / uncompressed_size as f64,
-            row_group_count: metadata.num_row_groups() as u64,
-            row_count: metadata.file_metadata().num_rows() as u64,
-            columns: schema.fields.len() as u64,
-            has_row_group_stats: first_column
-                .map(|c| c.statistics().is_some())
-                .unwrap_or(false),
-            has_column_index,
-            has_page_index,
-            has_bloom_filter: first_column
-                .map(|c| c.bloom_filter_offset().is_some())
-                .unwrap_or(false),
-            schema: Arc::new(schema),
-            metadata,
-            metadata_len,
-        })
-    }
-}
-
-impl std::fmt::Display for MetadataDisplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "File Size: {} MB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
-            self.file_size as f64 / 1_048_576.0, // Convert bytes to MB
-            self.row_group_count,
-            self.row_count,
-            self.columns,
-            if self.has_row_group_stats {
-                "✓ Statistics "
-            } else {
-                "✗ Statistics "
-            },
-            if self.has_column_index {
-                "✓ Column Index "
-            } else {
-                "✗ Column Index "
-            },
-            if self.has_page_index {
-                "✓ Page Index "
-            } else {
-                "✗ Page Index "
-            },
-            if self.has_bloom_filter {
-                "✓ Bloom Filter"
-            } else {
-                "✗ Bloom Filter"
-            },
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ParquetResolved {
-    reader: ParquetObjectReader,
-    table_name: String,
-    path: Path,
-    object_store_url: ObjectStoreUrl,
-    display_info: MetadataDisplay,
-}
-
-impl PartialEq for ParquetResolved {
-    fn eq(&self, other: &Self) -> bool {
-        self.table_name == other.table_name
-            && self.path == other.path
-            && self.object_store_url == other.object_store_url
-    }
-}
 
 #[component]
 fn App() -> impl IntoView {
@@ -290,14 +165,13 @@ fn App() -> impl IntoView {
                                 </div>
                             }
                         })
-                }}
-                <div class="border-t border-gray-300 my-4"></div>
+                }} <div class="border-t border-gray-300 my-4"></div>
                 <div class="mt-4">
                     {move || {
                         parquet_table
                             .get()
                             .map(|table| {
-                                if table.display_info.row_group_count > 0 {
+                                if table.metadata().row_group_count > 0 {
                                     view! {
                                         <QueryInput
                                             user_input=user_input
@@ -310,8 +184,7 @@ fn App() -> impl IntoView {
                                 }
                             })
                     }}
-                </div>
-                <div class="space-y-4">
+                </div> <div class="space-y-4">
                     <For
                         each=move || query_results.get().into_iter().filter(|r| r.display()).rev()
                         key=|result| result.id()
@@ -323,8 +196,7 @@ fn App() -> impl IntoView {
                             }
                         }
                     />
-                </div>
-                <div class="border-t border-gray-300 my-4"></div>
+                </div> <div class="border-t border-gray-300 my-4"></div>
                 <div class="mt-8">
                     {move || {
                         let table = parquet_table.get();
@@ -343,15 +215,19 @@ fn App() -> impl IntoView {
                                     .into_any()
                             }
                             None => {
-                                view! {
-                                    <div class="text-center text-gray-500 py-8">
-                                        "No file selected, try "
-                                        <a class="text-blue-500" href=DEFAULT_URL target="_blank">
-                                            an example?
-                                        </a>
-                                    </div>
+                                if is_in_vscode {
+                                    ().into_any()
+                                } else {
+                                    view! {
+                                        <div class="text-center text-gray-500 py-8">
+                                            "No file selected, try "
+                                            <a class="text-blue-500" href=DEFAULT_URL target="_blank">
+                                                an example?
+                                            </a>
+                                        </div>
+                                    }
+                                        .into_any()
                                 }
-                                    .into_any()
                             }
                         }
                     }}

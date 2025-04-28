@@ -16,7 +16,7 @@ use crate::utils::format_rows;
 
 #[component]
 pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
-    let metadata_display = parquet_reader.display_info.clone();
+    let metadata_display = parquet_reader.metadata().clone();
     let created_by = metadata_display
         .metadata
         .file_metadata()
@@ -267,7 +267,7 @@ impl ChunkReader for ColumnChunk {
 
 #[component]
 pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
-    let display_info = &parquet_reader.display_info;
+    let display_info = parquet_reader.metadata();
     let (selected_row_group, set_selected_row_group) = signal(0);
     let (selected_column, set_selected_column) = signal(0);
 
@@ -300,7 +300,7 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         col.byte_range()
     };
 
-    let column_reader = parquet_reader.reader.clone();
+    let column_reader = parquet_reader.reader().clone();
     let metadata = display_info.metadata.clone();
     let column_info = LocalResource::new(move || {
         let byte_range = column_byte_range();

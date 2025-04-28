@@ -43,7 +43,7 @@ enum SortField {
 
 #[component]
 pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
-    let parquet_info = parquet_reader.display_info.clone();
+    let parquet_info = parquet_reader.metadata().clone();
     let schema = parquet_info.schema.clone();
 
     let metadata = parquet_info.metadata.clone();
@@ -67,7 +67,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let (distinct_count, set_distinct_count) =
         signal(vec![None::<LocalResource<usize>>; schema.fields.len()]);
 
-    let table_name = Memo::new(move |_| parquet_reader.table_name.clone());
+    let table_name = Memo::new(move |_| parquet_reader.table_name().to_string());
     // Transform the data into ColumnData structs
     let column_data = Memo::new(move |_| {
         let mut data: Vec<ColumnData> = aggregated_column_info

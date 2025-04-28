@@ -5,7 +5,8 @@ use leptos::logging;
 use serde_json::json;
 
 use crate::{
-    DEFAULT_QUERY, ParquetResolved, utils::get_stored_value, views::settings::ANTHROPIC_API_KEY,
+    DEFAULT_QUERY, parquet_ctx::ParquetResolved, utils::get_stored_value,
+    views::settings::ANTHROPIC_API_KEY,
 };
 
 fn nl_cache(key: &str, file_name: &str) -> Option<String> {
@@ -22,14 +23,14 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     }
 
     // check if the input is in the cache
-    let cached_sql = nl_cache(input, &context.table_name);
+    let cached_sql = nl_cache(input, context.table_name());
     if let Some(sql) = cached_sql {
         return Ok(sql);
     }
 
     // otherwise, treat it as some natural language
-    let schema = &context.display_info.schema;
-    let file_name = &context.table_name;
+    let schema = context.metadata().schema();
+    let file_name = context.table_name();
     let api_key = get_stored_value(ANTHROPIC_API_KEY);
     let schema_str = schema_to_brief_str(schema);
 
