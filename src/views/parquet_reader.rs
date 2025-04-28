@@ -11,12 +11,12 @@ use opendal::{Operator, services::Http, services::S3};
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
 use url::Url;
-use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 
 use crate::object_store_cache::ObjectStoreCache;
 use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
 use crate::utils::{get_stored_value, save_to_storage};
+use crate::views::web_file_store::WebFileObjectStore;
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -152,6 +152,7 @@ pub(crate) fn read_from_vscode(
                 let uuid = uuid::Uuid::new_v4();
                 let path_relative_to_object_store = Path::parse(&file_name)?;
 
+                // For VS Code we'll still use InMemory since we get the whole file at once
                 let (object_store, object_store_url) = (
                     Arc::new(InMemory::new()),
                     ObjectStoreUrl::parse(format!("inmemory://{uuid}"))?,
@@ -278,28 +279,10 @@ fn FileReader(
 
         leptos::task::spawn_local(async move {
             let result = async {
-                let array_buffer = JsFuture::from(file.array_buffer())
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Failed to read file: {:?}", e))?;
-
-                let uint8_array = js_sys::Uint8Array::new(&array_buffer);
-                let bytes = bytes::Bytes::from(uint8_array.to_vec());
-
-                let uuid = uuid::Uuid::new_v4();
                 let path_relative_to_object_store = Path::parse(&table_name)?;
-
-                let (object_store, object_store_url) = (
-                    Arc::new(InMemory::new()),
-                    ObjectStoreUrl::parse(format!("inmemory://{uuid}"))?,
-                );
-
-                object_store
-                    .put(
-                        &path_relative_to_object_store,
-                        PutPayload::from_bytes(bytes),
-                    )
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Store operation failed: {:?}", e))?;
+                let uuid = uuid::Uuid::new_v4();
+                let object_store = Arc::new(WebFileObjectStore::new(file));
+                let object_store_url = ObjectStoreUrl::parse(format!("webfile://{uuid}"))?;
 
                 ParquetUnresolved::try_new(
                     table_name.clone(),

@@ -5,3 +5,4 @@ pub mod query_input;
 pub mod query_results;
 pub mod schema;
 pub mod settings;
+pub mod web_file_store;
