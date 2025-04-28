@@ -2,6 +2,8 @@
 
 Online at: https://parquet-viewer.xiangpeng.systems
 
+VS Code extension: https://marketplace.visualstudio.com/items?itemName=xiangpeng-systems.parquet-querier
+
 ### Features
 
 - Query parquet data with SQL ✅
@@ -25,8 +27,6 @@ For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubuserconte
 ```bash
 ./parquet-viewer.py /path/to/your/file.parquet
 ```
-
-
 
 ## Development
 
