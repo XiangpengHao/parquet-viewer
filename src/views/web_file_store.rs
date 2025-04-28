@@ -15,6 +15,7 @@ use object_store::{
     ObjectStore, PutMultipartOpts, PutOptions, PutPayload, PutResult, path::Path,
 };
 use wasm_bindgen_futures::JsFuture;
+use web_sys::js_sys::Uint8Array;
 
 #[derive(Debug)]
 pub struct WebFileObjectStore {
@@ -73,7 +74,7 @@ impl ObjectStore for WebFileObjectStore {
         };
         let blob = wrapped.await.map_err(|e| ObjectStoreError::Generic {
             store: "WebFileObjectStore",
-            source: format!("Failed to slice file: {:?}", e).into(),
+            source: format!("Failed to slice file: {e:?}").into(),
         })?;
 
         Ok(blob)
@@ -134,12 +135,12 @@ impl WebFileReader {
         let blob = self
             .file
             .slice_with_i32_and_i32(range.start as i32, range.end as i32)
-            .map_err(|e| format!("Failed to slice file: {:?}", e))?;
+            .map_err(|e| format!("Failed to slice file: {e:?}"))?;
 
         let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
 
         // Convert to Uint8Array and then to a Rust Vec<u8>
-        let uint8_array = js_sys::Uint8Array::new(&array_buffer);
+        let uint8_array = Uint8Array::new(&array_buffer);
         let bytes = Bytes::from(uint8_array.to_vec());
 
         Ok(bytes)
