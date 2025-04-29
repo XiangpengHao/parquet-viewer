@@ -15,12 +15,12 @@ mod tests;
 mod utils;
 mod views;
 
-use views::parquet_reader::{ParquetReader, ParquetUnresolved};
+use views::metadata::MetadataSection;
+use views::parquet_reader::{ParquetReader, ParquetUnresolved, read_from_vscode};
 use views::query_input::QueryInput;
 use views::query_results::{QueryResult, QueryResultView};
 use views::schema::SchemaSection;
 use views::settings::Settings;
-use views::{metadata::MetadataSection, parquet_reader::read_from_vscode};
 
 pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| {
     let mut config = SessionConfig::new().with_target_partitions(1);
@@ -95,7 +95,7 @@ fn App() -> impl IntoView {
             if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into()) {
                 if let Some(type_str) = type_val.as_string() {
                     match type_str.as_str() {
-                        "parquetData" => {
+                        "parquetServerReady" => {
                             read_from_vscode(obj, on_parquet_read_call_back);
                         }
                         _ => logging::log!("Unknown message type: {}", type_str),

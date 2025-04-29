@@ -3,9 +3,8 @@ use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
 use leptos::{logging, prelude::*};
 use leptos_router::hooks::{query_signal, use_query_map};
-use object_store::memory::InMemory;
+use object_store::ObjectStore;
 use object_store::path::Path;
-use object_store::{ObjectStore, PutPayload};
 use object_store_opendal::OpendalStore;
 use opendal::{Operator, services::Http, services::S3};
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
@@ -133,42 +132,34 @@ pub(crate) fn read_from_vscode(
     obj: js_sys::Object,
     call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
 ) {
-    let file_data = js_sys::Reflect::get(&obj, &"data".into()).unwrap();
+    let url = js_sys::Reflect::get(&obj, &"url".into()).unwrap();
+    let url = url.as_string().unwrap();
     let file_name = js_sys::Reflect::get(&obj, &"filename".into()).unwrap();
     let file_name = file_name.as_string().unwrap();
 
     leptos::task::spawn_local({
+        let url = url.clone();
         let file_name = file_name.clone();
+        logging::log!("Reading from VS Code: {}, {}", url, file_name);
         async move {
             let result = async {
-                let array = js_sys::Uint8Array::new(&file_data);
-                let bytes = bytes::Bytes::from(array.to_vec());
-
-                logging::log!(
-                    "Received parquet file from VS Code: {}, length: {}",
-                    file_name,
-                    bytes.len()
+                let url = Url::parse(&url)?;
+                let endpoint = format!(
+                    "{}://{}{}",
+                    url.scheme(),
+                    url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
+                    url.port().map_or("".to_string(), |p| format!(":{p}"))
                 );
-                let uuid = uuid::Uuid::new_v4();
-                let path_relative_to_object_store = Path::parse(&file_name)?;
+                let path = url.path().to_string();
 
-                // For VS Code we'll still use InMemory since we get the whole file at once
-                let (object_store, object_store_url) = (
-                    Arc::new(InMemory::new()),
-                    ObjectStoreUrl::parse(format!("inmemory://{uuid}"))?,
-                );
-
-                object_store
-                    .put(
-                        &path_relative_to_object_store,
-                        PutPayload::from_bytes(bytes),
-                    )
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Store operation failed: {:?}", e))?;
-
+                let builder = Http::default().endpoint(&endpoint);
+                let op = Operator::new(builder)?;
+                let op = op.finish();
+                let object_store = Arc::new(OpendalStore::new(op));
+                let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
                 ParquetUnresolved::try_new(
                     file_name.clone(),
-                    path_relative_to_object_store,
+                    Path::parse(path)?,
                     object_store_url,
                     object_store,
                 )

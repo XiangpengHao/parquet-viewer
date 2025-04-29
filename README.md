@@ -15,7 +15,7 @@ VS Code extension: https://marketplace.visualstudio.com/items?itemName=xiangpeng
 
 ### Demo
 
-![screenshot](doc/parquet-viewer.gif)
+![screenshot](https://raw.githubusercontent.com/XiangpengHao/parquet-viewer/458f4cd8994843a56a1c896c9df99ee9f5b12e4b/doc/parquet-viewer.gif)
 
 ### Tips 
 
