@@ -3,6 +3,10 @@ use std::sync::Arc;
 use arrow::array::{Array, types::*};
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
+use arrow_array::{downcast_integer, downcast_integer_array};
+use datafusion::common::cast::{
+    as_date32_array, as_date64_array, as_decimal128_array, as_decimal256_array,
+};
 use datafusion::{
     common::cast::{as_binary_array, as_binary_view_array, as_string_view_array},
     physical_plan::ExecutionPlan,
@@ -15,6 +19,13 @@ use crate::SESSION_CTX;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
 use crate::views::plan_visualizer::PhysicalPlan;
 use crate::{ParquetResolved, utils::execute_query_inner};
+
+// Helper macro for width configuration
+macro_rules! width_for_type {
+    ($t:ty, $width:expr) => {
+        $width
+    };
+}
 
 #[derive(Clone)]
 pub(crate) struct QueryResult {
@@ -270,8 +281,13 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                             .fields()
                             .iter()
                             .map(|field| {
+                                let data_type = field.data_type();
+                                let width = downcast_integer! {
+                                    data_type => (width_for_type, ""),
+                                    _ => "min-w-[200px]"
+                                };
                                 view! {
-                                    <th class="px-4 py-1 text-left min-w-[300px] max-w-[300px] leading-tight">
+                                    <th class=format!("px-4 py-1 text-left {width} leading-tight")>
                                         <div class="truncate" title=field.name().clone()>
                                             {field.name().clone()}
                                         </div>
@@ -300,7 +316,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                             let cell_value = column.as_ref().value_to_string(row_idx);
 
                                             view! {
-                                                <td class="px-4 py-1 leading-tight text-gray-700 min-w-[300px] max-w-[300px] break-words">
+                                                <td class="px-4 py-1 leading-tight text-gray-700 break-words">
                                                     {if cell_value.len() > 100 {
                                                         view! {
                                                             <details class="custom-details relative">
@@ -446,9 +462,25 @@ impl ArrayExt for dyn Array {
 
         let array = self;
 
-        downcast_primitive_array!(
+        downcast_integer_array!(
             array => {
-                format!("{:?}", array.value(index))
+                format!("{}", array.value(index))
+            }
+            DataType::Date64 => {
+                let array = as_date64_array(array).unwrap();
+                array.value(index).to_string()
+            }
+            DataType::Date32 => {
+                let array = as_date32_array(array).unwrap();
+                array.value(index).to_string()
+            }
+            DataType::Decimal128(_, _) => {
+                let array = as_decimal128_array(array).unwrap();
+                array.value(index).to_string()
+            }
+            DataType::Decimal256(_, _) => {
+                let array = as_decimal256_array(array).unwrap();
+                array.value(index).to_string()
             }
             DataType::Boolean => {
                 let array = as_boolean_array(array);

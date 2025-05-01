@@ -2,7 +2,7 @@
   "name": "parquet-querier",
   "displayName": "Parquet Querier",
   "description": "View and query Parquet files with SQL and natural language",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "xiangpeng-systems",
   "icon": "dist/public/icon-192x192.png",
   "repository": {
