@@ -478,6 +478,11 @@ impl ArrayExt for dyn Array {
                 let len = value.len();
                 format!("[{}]",  (0..len).map(|i| value.value_to_string(i)).collect::<Vec<_>>().join(", "))
             }
+            DataType::Struct(_) => {
+                let array = as_struct_array(array);
+                let len = array.num_columns();
+                format!("[{}]",  (0..len).map(|i| array.column(i).value_to_string(index)).collect::<Vec<_>>().join(", "))
+            }
             DataType::Dictionary(key_type, _) => {
                 match key_type.as_ref() {
                     DataType::Int8 => {
