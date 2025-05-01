@@ -48,7 +48,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     let metadata = parquet_info.metadata.clone();
 
-    let mut aggregated_column_info = vec![(0, 0, None, 0); metadata.row_group(0).columns().len()];
+    let column_count = metadata
+        .row_groups()
+        .first()
+        .map(|rg| rg.columns().len())
+        .unwrap_or(0);
+    let mut aggregated_column_info = vec![(0, 0, None, 0); column_count];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
             aggregated_column_info[i].0 += col.compressed_size() as u64;
