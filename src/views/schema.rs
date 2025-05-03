@@ -169,43 +169,43 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 <thead>
                     <tr class="bg-gray-50 text-gray-700 font-medium">
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::Id)
                         >
                             "ID"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::Name)
                         >
                             "Name"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::DataType)
                         >
                             "Type"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::CompressedSize)
                         >
                             "Compressed"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::UncompressedSize)
                         >
                             "Uncompressed"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::CompressionRatio)
                         >
                             "Ratio"
                         </th>
                         <th
-                            class="px-4 py-2 cursor-pointer hover:bg-gray-100 text-left"
+                            class="cursor-pointer hover:bg-gray-100 text-left"
                             on:click=move |_| sort_by(SortField::NullCount)
                         >
                             "Null"
@@ -219,20 +219,20 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             .into_iter()
                             .map(|col| {
                                 view! {
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-2">{col.id}</td>
-                                        <td class="px-4 py-2">{col.name.clone()}</td>
-                                        <td class="px-4 py-2">{col.data_type}</td>
-                                        <td class="px-4 py-2">
+                                    <tr class="border-b hover:bg-gray-50 text-gray-700 py-2">
+                                        <td>{col.id}</td>
+                                        <td>{col.name.clone()}</td>
+                                        <td>{col.data_type}</td>
+                                        <td>
                                             {format_size(col.compressed_size)}
                                         </td>
-                                        <td class="px-4 py-2">
+                                        <td>
                                             {format_size(col.uncompressed_size)}
                                         </td>
-                                        <td class="px-4 py-2">
+                                        <td>
                                             {format!("{:.2}%", col.compression_ratio * 100.0)}
                                         </td>
-                                        <td class="px-4 py-2">{col.null_count}</td>
+                                        <td>{col.null_count}</td>
                                     </tr>
                                 }
                             })
@@ -244,10 +244,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 text-gray-700 font-medium">
-                        <th class="px-4 py-2 text-left">Field Name</th>
-                        <th class="px-4 py-2 text-left">Data Type</th>
-                        <th class="px-4 py-2 text-left">Nullable</th>
-                        <th class="px-4 py-2 text-left">Distinct Count</th>
+                        <th class="text-left">Field Name</th>
+                        <th class="text-left">Data Type</th>
+                        <th class="text-left">Nullable</th>
+                        <th class="text-left">Distinct Count</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -261,13 +261,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                             let field_id = idx as i32;
 
                             view! {
-                                <tr class="border-b hover:bg-gray-50 text-gray-700">
-                                    <td class="px-4 py-2 font-medium">{field_name.clone()}</td>
-                                    <td class="px-4 py-2 font-mono">{type_display}</td>
-                                    <td class="px-4 py-2">
+                                <tr class="border-b hover:bg-gray-50 text-gray-700 py-2">
+                                    <td class="font-medium">{field_name.clone()}</td>
+                                    <td class="font-mono">{type_display}</td>
+                                    <td>
                                         {if field.is_nullable() { "✓" } else { "✗" }}
                                     </td>
-                                    <td class="px-4 py-2">
+                                    <td>
                                         <button
                                             on:click=move |_| {
                                                 calculate_distinct(
