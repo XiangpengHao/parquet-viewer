@@ -107,7 +107,7 @@ fn App() -> impl IntoView {
 
     view! {
         <div class="container mx-auto px-4 py-8 max-w-6xl">
-            <h1 class="text-3xl font-bold mb-8 flex items-center justify-between">
+            <h1 class="text-3xl font-bold mb-4 flex items-center justify-between">
                 <span>"Parquet Viewer"</span>
                 <div class="flex items-center gap-4">
                     <button
@@ -165,7 +165,7 @@ fn App() -> impl IntoView {
                                 </div>
                             }
                         })
-                }} <div class="border-t border-gray-300 my-4"></div>
+                }}
                 <div class="mt-4">
                     {move || {
                         parquet_table
