@@ -1,9 +1,12 @@
+use crate::SESSION_CTX;
 use crate::components::RecordBatchTable;
+use crate::utils::execute_query_inner;
 use crate::{ParquetResolved, utils::format_arrow_type};
+use arrow::array::AsArray;
+use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
 use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
 use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
-use datafusion::scalar::ScalarValue;
 use leptos::prelude::*;
 use std::sync::Arc;
 
@@ -90,7 +93,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         )
         .unwrap()
     });
-    let parquet_formatter: Vec<Option<Box<dyn Fn(ScalarValue) -> String + Send + Sync + 'static>>> = vec![
+    let parquet_formatter: Vec<
+        Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>,
+    > = vec![
         None,
         None,
         None,
@@ -100,14 +105,20 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         None,
     ];
 
+    let (col_distinct_count, set_col_distinct_count) = signal(
+        (0..column_count)
+            .map(|_| None)
+            .collect::<Vec<Option<LocalResource<u32>>>>(),
+    );
+
     let schema_clone = schema.clone();
     let arrow_schema_table = Memo::new(move |_| {
         let display_schema = Schema::new(vec![
             Field::new("ID", DataType::UInt32, false),
-            Field::new("Field Name", DataType::Utf8, false),
-            Field::new("Data Type", DataType::Utf8, false),
+            Field::new("Field name", DataType::Utf8, false),
+            Field::new("Data type", DataType::Utf8, false),
             Field::new("Nullable", DataType::Boolean, false),
-            Field::new("Distinct Count", DataType::UInt32, false),
+            Field::new("Distinct count", DataType::UInt32, true),
         ]);
         let id = UInt32Array::from_iter_values(
             schema_clone
@@ -134,8 +145,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 .iter()
                 .map(|col| Some(col.is_nullable())),
         );
-        let distinct_count =
-            UInt32Array::from_iter_values(schema_clone.fields().iter().map(|_col| 0));
+        let distinct_count = UInt32Array::from_iter(
+            col_distinct_count
+                .get()
+                .iter()
+                .enumerate()
+                .map(|(i, v)| if v.is_some() { Some(i as u32) } else { None }),
+        );
         RecordBatch::try_new(
             Arc::new(display_schema),
             vec![
@@ -149,13 +165,51 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         .unwrap()
     });
 
-    let mut schema_formatter = vec![];
-    for _ in 0..arrow_schema_table.get().num_columns() {
-        schema_formatter.push(None);
-    }
+    let table_name = parquet_reader.table_name().to_string();
+    let schema_clone = schema.clone();
+    let distinct_formatter = move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
+        let table_name = table_name.clone();
+        let schema_clone = schema_clone.clone();
+        let view =
+            col_distinct_count.with(
+                move |col_distinct_count| match col_distinct_count[row_idx] {
+                    Some(cnt) => view! {
+                        {move || {
+                            Suspend::new(async move {
+                                let cnt = cnt.await;
+                                format!("{}", cnt).into_any()
+                            })
+                        }}
+                    }
+                    .into_any(),
+                    None => view! {
+                        <span
+                            class="text-gray-500"
+                            on:click=move |_| {
+                                let col_name = schema_clone.field(row_idx).name().to_string();
+                                set_col_distinct_count
+                                    .update(|col_distinct_count| {
+                                        col_distinct_count[row_idx] = Some(
+                                            calculate_distinct(&col_name, &table_name),
+                                        );
+                                    });
+                            }
+                        >
+                            Click to compute
+                        </span>
+                    }
+                    .into_any(),
+                },
+            );
+        view
+    };
+
+    let schema_formatter: Vec<
+        Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>,
+    > = vec![None, None, None, None, Some(Box::new(distinct_formatter))];
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-6 flex-1 overflow-auto">
+        <div class="bg-white rounded-lg border border-gray-300 p-3 flex-1 overflow-auto">
             <h2 class="font-semibold mb-4">"Parquet Columns"</h2>
             <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
 
@@ -183,26 +237,35 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     }
 }
 
-fn format_u64_size(val: ScalarValue) -> String {
-    let size = match val {
-        ScalarValue::UInt64(Some(v)) => v,
-        _ => return format!("{:?}", val),
-    };
+fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResource<u32> {
+    let distinct_query = format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
+    let distinct_column_count = LocalResource::new(move || {
+        let query = distinct_query.clone();
+        async move {
+            let (results, _) = execute_query_inner(&query, &SESSION_CTX).await.unwrap();
+
+            let first_batch = results.first().unwrap();
+            let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
+            distinct_value as u32
+        }
+    });
+    return distinct_column_count;
+}
+
+fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
+    let col = val.column(col_idx).as_primitive::<UInt64Type>();
+    let size = col.value(row_idx);
     if size > 1_048_576 {
-        // 1MB
-        format!("{:.2} MB", size as f64 / 1_048_576.0)
+        format!("{:.2} MB", size as f64 / 1_048_576.0).into_any()
     } else if size > 1024 {
-        // 1KB
-        format!("{:.2} KB", size as f64 / 1024.0)
+        format!("{:.2} KB", size as f64 / 1024.0).into_any()
     } else {
-        format!("{size} B")
+        format!("{size} B").into_any()
     }
 }
 
-fn format_f32_percentage(val: ScalarValue) -> String {
-    let percentage = match val {
-        ScalarValue::Float32(Some(v)) => v,
-        _ => return format!("{:?}", val),
-    };
-    format!("{:.2}%", percentage * 100.0)
+fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
+    let col = val.column(col_idx).as_primitive::<Float32Type>();
+    let percentage = col.value(row_idx);
+    format!("{:.2}%", percentage * 100.0).into_any()
 }

@@ -30,7 +30,7 @@ pub fn MetadataSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let has_row_group_stats = metadata_display.has_row_group_stats;
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-6 text-sm">
+        <div class="bg-white rounded-lg border border-gray-300 p-3 text-sm">
             <div class="grid grid-cols-2 gap-6">
                 <div>
                     <h2 class="font-semibold text-normal mb-4">"Metadata"</h2>

@@ -2,7 +2,6 @@ use arrow::array::PrimitiveArray;
 use arrow::compute::{SortOptions, sort_to_indices};
 use arrow::datatypes::UInt32Type;
 use arrow_array::RecordBatch;
-use datafusion::scalar::ScalarValue;
 use leptos::prelude::*;
 
 use crate::views::query_results::ArrayExt;
@@ -10,7 +9,7 @@ use crate::views::query_results::ArrayExt;
 #[component]
 pub fn RecordBatchTable(
     data: RecordBatch,
-    formatter: Vec<Option<Box<dyn Fn(ScalarValue) -> String + Send + Sync + 'static>>>,
+    formatter: Vec<Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>>,
 ) -> impl IntoView {
     let column_names = data
         .schema()
@@ -72,7 +71,9 @@ pub fn RecordBatchTable(
                                 let is_sorted = sort_column.get() == Some(i);
                                 let direction_icon = if is_sorted {
                                     if sort_ascending.get() { "↑" } else { "↓" }
-                                } else { "" };
+                                } else {
+                                    ""
+                                };
 
                                 view! {
                                     <th
@@ -89,37 +90,34 @@ pub fn RecordBatchTable(
                 </tr>
             </thead>
             <tbody>
-                {
-                    move || {
+                {move || {
                     let indices = sorted_data.get();
+                    (0..indices.len())
+                        .map(|idx| {
+                            let row_idx = indices.value(idx) as usize;
 
-                    (0..indices.len()).map(|idx| {
-                        let row_idx = indices.value(idx) as usize;
-                        view! {
-                            <tr class="hover:bg-gray-50 border-b border-gray-100">
-                                {
-                                    (0..data_clone.num_columns()).zip(formatter.iter()).map(|(col_idx, formatter)| {
-                                        let col = data_clone.column(col_idx);
-                                        match formatter {
-                                            Some(formatter) => {
-                                                let value = ScalarValue::try_from_array(col.as_ref(), row_idx).unwrap();
-                                                let cell_value = formatter(value);
-                                                view! {
-                                                    <td class="px-3 py-1">{cell_value}</td>
+                            view! {
+                                <tr class="hover:bg-gray-50 border-b border-gray-100">
+                                    {(0..data_clone.num_columns())
+                                        .zip(formatter.iter())
+                                        .map(|(col_idx, formatter)| {
+                                            let col = data_clone.column(col_idx);
+                                            match formatter {
+                                                Some(formatter) => {
+                                                    let cell_value = formatter(&data_clone, (col_idx, row_idx));
+                                                    view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
+                                                }
+                                                None => {
+                                                    let cell_value = col.as_ref().value_to_string(row_idx);
+                                                    view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
                                                 }
                                             }
-                                            None => {
-                                                let cell_value = col.as_ref().value_to_string(row_idx);
-                                                view! {
-                                                    <td class="px-3 py-1">{cell_value}</td>
-                                                }
-                                            }
-                                        }
-                                    }).collect::<Vec<_>>()
-                                }
-                            </tr>
-                        }
-                    }).collect::<Vec<_>>()
+                                        })
+                                        .collect::<Vec<_>>()}
+                                </tr>
+                            }
+                        })
+                        .collect::<Vec<_>>()
                 }}
             </tbody>
         </table>
