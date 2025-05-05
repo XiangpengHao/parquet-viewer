@@ -6,10 +6,12 @@ use leptos::prelude::*;
 
 use crate::views::query_results::ArrayExt;
 
+pub type RecordFormatter = Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>;
+
 #[component]
 pub fn RecordBatchTable(
     data: RecordBatch,
-    formatter: Vec<Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>>,
+    formatter: Vec<Option<RecordFormatter>>,
 ) -> impl IntoView {
     let column_names = data
         .schema()

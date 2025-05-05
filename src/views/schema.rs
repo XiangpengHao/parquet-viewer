@@ -1,5 +1,5 @@
 use crate::SESSION_CTX;
-use crate::components::RecordBatchTable;
+use crate::components::{RecordBatchTable, RecordFormatter};
 use crate::utils::execute_query_inner;
 use crate::{ParquetResolved, utils::format_arrow_type};
 use arrow::array::AsArray;
@@ -69,12 +69,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.1));
         let compression_ratio =
             Float32Array::from_iter_values(aggregated_column_info.iter().map(|col| {
-                let compression_ratio = if col.1 > 0 {
+                if col.1 > 0 {
                     col.0 as f32 / col.1 as f32
                 } else {
                     0.0
-                };
-                compression_ratio
+                }
             }));
 
         let null_count =
@@ -93,9 +92,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         )
         .unwrap()
     });
-    let parquet_formatter: Vec<
-        Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>,
-    > = vec![
+    let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
         None,
         None,
         None,
@@ -170,43 +167,41 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let distinct_formatter = move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
         let table_name = table_name.clone();
         let schema_clone = schema_clone.clone();
-        let view =
-            col_distinct_count.with(
-                move |col_distinct_count| match col_distinct_count[row_idx] {
-                    Some(cnt) => view! {
-                        {move || {
-                            Suspend::new(async move {
-                                let cnt = cnt.await;
-                                format!("{}", cnt).into_any()
-                            })
-                        }}
-                    }
-                    .into_any(),
-                    None => view! {
-                        <span
-                            class="text-gray-500"
-                            on:click=move |_| {
-                                let col_name = schema_clone.field(row_idx).name().to_string();
-                                set_col_distinct_count
-                                    .update(|col_distinct_count| {
-                                        col_distinct_count[row_idx] = Some(
-                                            calculate_distinct(&col_name, &table_name),
-                                        );
-                                    });
-                            }
-                        >
-                            Click to compute
-                        </span>
-                    }
-                    .into_any(),
-                },
-            );
-        view
+
+        col_distinct_count.with(
+            move |col_distinct_count| match col_distinct_count[row_idx] {
+                Some(cnt) => view! {
+                    {move || {
+                        Suspend::new(async move {
+                            let cnt = cnt.await;
+                            format!("{cnt}").into_any()
+                        })
+                    }}
+                }
+                .into_any(),
+                None => view! {
+                    <span
+                        class="text-gray-500"
+                        on:click=move |_| {
+                            let col_name = schema_clone.field(row_idx).name().to_string();
+                            set_col_distinct_count
+                                .update(|col_distinct_count| {
+                                    col_distinct_count[row_idx] = Some(
+                                        calculate_distinct(&col_name, &table_name),
+                                    );
+                                });
+                        }
+                    >
+                        Click to compute
+                    </span>
+                }
+                .into_any(),
+            },
+        )
     };
 
-    let schema_formatter: Vec<
-        Option<Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>>,
-    > = vec![None, None, None, None, Some(Box::new(distinct_formatter))];
+    let schema_formatter: Vec<Option<RecordFormatter>> =
+        vec![None, None, None, None, Some(Box::new(distinct_formatter))];
 
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-3 flex-1 overflow-auto">
@@ -239,7 +234,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
 fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResource<u32> {
     let distinct_query = format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
-    let distinct_column_count = LocalResource::new(move || {
+    LocalResource::new(move || {
         let query = distinct_query.clone();
         async move {
             let (results, _) = execute_query_inner(&query, &SESSION_CTX).await.unwrap();
@@ -248,8 +243,7 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
             let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
             distinct_value as u32
         }
-    });
-    return distinct_column_count;
+    })
 }
 
 fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
