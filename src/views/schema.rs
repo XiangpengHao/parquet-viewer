@@ -1,45 +1,14 @@
-use crate::{
-    ParquetResolved, SESSION_CTX,
-    utils::{execute_query_inner, format_arrow_type},
-};
-use arrow_array::cast::AsArray;
-use arrow_array::types::Int64Type;
+use crate::SESSION_CTX;
+use crate::components::{RecordBatchTable, RecordFormatter};
+use crate::utils::execute_query_inner;
+use crate::{ParquetResolved, utils::format_arrow_type};
+use arrow::array::AsArray;
+use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
+use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
+use arrow_array::{StringArray, UInt32Array};
+use arrow_schema::{DataType, Field, Schema};
 use leptos::prelude::*;
 use std::sync::Arc;
-
-#[derive(Clone)]
-struct ColumnData {
-    id: usize,
-    name: String,
-    data_type: String,
-    compressed_size: u64,
-    uncompressed_size: u64,
-    compression_ratio: f64,
-    null_count: i32,
-}
-
-impl PartialEq for ColumnData {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-            && self.name == other.name
-            && self.data_type == other.data_type
-            && self.compressed_size == other.compressed_size
-            && self.uncompressed_size == other.uncompressed_size
-            && self.compression_ratio == other.compression_ratio
-            && self.null_count == other.null_count
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum SortField {
-    Id,
-    Name,
-    DataType,
-    CompressedSize,
-    UncompressedSize,
-    CompressionRatio,
-    NullCount,
-}
 
 #[component]
 pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
@@ -66,235 +35,181 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         }
     }
 
-    let (sort_field, set_sort_field) = signal(SortField::Id);
-    let (sort_ascending, set_sort_ascending) = signal(true);
-
-    let (distinct_count, set_distinct_count) =
-        signal(vec![None::<LocalResource<usize>>; schema.fields.len()]);
-
-    let table_name = Memo::new(move |_| parquet_reader.table_name().to_string());
-    // Transform the data into ColumnData structs
-    let column_data = Memo::new(move |_| {
-        let mut data: Vec<ColumnData> = aggregated_column_info
-            .iter()
-            .enumerate()
-            .map(|(i, aggregated)| {
-                let compressed = aggregated.0;
-                let uncompressed = aggregated.1;
-                let null_count = aggregated.3 as i32;
+    let parquet_columns = Memo::new(move |_| {
+        let schema = Schema::new(vec![
+            Field::new("ID", DataType::UInt32, false),
+            Field::new("Name", DataType::Utf8, false),
+            Field::new("Type", DataType::Utf8, false),
+            Field::new("Compressed", DataType::UInt64, false),
+            Field::new("Uncompressed", DataType::UInt64, false),
+            Field::new("Compression ratio", DataType::Float32, false),
+            Field::new("Null count", DataType::UInt32, false),
+        ]);
+        let id = UInt32Array::from_iter_values(
+            aggregated_column_info
+                .iter()
+                .enumerate()
+                .map(|(i, _col)| i as u32),
+        );
+        let name = StringArray::from_iter_values(aggregated_column_info.iter().enumerate().map(
+            |(i, _col)| {
                 let field_name = metadata.row_group(0).columns()[i].column_descr().name();
-                let data_type = metadata.row_group(0).columns()[i].column_type();
-                ColumnData {
-                    id: i,
-                    name: field_name.to_string(),
-                    data_type: data_type.to_string(),
-                    compressed_size: compressed,
-                    uncompressed_size: uncompressed,
-                    compression_ratio: if uncompressed > 0 {
-                        compressed as f64 / uncompressed as f64
-                    } else {
-                        0.0
-                    },
-                    null_count,
+                field_name.to_string()
+            },
+        ));
+        let data_type = StringArray::from_iter_values(
+            aggregated_column_info.iter().enumerate().map(|(i, _col)| {
+                let field_type = metadata.row_group(0).columns()[i].column_type();
+                field_type.to_string()
+            }),
+        );
+        let compressed =
+            UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.0));
+        let uncompressed =
+            UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.1));
+        let compression_ratio =
+            Float32Array::from_iter_values(aggregated_column_info.iter().map(|col| {
+                if col.1 > 0 {
+                    col.0 as f32 / col.1 as f32
+                } else {
+                    0.0
                 }
-            })
-            .collect();
+            }));
 
-        // Sort the data based on current sort field
-        data.sort_by(|a, b| {
-            let cmp = match sort_field.get() {
-                SortField::Id => a.id.cmp(&b.id),
-                SortField::Name => a.name.cmp(&b.name),
-                SortField::DataType => a.data_type.cmp(&b.data_type),
-                SortField::CompressedSize => a.compressed_size.cmp(&b.compressed_size),
-                SortField::UncompressedSize => a.uncompressed_size.cmp(&b.uncompressed_size),
-                SortField::CompressionRatio => a
-                    .compression_ratio
-                    .partial_cmp(&b.compression_ratio)
-                    .unwrap(),
-                SortField::NullCount => a.null_count.cmp(&b.null_count),
-            };
-            if sort_ascending.get() {
-                cmp
-            } else {
-                cmp.reverse()
-            }
-        });
-        data
+        let null_count =
+            UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.3 as u32));
+        RecordBatch::try_new(
+            Arc::new(schema),
+            vec![
+                Arc::new(id),
+                Arc::new(name),
+                Arc::new(data_type),
+                Arc::new(compressed),
+                Arc::new(uncompressed),
+                Arc::new(compression_ratio),
+                Arc::new(null_count),
+            ],
+        )
+        .unwrap()
+    });
+    let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
+        None,
+        None,
+        None,
+        Some(Box::new(format_u64_size)),
+        Some(Box::new(format_u64_size)),
+        Some(Box::new(format_f32_percentage)),
+        None,
+    ];
+
+    let (col_distinct_count, set_col_distinct_count) = signal(
+        (0..column_count)
+            .map(|_| None)
+            .collect::<Vec<Option<LocalResource<u32>>>>(),
+    );
+
+    let schema_clone = schema.clone();
+    let arrow_schema_table = Memo::new(move |_| {
+        let display_schema = Schema::new(vec![
+            Field::new("ID", DataType::UInt32, false),
+            Field::new("Field name", DataType::Utf8, false),
+            Field::new("Data type", DataType::Utf8, false),
+            Field::new("Nullable", DataType::Boolean, false),
+            Field::new("Distinct count", DataType::UInt32, true),
+        ]);
+        let id = UInt32Array::from_iter_values(
+            schema_clone
+                .fields()
+                .iter()
+                .enumerate()
+                .map(|(i, _col)| i as u32),
+        );
+        let field_name = StringArray::from_iter_values(
+            schema_clone
+                .fields()
+                .iter()
+                .map(|col| col.name().to_string()),
+        );
+        let data_type = StringArray::from_iter_values(
+            schema_clone
+                .fields()
+                .iter()
+                .map(|col| format_arrow_type(col.data_type())),
+        );
+        let nullable = BooleanArray::from_iter(
+            schema_clone
+                .fields()
+                .iter()
+                .map(|col| Some(col.is_nullable())),
+        );
+        let distinct_count = UInt32Array::from_iter(
+            col_distinct_count
+                .get()
+                .iter()
+                .enumerate()
+                .map(|(i, v)| if v.is_some() { Some(i as u32) } else { None }),
+        );
+        RecordBatch::try_new(
+            Arc::new(display_schema),
+            vec![
+                Arc::new(id),
+                Arc::new(field_name),
+                Arc::new(data_type),
+                Arc::new(nullable),
+                Arc::new(distinct_count),
+            ],
+        )
+        .unwrap()
     });
 
-    let sort_by = move |field: SortField| {
-        if sort_field.get() == field {
-            set_sort_ascending.update(|v| *v = !*v);
-        } else {
-            set_sort_field.set(field);
-            set_sort_ascending.set(true);
-        }
+    let table_name = parquet_reader.table_name().to_string();
+    let schema_clone = schema.clone();
+    let distinct_formatter = move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
+        let table_name = table_name.clone();
+        let schema_clone = schema_clone.clone();
+
+        col_distinct_count.with(
+            move |col_distinct_count| match col_distinct_count[row_idx] {
+                Some(cnt) => view! {
+                    {move || {
+                        Suspend::new(async move {
+                            let cnt = cnt.await;
+                            format!("{cnt}").into_any()
+                        })
+                    }}
+                }
+                .into_any(),
+                None => view! {
+                    <span
+                        class="text-gray-500"
+                        on:click=move |_| {
+                            let col_name = schema_clone.field(row_idx).name().to_string();
+                            set_col_distinct_count
+                                .update(|col_distinct_count| {
+                                    col_distinct_count[row_idx] = Some(
+                                        calculate_distinct(&col_name, &table_name),
+                                    );
+                                });
+                        }
+                    >
+                        Click to compute
+                    </span>
+                }
+                .into_any(),
+            },
+        )
     };
 
-    fn format_size(size: u64) -> String {
-        if size > 1_048_576 {
-            // 1MB
-            format!("{:.2} MB", size as f64 / 1_048_576.0)
-        } else if size > 1024 {
-            // 1KB
-            format!("{:.2} KB", size as f64 / 1024.0)
-        } else {
-            format!("{size} B")
-        }
-    }
-
-    let calculate_distinct = move |col_id: usize, column_name: &String, table_name: &String| {
-        let distinct_query =
-            format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
-        let distinct_column_count = LocalResource::new(move || {
-            let query = distinct_query.clone();
-            async move {
-                let (results, _) = execute_query_inner(&query, &SESSION_CTX).await.unwrap();
-
-                let first_batch = results.first().unwrap();
-                let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
-                distinct_value as usize
-            }
-        });
-        set_distinct_count.update(|distinct_count| {
-            distinct_count[col_id] = Some(distinct_column_count);
-        });
-    };
+    let schema_formatter: Vec<Option<RecordFormatter>> =
+        vec![None, None, None, None, Some(Box::new(distinct_formatter))];
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-6 flex-1 overflow-auto">
+        <div class="bg-white rounded-lg border border-gray-300 p-3 flex-1 overflow-auto">
             <h2 class="font-semibold mb-4">"Parquet Columns"</h2>
-            <table class="min-w-full table-fixed text-sm">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-700 font-medium">
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::Id)
-                        >
-                            "ID"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::Name)
-                        >
-                            "Name"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::DataType)
-                        >
-                            "Type"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::CompressedSize)
-                        >
-                            "Compressed"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::UncompressedSize)
-                        >
-                            "Uncompressed"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::CompressionRatio)
-                        >
-                            "Ratio"
-                        </th>
-                        <th
-                            class="cursor-pointer hover:bg-gray-100 text-left"
-                            on:click=move |_| sort_by(SortField::NullCount)
-                        >
-                            "Null"
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="text-gray-700">
-                    {move || {
-                        column_data
-                            .get()
-                            .into_iter()
-                            .map(|col| {
-                                view! {
-                                    <tr class="border-b hover:bg-gray-50 text-gray-700 py-2">
-                                        <td>{col.id}</td>
-                                        <td>{col.name.clone()}</td>
-                                        <td>{col.data_type}</td>
-                                        <td>
-                                            {format_size(col.compressed_size)}
-                                        </td>
-                                        <td>
-                                            {format_size(col.uncompressed_size)}
-                                        </td>
-                                        <td>
-                                            {format!("{:.2}%", col.compression_ratio * 100.0)}
-                                        </td>
-                                        <td>{col.null_count}</td>
-                                    </tr>
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    }}
-                </tbody>
-            </table>
-            <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
-            <table class="min-w-full text-sm">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-700 font-medium">
-                        <th class="text-left">Field Name</th>
-                        <th class="text-left">Data Type</th>
-                        <th class="text-left">Nullable</th>
-                        <th class="text-left">Distinct Count</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {schema
-                        .fields()
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, field)| {
-                            let type_display = format_arrow_type(field.data_type());
-                            let field_name = field.name().to_string();
-                            let field_id = idx as i32;
+            <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
 
-                            view! {
-                                <tr class="border-b hover:bg-gray-50 text-gray-700 py-2">
-                                    <td class="font-medium">{field_name.clone()}</td>
-                                    <td class="font-mono">{type_display}</td>
-                                    <td>
-                                        {if field.is_nullable() { "✓" } else { "✗" }}
-                                    </td>
-                                    <td>
-                                        <button
-                                            on:click=move |_| {
-                                                calculate_distinct(
-                                                    field_id as usize,
-                                                    &field_name,
-                                                    &table_name.get(),
-                                                );
-                                            }
-                                            class="hover:bg-gray-100 px-2 py-1 rounded"
-                                        >
-                                            {move || {
-                                                distinct_count
-                                                    .with(|distinct_count| {
-                                                        distinct_count[field_id as usize]
-                                                            .as_ref()
-                                                            .and_then(|count| count.get().map(|c| c.to_string()))
-                                                            .unwrap_or("👁️‍🗨".to_string())
-                                                    })
-                                            }}
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        })
-                        .collect::<Vec<_>>()}
-                </tbody>
-            </table>
+            <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
+            <RecordBatchTable data=arrow_schema_table.get() formatter=schema_formatter />
 
             {(!schema.metadata().is_empty())
                 .then(|| {
@@ -315,4 +230,36 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 })}
         </div>
     }
+}
+
+fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResource<u32> {
+    let distinct_query = format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
+    LocalResource::new(move || {
+        let query = distinct_query.clone();
+        async move {
+            let (results, _) = execute_query_inner(&query, &SESSION_CTX).await.unwrap();
+
+            let first_batch = results.first().unwrap();
+            let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
+            distinct_value as u32
+        }
+    })
+}
+
+fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
+    let col = val.column(col_idx).as_primitive::<UInt64Type>();
+    let size = col.value(row_idx);
+    if size > 1_048_576 {
+        format!("{:.2} MB", size as f64 / 1_048_576.0).into_any()
+    } else if size > 1024 {
+        format!("{:.2} KB", size as f64 / 1024.0).into_any()
+    } else {
+        format!("{size} B").into_any()
+    }
+}
+
+fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
+    let col = val.column(col_idx).as_primitive::<Float32Type>();
+    let percentage = col.value(row_idx);
+    format!("{:.2}%", percentage * 100.0).into_any()
 }

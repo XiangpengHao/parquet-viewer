@@ -5,7 +5,8 @@ use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use arrow_array::{downcast_integer, downcast_integer_array};
 use datafusion::common::cast::{
-    as_date32_array, as_date64_array, as_decimal128_array, as_decimal256_array,
+    as_date32_array, as_date64_array, as_decimal128_array, as_decimal256_array, as_float32_array,
+    as_float64_array,
 };
 use datafusion::{
     common::cast::{as_binary_array, as_binary_view_array, as_string_view_array},
@@ -452,7 +453,7 @@ pub fn QueryResultView(
     }
 }
 
-trait ArrayExt {
+pub(crate) trait ArrayExt {
     fn value_to_string(&self, index: usize) -> String;
 }
 
@@ -465,6 +466,14 @@ impl ArrayExt for dyn Array {
         downcast_integer_array!(
             array => {
                 format!("{}", array.value(index))
+            }
+            DataType::Float64 => {
+                let array = as_float64_array(array).unwrap();
+                array.value(index).to_string()
+            }
+            DataType::Float32 => {
+                let array = as_float32_array(array).unwrap();
+                array.value(index).to_string()
             }
             DataType::Date64 => {
                 let array = as_date64_array(array).unwrap();

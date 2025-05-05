@@ -7,6 +7,7 @@ use std::{sync::Arc, sync::LazyLock};
 use utils::{send_message_to_vscode, vscode_env};
 use web_sys::js_sys;
 
+mod components;
 mod nl_to_sql;
 mod object_store_cache;
 mod parquet_ctx;
