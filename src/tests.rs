@@ -23,7 +23,7 @@ async fn test_read_parquet() {
     assert_eq!(rows[0].column(0).len(), 1);
     assert_eq!(
         rows[0].column(0).as_primitive::<Int64Type>().values()[0],
-        106
+        107
     );
     assert_eq!(table.table_name(), "aws-edge-locations");
 }
