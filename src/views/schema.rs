@@ -17,12 +17,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     let metadata = parquet_info.metadata.clone();
 
-    let column_count = metadata
+    let parquet_column_count = metadata
         .row_groups()
         .first()
         .map(|rg| rg.columns().len())
         .unwrap_or(0);
-    let mut aggregated_column_info = vec![(0, 0, None, 0); column_count];
+    let mut aggregated_column_info = vec![(0, 0, None, 0); parquet_column_count];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
             aggregated_column_info[i].0 += col.compressed_size() as u64;
@@ -102,8 +102,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         None,
     ];
 
+    let arrow_column_count = schema.fields().len();
     let (col_distinct_count, set_col_distinct_count) = signal(
-        (0..column_count)
+        (0..arrow_column_count)
             .map(|_| None)
             .collect::<Vec<Option<LocalResource<u32>>>>(),
     );

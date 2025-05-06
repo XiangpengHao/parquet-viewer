@@ -46,7 +46,7 @@ trunk serve --release  --no-autoreload
 
 ```bash
 cargo install wasm-pack --locked
-wasm-pack test --headless --firefox
+wasm-pack test --headless --chrome
 ```
 
 #### Build VS Code extension

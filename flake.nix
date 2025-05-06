@@ -37,6 +37,8 @@
               typescript
               pnpm
               vsce
+              chromedriver
+              chromium
               llvmPackages_19.clang-unwrapped
               llvmPackages_19.libcxx
               (rust-bin.fromRustupToolchainFile (./rust-toolchain.toml))

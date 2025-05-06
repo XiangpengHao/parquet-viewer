@@ -56,7 +56,7 @@ pub struct ParquetUnresolved {
 }
 
 impl ParquetUnresolved {
-    fn try_new(
+    pub(crate) fn try_new(
         file_name_with_extension: String,
         path_relative_to_object_store: Path,
         object_store_url: ObjectStoreUrl,
