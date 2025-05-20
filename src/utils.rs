@@ -31,10 +31,10 @@ pub(crate) fn get_stored_value(key: &str) -> Option<String> {
 }
 
 pub(crate) fn save_to_storage(key: &str, value: &str) {
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(storage)) = window.local_storage() {
-            let _ = storage.set_item(key, value);
-        }
+    if let Some(window) = web_sys::window()
+        && let Ok(Some(storage)) = window.local_storage()
+    {
+        let _ = storage.set_item(key, value);
     }
 }
 
@@ -88,14 +88,14 @@ pub(crate) fn send_message_to_vscode(message_type: &str, vscode: &JsValue) {
     let message = js_sys::Object::new();
     js_sys::Reflect::set(&message, &"type".into(), &message_type.into()).unwrap();
 
-    if let Ok(post_message) = js_sys::Reflect::get(vscode, &"postMessage".into()) {
-        if post_message.is_function() {
-            let post_message_fn = post_message.dyn_ref::<js_sys::Function>().unwrap();
+    if let Ok(post_message) = js_sys::Reflect::get(vscode, &"postMessage".into())
+        && post_message.is_function()
+    {
+        let post_message_fn = post_message.dyn_ref::<js_sys::Function>().unwrap();
 
-            let _ = js_sys::Reflect::apply(post_message_fn, vscode, &js_sys::Array::of1(&message));
+        let _ = js_sys::Reflect::apply(post_message_fn, vscode, &js_sys::Array::of1(&message));
 
-            logging::log!("Sent message to VS Code: {}", message_type);
-        }
+        logging::log!("Sent message to VS Code: {}", message_type);
     }
 }
 

@@ -93,14 +93,14 @@ fn App() -> impl IntoView {
                 return;
             }
             let obj = js_sys::Object::from(data);
-            if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into()) {
-                if let Some(type_str) = type_val.as_string() {
-                    match type_str.as_str() {
-                        "parquetServerReady" => {
-                            read_from_vscode(obj, on_parquet_read_call_back);
-                        }
-                        _ => logging::log!("Unknown message type: {}", type_str),
+            if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into())
+                && let Some(type_str) = type_val.as_string()
+            {
+                match type_str.as_str() {
+                    "parquetServerReady" => {
+                        read_from_vscode(obj, on_parquet_read_call_back);
                     }
+                    _ => logging::log!("Unknown message type: {}", type_str),
                 }
             }
         });

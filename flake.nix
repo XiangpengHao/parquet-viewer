@@ -33,7 +33,7 @@
               wasm-pack
               wabt
               leptosfmt
-              nodejs_23
+              nodejs
               typescript
               pnpm
               vsce

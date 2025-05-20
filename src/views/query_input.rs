@@ -11,10 +11,10 @@ pub fn QueryInput(
     let (api_key, _) = signal(stored_api_key);
 
     Effect::new(move |_| {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                let _ = storage.set_item("claude_api_key", &api_key.get());
-            }
+        if let Some(window) = web_sys::window()
+            && let Ok(Some(storage)) = window.local_storage()
+        {
+            let _ = storage.set_item("claude_api_key", &api_key.get());
         }
     });
 

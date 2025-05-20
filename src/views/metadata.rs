@@ -189,27 +189,27 @@ fn stats_to_string(stats: &Option<Statistics>) -> String {
                     }
                 }
                 Statistics::ByteArray(s) => {
-                    if let Some(min) = s.min_opt() {
-                        if let Ok(min_utf8) = min.as_utf8() {
-                            parts.push(format!("min: {min_utf8}"));
-                        }
+                    if let Some(min) = s.min_opt()
+                        && let Ok(min_utf8) = min.as_utf8()
+                    {
+                        parts.push(format!("min: {min_utf8}"));
                     }
-                    if let Some(max) = s.max_opt() {
-                        if let Ok(max_utf8) = max.as_utf8() {
-                            parts.push(format!("max: {max_utf8}"));
-                        }
+                    if let Some(max) = s.max_opt()
+                        && let Ok(max_utf8) = max.as_utf8()
+                    {
+                        parts.push(format!("max: {max_utf8}"));
                     }
                 }
                 Statistics::FixedLenByteArray(s) => {
-                    if let Some(min) = s.min_opt() {
-                        if let Ok(min_utf8) = min.as_utf8() {
-                            parts.push(format!("min: {min_utf8}"));
-                        }
+                    if let Some(min) = s.min_opt()
+                        && let Ok(min_utf8) = min.as_utf8()
+                    {
+                        parts.push(format!("min: {min_utf8}"));
                     }
-                    if let Some(max) = s.max_opt() {
-                        if let Ok(max_utf8) = max.as_utf8() {
-                            parts.push(format!("max: {max_utf8}"));
-                        }
+                    if let Some(max) = s.max_opt()
+                        && let Ok(max_utf8) = max.as_utf8()
+                    {
+                        parts.push(format!("max: {max_utf8}"));
                     }
                 }
             }

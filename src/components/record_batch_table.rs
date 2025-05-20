@@ -25,24 +25,22 @@ pub fn RecordBatchTable(
 
     let data_clone = data.clone();
     let sorted_data = Memo::new(move |_| {
-        if let Some(col_idx) = sort_column.get() {
-            if col_idx < data_clone.num_columns() {
-                let sort_col = data_clone.column(col_idx);
+        if let Some(col_idx) = sort_column.get()
+            && col_idx < data_clone.num_columns()
+        {
+            let sort_col = data_clone.column(col_idx);
 
-                let options = SortOptions {
-                    descending: !sort_ascending.get(),
-                    nulls_first: false,
-                };
+            let options = SortOptions {
+                descending: !sort_ascending.get(),
+                nulls_first: false,
+            };
 
-                let indices = sort_to_indices(sort_col.as_ref(), Some(options), None)
-                    .unwrap_or_else(|_| {
-                        PrimitiveArray::<UInt32Type>::from_iter_values(
-                            0..data_clone.num_rows() as u32,
-                        )
-                    });
+            let indices =
+                sort_to_indices(sort_col.as_ref(), Some(options), None).unwrap_or_else(|_| {
+                    PrimitiveArray::<UInt32Type>::from_iter_values(0..data_clone.num_rows() as u32)
+                });
 
-                return indices;
-            }
+            return indices;
         }
 
         PrimitiveArray::<UInt32Type>::from_iter_values(0..data_clone.num_rows() as u32)
