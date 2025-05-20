@@ -3,6 +3,7 @@ name: Release to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  tests:
+    name: Run Tests
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -23,19 +29,15 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - name: Install nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
-      - name: Add WASM target
-        run: rustup target add wasm32-unknown-unknown
-      - name: Download and install Tailwind CSS
-        run: npm install -D tailwindcss
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.9/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Build with Trunk
-        run: ./trunk build --release
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Set up Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Build with Nix and Trunk
+        run: |
+          nix develop --command bash -c "
+            trunk build --release
+          "
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
