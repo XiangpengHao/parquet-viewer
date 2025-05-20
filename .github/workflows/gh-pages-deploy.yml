@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write  # Required for cache purging
 
 # Ensure only one deployment at a time
 concurrency:
@@ -31,8 +32,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            keep-env-derivations = true
+            keep-outputs = true
       - name: Set up Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-pages-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-pages-${{ runner.os }}-
+          purge-created: 604800  # 7 days
+          purge-last-accessed: 604800  # 7 days
+          purge-primary-key: never
       - name: Build with Nix and Trunk
         run: |
           nix develop --command bash -c "
