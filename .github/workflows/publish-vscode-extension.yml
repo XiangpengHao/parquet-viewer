@@ -1,11 +1,21 @@
-name: Publish VSCode Extension
+name: Publish Extension
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to bump to (e.g., 0.1.6)'
+      version_bump:
+        description: 'Version bump type'
         required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_version:
+        description: 'Custom version (only used if version_bump is "custom")'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -24,20 +34,35 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
+      - name: Calculate version
+        id: calc_version
+        run: |
+          cd vscode-extension
+          if [ "${{ github.event.inputs.version_bump }}" == "custom" ]; then
+            echo "VERSION=${{ github.event.inputs.custom_version }}" >> $GITHUB_OUTPUT
+          else
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            NEW_VERSION=$(npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version)
+            # Strip quotes from the version
+            NEW_VERSION="${NEW_VERSION//\"/}"
+            # Reset package.json to original state (we'll update it properly in next step)
+            git checkout -- package.json
+            echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          fi
       - name: Bump extension version
         run: |
           cd vscode-extension
-          npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          npm version ${{ steps.calc_version.outputs.VERSION }} --no-git-tag-version
           cd ..
       - name: Bump Cargo version
         run: |
-          sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "${{ github.event.inputs.version }}"/' Cargo.toml
+          sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "${{ steps.calc_version.outputs.VERSION }}"/' Cargo.toml
       - name: Commit version bump
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add vscode-extension/package.json Cargo.toml
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git commit -m "chore: bump version to ${{ steps.calc_version.outputs.VERSION }}"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,15 +74,21 @@ jobs:
         run: |
           cd vscode-extension
           npm run compile
-      - name: Install vsce CLI
-        run: npm install -g vsce
+      - name: Install publishing tools
+        run: npm install -g vsce ovsx
       - name: Package extension
         run: |
           cd vscode-extension
           vsce package
-      - name: Publish extension
+      - name: Publish to VS Code Marketplace
         run: |
           cd vscode-extension
           vsce publish -p ${{ secrets.VSCE_TOKEN }}
         env:
-          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }} 
+          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+      - name: Publish to Open VSX Registry
+        run: |
+          cd vscode-extension
+          ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}
+        env:
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }} 
