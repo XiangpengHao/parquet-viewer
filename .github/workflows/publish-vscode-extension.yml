@@ -64,6 +64,8 @@ jobs:
             NEW_VERSION=$(npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version)
             # Strip quotes from the version
             NEW_VERSION="${NEW_VERSION//\"/}"
+            # Remove 'v' prefix if present
+            NEW_VERSION="${NEW_VERSION#v}"
             # Reset package.json to original state (we'll update it properly in next step)
             git checkout -- package.json
             echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
