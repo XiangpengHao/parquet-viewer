@@ -94,7 +94,6 @@ jobs:
             trunk build --release && 
             # Then build the VS Code extension
             cd vscode-extension && npm install && npm run compile && 
-            npm install -g vsce ovsx && 
             vsce package
           "
       - name: Publish to VS Code Marketplace
@@ -106,6 +105,6 @@ jobs:
       - name: Publish to Open VSX Registry
         run: |
           cd vscode-extension
-          nix develop --command bash -c "ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}"
+          nix develop --command bash -c "npm install ovsx --no-save && npx ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}"
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }} 
