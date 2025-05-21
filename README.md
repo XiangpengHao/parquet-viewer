@@ -2,7 +2,9 @@
 
 Online at: https://parquet-viewer.xiangpeng.systems
 
-VS Code extension: https://marketplace.visualstudio.com/items?itemName=xiangpeng-systems.parquet-querier
+[OpenVSX](https://open-vsx.org/extension/xiangpeng-systems/parquet-querier) or [VS Code extension](https://marketplace.visualstudio.com/items?itemName=xiangpeng-systems.parquet-querier)
+
+
 
 ### Features
 
