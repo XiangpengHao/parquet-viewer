@@ -499,6 +499,10 @@ impl ArrayExt for dyn Array {
                 let array = as_string_array(array);
                 array.value(index).to_string()
             }
+            DataType::LargeUtf8 => {
+                let array = as_largestring_array(array);
+                array.value(index).to_string()
+            }
             DataType::Utf8View => {
                 let array = as_string_view_array(array).unwrap();
                 array.value(index).to_string()
