@@ -196,49 +196,60 @@ pub fn ParquetReader(
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-2">
             <div class="border-b border-gray-200 mb-4">
-                <nav class="-mb-px flex space-x-8">
-                    <button
-                        class=move || {
-                            let base = "py-2 px-1 border-b-2 font-medium text-sm";
-                            if active_tab.get() == "file" {
-                                return format!("{base} border-green-500 text-green-600");
+                <nav class="-mb-px flex justify-between items-center">
+                    <div class="flex space-x-8">
+                        <button
+                            class=move || {
+                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                if active_tab.get() == "file" {
+                                    return format!("{base} border-green-500 text-green-600");
+                                }
+                                format!(
+                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+                                )
                             }
-                            format!(
-                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                            )
-                        }
-                        on:click=move |_| set_active_tab_fn("file")
-                    >
-                        "From file"
-                    </button>
-                    <button
-                        class=move || {
-                            let base = "py-2 px-1 border-b-2 font-medium text-sm";
-                            if active_tab.get() == "url" {
-                                return format!("{base} border-green-500 text-green-600");
+                            on:click=move |_| set_active_tab_fn("file")
+                        >
+                            "From file"
+                        </button>
+                        <button
+                            class=move || {
+                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                if active_tab.get() == "url" {
+                                    return format!("{base} border-green-500 text-green-600");
+                                }
+                                format!(
+                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+                                )
                             }
-                            format!(
-                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                            )
-                        }
-                        on:click=move |_| set_active_tab_fn("url")
-                    >
-                        "From URL"
-                    </button>
-                    <button
-                        class=move || {
-                            let base = "py-2 px-1 border-b-2 font-medium text-sm";
-                            if active_tab.get() == "s3" {
-                                return format!("{base} border-green-500 text-green-600");
+                            on:click=move |_| set_active_tab_fn("url")
+                        >
+                            "From URL"
+                        </button>
+                        <button
+                            class=move || {
+                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                if active_tab.get() == "s3" {
+                                    return format!("{base} border-green-500 text-green-600");
+                                }
+                                format!(
+                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+                                )
                             }
-                            format!(
-                                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                            )
-                        }
-                        on:click=move |_| set_active_tab_fn("s3")
-                    >
-                        "From S3"
-                    </button>
+                            on:click=move |_| set_active_tab_fn("s3")
+                        >
+                            "From S3"
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        <a href="https://xiangpeng.systems/fund/" target="_blank" class="text-blue-400 hover:text-blue-600">
+                            "Funded"
+                        </a>
+                        " by "
+                        <a href="https://www.influxdata.com" target="_blank" class="text-blue-400 hover:text-blue-600">
+                            "InfluxData"
+                        </a>
+                    </div>
                 </nav>
             </div>
             {

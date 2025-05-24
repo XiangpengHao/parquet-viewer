@@ -4,6 +4,7 @@ Online at: https://parquet-viewer.xiangpeng.systems
 
 [OpenVSX](https://open-vsx.org/extension/xiangpeng-systems/parquet-querier) or [VS Code extension](https://marketplace.visualstudio.com/items?itemName=xiangpeng-systems.parquet-querier)
 
+Parquet viewer is made possible with the [funding](https://xiangpeng.systems/fund/) from [InfluxData](https://www.influxdata.com/).
 
 
 ### Features
