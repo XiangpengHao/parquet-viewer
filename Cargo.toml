@@ -4,16 +4,16 @@ version = "0.1.12"
 edition = "2024"
 
 [dependencies]
-arrow = { version = "54.3.1", default-features = false }
-arrow-schema = { version = "54.3.1", default-features = false }
-arrow-array = { version = "54.3.1", default-features = false }
+arrow = { version = "55.0.0", default-features = false }
+arrow-schema = { version = "55.0.0", default-features = false }
+arrow-array = { version = "55.0.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "46.0.1", default-features = false, features = [
+datafusion = { version = "47.0.0", default-features = false, features = [
 	"parquet",
 ] }
-leptos = { version = "0.7", features = ["csr", "nightly"] }
-parquet = { version = "54.3.1", features = [
+leptos = { version = "0.8", features = ["csr", "nightly"] }
+parquet = { version = "55.0.0", features = [
 	"arrow",
 	"snap",
 	"flate2",
@@ -36,13 +36,13 @@ chrono = { version = "0.4", features = ["wasmbind"] }
 futures = "0.3.31"
 zstd = { version = "*", features = ["wasm", "thin"], default-features = false }
 serde = { version = "1.0" }
-opendal = { version = "0.52.0", default-features = false, features = [
+opendal = { version = "0.53.3", default-features = false, features = [
 	"services-s3",
 	"services-http",
 ] }
-object_store_opendal = { version = "0.50.0", features = ["send_wrapper"] }
-leptos_router = { version = "0.7.8", features = ["nightly"] }
-object_store = "0.11.2"
+object_store_opendal = { version = "0.52.1", features = ["send_wrapper"] }
+leptos_router = { version = "0.8.2", features = ["nightly"] }
+object_store = "0.12.1"
 async-trait = "0.1.88"
 url = "2.5.4"
 anyhow = "1.0"

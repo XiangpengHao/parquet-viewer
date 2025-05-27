@@ -66,7 +66,7 @@ impl ObjectStore for WebFileObjectStore {
     async fn get_range(
         &self,
         _location: &Path,
-        range: Range<usize>,
+        range: Range<u64>,
     ) -> Result<Bytes, ObjectStoreError> {
         let get_range_fut = self.inner.get_range(range);
         let wrapped = SendWrapper {
@@ -88,7 +88,10 @@ impl ObjectStore for WebFileObjectStore {
         unreachable!()
     }
 
-    fn list(&self, _prefix: Option<&Path>) -> BoxStream<'_, Result<ObjectMeta, ObjectStoreError>> {
+    fn list(
+        &self,
+        _prefix: Option<&Path>,
+    ) -> BoxStream<'static, Result<ObjectMeta, ObjectStoreError>> {
         unreachable!()
     }
 
@@ -128,7 +131,7 @@ impl WebFileReader {
     }
 
     /// Get a slice of the file
-    pub async fn get_range(&self, range: Range<usize>) -> Result<Bytes, String> {
+    pub async fn get_range(&self, range: Range<u64>) -> Result<Bytes, String> {
         logging::log!("Fetching range {:?} from file", range);
 
         // Use the slice method to get only the requested range
@@ -150,7 +153,7 @@ impl WebFileReader {
         ObjectMeta {
             location: Path::from(self.file_name.clone()),
             last_modified: DateTime::from_timestamp(self.file.last_modified() as i64, 0).unwrap(),
-            size: self.file.size() as usize,
+            size: self.file.size() as u64,
             e_tag: None,
             version: None,
         }

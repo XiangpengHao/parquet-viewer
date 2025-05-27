@@ -308,7 +308,7 @@ pub fn RowGroupColumn(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         let metadata = metadata.clone();
         async move {
             let bytes = reader
-                .get_bytes(byte_range.0 as usize..(byte_range.0 + byte_range.1) as usize)
+                .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
                 .await
                 .unwrap();
             let chunk = ColumnChunk {

@@ -85,14 +85,13 @@ impl ParquetUnresolved {
     }
 
     pub async fn try_into_resolved(self, ctx: &SessionContext) -> Result<ParquetResolved> {
-        let meta = self
-            .object_store
-            .head(&self.path_relative_to_object_store)
-            .await?;
-        let mut reader = ParquetObjectReader::new(self.object_store.clone(), meta)
-            .with_preload_column_index(true)
-            .with_preload_offset_index(true);
-        let metadata = reader.get_metadata().await?;
+        let mut reader = ParquetObjectReader::new(
+            self.object_store.clone(),
+            self.path_relative_to_object_store.clone(),
+        )
+        .with_preload_column_index(true)
+        .with_preload_offset_index(true);
+        let metadata = reader.get_metadata(None).await?;
 
         let table_path = self.table_path();
 
@@ -242,11 +241,19 @@ pub fn ParquetReader(
                         </button>
                     </div>
                     <div class="text-xs text-gray-400">
-                        <a href="https://xiangpeng.systems/fund/" target="_blank" class="text-blue-400 hover:text-blue-600">
+                        <a
+                            href="https://xiangpeng.systems/fund/"
+                            target="_blank"
+                            class="text-blue-400 hover:text-blue-600"
+                        >
                             "Funded"
                         </a>
                         " by "
-                        <a href="https://www.influxdata.com" target="_blank" class="text-blue-400 hover:text-blue-600">
+                        <a
+                            href="https://www.influxdata.com"
+                            target="_blank"
+                            class="text-blue-400 hover:text-blue-600"
+                        >
                             "InfluxData"
                         </a>
                     </div>

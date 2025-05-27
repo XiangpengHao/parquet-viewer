@@ -17,7 +17,7 @@ use object_store_opendal::OpendalStore;
 #[derive(Debug)]
 pub(crate) struct ObjectStoreCache {
     inner: OpendalStore,
-    cache: Mutex<HashMap<(Path, Range<usize>), Bytes>>,
+    cache: Mutex<HashMap<(Path, Range<u64>), Bytes>>,
 }
 
 impl ObjectStoreCache {
@@ -73,7 +73,7 @@ impl ObjectStore for ObjectStoreCache {
     async fn get_range(
         &self,
         location: &Path,
-        range: Range<usize>,
+        range: Range<u64>,
     ) -> Result<Bytes, object_store::Error> {
         let key = (location.clone(), range);
         let mut cache = self.cache.lock().await;
@@ -99,7 +99,7 @@ impl ObjectStore for ObjectStoreCache {
     async fn get_ranges(
         &self,
         location: &Path,
-        ranges: &[Range<usize>],
+        ranges: &[Range<u64>],
     ) -> object_store::Result<Vec<Bytes>> {
         let mut tasks = Vec::with_capacity(ranges.len());
         for range in ranges {
@@ -117,7 +117,7 @@ impl ObjectStore for ObjectStoreCache {
     fn list(
         &self,
         prefix: Option<&Path>,
-    ) -> BoxStream<'_, Result<ObjectMeta, object_store::Error>> {
+    ) -> BoxStream<'static, Result<ObjectMeta, object_store::Error>> {
         self.inner.list(prefix)
     }
 
