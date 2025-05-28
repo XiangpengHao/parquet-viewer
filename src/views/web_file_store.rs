@@ -11,8 +11,9 @@ use chrono::DateTime;
 use futures::stream::BoxStream;
 use leptos::logging;
 use object_store::{
-    Error as ObjectStoreError, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta,
-    ObjectStore, PutMultipartOpts, PutOptions, PutPayload, PutResult, path::Path,
+    Error as ObjectStoreError, GetOptions, GetRange, GetResult, GetResultPayload, ListResult,
+    MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOpts, PutOptions, PutPayload, PutResult,
+    path::Path,
 };
 use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys::Uint8Array;
@@ -57,27 +58,62 @@ impl ObjectStore for WebFileObjectStore {
 
     async fn get_opts(
         &self,
-        _location: &Path,
-        _options: GetOptions,
+        location: &Path,
+        options: GetOptions,
     ) -> Result<GetResult, ObjectStoreError> {
-        unimplemented!()
-    }
+        let meta = self.head(location).await?;
+        if options.head {
+            return Ok(GetResult {
+                payload: GetResultPayload::Stream(Box::pin(futures::stream::empty())),
+                range: 0..0,
+                meta,
+                attributes: Default::default(),
+            });
+        }
 
-    async fn get_range(
-        &self,
-        _location: &Path,
-        range: Range<u64>,
-    ) -> Result<Bytes, ObjectStoreError> {
-        let get_range_fut = self.inner.get_range(range);
-        let wrapped = SendWrapper {
-            inner: get_range_fut,
+        let range = match options.range {
+            Some(GetRange::Bounded(r)) => {
+                if r.start >= r.end || r.start >= meta.size {
+                    0..0
+                } else {
+                    let end = r.end.min(meta.size);
+                    r.start..end
+                }
+            }
+            Some(GetRange::Offset(r)) => {
+                if r < meta.size {
+                    r..meta.size
+                } else {
+                    0..0
+                }
+            }
+            Some(GetRange::Suffix(r)) if r < meta.size => (meta.size - r)..meta.size,
+            _ => 0..meta.size,
         };
-        let blob = wrapped.await.map_err(|e| ObjectStoreError::Generic {
-            store: "WebFileObjectStore",
-            source: format!("Failed to slice file: {e:?}").into(),
-        })?;
 
-        Ok(blob)
+        let web_file_reader_cloned = self.inner.clone();
+        let range_for_stream = range.clone();
+
+        let stream = futures::stream::once(async move {
+            let get_range_future = web_file_reader_cloned.get_range(range_for_stream);
+
+            let result_bytes = SendWrapper {
+                inner: get_range_future,
+            }
+            .await;
+
+            result_bytes.map_err(|e| ObjectStoreError::Generic {
+                store: "WebFileObjectStore",
+                source: anyhow::anyhow!(e).into(),
+            })
+        });
+
+        Ok(GetResult {
+            payload: GetResultPayload::Stream(Box::pin(stream)),
+            range,
+            meta,
+            attributes: Default::default(),
+        })
     }
 
     async fn head(&self, _location: &Path) -> Result<ObjectMeta, ObjectStoreError> {
@@ -111,7 +147,7 @@ impl ObjectStore for WebFileObjectStore {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebFileReader {
     file: web_sys::File,
     file_name: String,
