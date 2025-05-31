@@ -60,7 +60,7 @@ pub fn RecordBatchTable(
     let data_clone = data.clone();
 
     view! {
-        <table class="w-full border-collapse text-sm">
+        <table class="w-full border-collapse text-xs">
             <thead>
                 <tr>
                     {move || {

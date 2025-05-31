@@ -16,7 +16,7 @@ mod tests;
 mod utils;
 mod views;
 
-use views::metadata::MetadataSection;
+use views::metadata::MetadataView;
 use views::parquet_reader::{ParquetReader, ParquetUnresolved, read_from_vscode};
 use views::query_input::QueryInput;
 use views::query_results::{QueryResult, QueryResultView};
@@ -107,8 +107,8 @@ fn App() -> impl IntoView {
     }
 
     view! {
-        <div class="container mx-auto px-4 py-8 max-w-6xl">
-            <h1 class="text-3xl font-bold mb-4 flex items-center justify-between">
+        <div class="container mx-auto px-4 py-4 max-w-6xl text-xs">
+            <h1 class="text-2xl font-bold mb-2 flex items-center justify-between">
                 <span>"Parquet Viewer"</span>
                 <div class="flex items-center gap-4">
                     <button
@@ -145,7 +145,7 @@ fn App() -> impl IntoView {
                     </a>
                 </div>
             </h1>
-            <div class="space-y-6">
+            <div class="space-y-3">
                 {move || {
                     if is_in_vscode {
                         ().into_any()
@@ -167,7 +167,7 @@ fn App() -> impl IntoView {
                             }
                         })
                 }}
-                <div class="mt-4">
+                <div class="mt-2">
                     {move || {
                         parquet_table
                             .get()
@@ -185,7 +185,7 @@ fn App() -> impl IntoView {
                                 }
                             })
                     }}
-                </div> <div class="space-y-4">
+                </div> <div class="space-y-2">
                     <For
                         each=move || query_results.get().into_iter().filter(|r| r.display()).rev()
                         key=|result| result.id()
@@ -197,8 +197,8 @@ fn App() -> impl IntoView {
                             }
                         }
                     />
-                </div> <div class="border-t border-gray-300 my-4"></div>
-                <div class="mt-8">
+                </div>
+                <div class="mt-4">
                     {move || {
                         let table = parquet_table.get();
                         match table {
@@ -206,7 +206,7 @@ fn App() -> impl IntoView {
                                 view! {
                                     <div class="space-y-6">
                                         <div class="w-full">
-                                            <MetadataSection parquet_reader=table.clone() />
+                                            <MetadataView parquet_reader=table.clone() />
                                         </div>
                                         <div class="w-full">
                                             <SchemaSection parquet_reader=table.clone() />

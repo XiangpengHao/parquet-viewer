@@ -6,7 +6,7 @@ use crate::{
     parquet_ctx::ParquetResolved,
     utils::execute_query_inner,
     views::{
-        metadata::MetadataSection,
+        metadata::MetadataView,
         parquet_reader::{ParquetUnresolved, read_from_url},
         schema::SchemaSection,
     },
@@ -18,7 +18,10 @@ use bytes::Bytes;
 use datafusion::execution::object_store::ObjectStoreUrl;
 use leptos::{logging, prelude::*};
 use object_store::{ObjectStore, PutPayload, memory::InMemory, path::Path};
-use parquet::arrow::ArrowWriter;
+use parquet::{
+    arrow::ArrowWriter,
+    file::properties::{EnabledStatistics, WriterProperties},
+};
 use wasm_bindgen_test::*;
 use web_sys::wasm_bindgen::JsCast;
 
@@ -80,7 +83,7 @@ fn test_render_schema_and_meta(table: Arc<ParquetResolved>) {
     let _dispose = mount_to(test_wrapper.clone().unchecked_into(), move || {
         view! {
             <SchemaSection parquet_reader=table.clone() />
-            <MetadataSection parquet_reader=table.clone() />
+            <MetadataView parquet_reader=table.clone() />
         }
     });
 }
@@ -158,4 +161,58 @@ async fn test_read_parquet_with_nested_column() {
 
     test_render_schema_and_meta(table);
     test_render_record_batch_table(rows);
+}
+
+fn gen_parquet_with_page_stats(stats_level: EnabledStatistics) -> Vec<u8> {
+    let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, false)]));
+    let batch = RecordBatch::try_new(
+        schema.clone(),
+        vec![Arc::new(Int64Array::from_iter_values(0..10_000))],
+    )
+    .unwrap();
+    let mut buf = Vec::new();
+
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(stats_level)
+        .set_data_page_size_limit(100)
+        .build();
+    let mut writer = ArrowWriter::try_new(&mut buf, schema.clone(), Some(props)).unwrap();
+    writer.write(&batch).unwrap();
+    writer.close().unwrap();
+    buf
+}
+#[wasm_bindgen_test]
+async fn test_render_page_stats() {
+    let ctx = SESSION_CTX.clone();
+    let parquet_unresolved = register_parquet_file(
+        "page_stats.parquet",
+        gen_parquet_with_page_stats(EnabledStatistics::Page),
+    )
+    .await;
+    let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
+    test_render_schema_and_meta(table);
+}
+
+#[wasm_bindgen_test]
+async fn test_render_chunk_stats() {
+    let ctx = SESSION_CTX.clone();
+    let parquet_unresolved = register_parquet_file(
+        "chunk_stats.parquet",
+        gen_parquet_with_page_stats(EnabledStatistics::Chunk),
+    )
+    .await;
+    let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
+    test_render_schema_and_meta(table);
+}
+
+#[wasm_bindgen_test]
+async fn test_render_no_stats() {
+    let ctx = SESSION_CTX.clone();
+    let parquet_unresolved = register_parquet_file(
+        "no_stats.parquet",
+        gen_parquet_with_page_stats(EnabledStatistics::None),
+    )
+    .await;
+    let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
+    test_render_schema_and_meta(table);
 }

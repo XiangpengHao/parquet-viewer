@@ -199,7 +199,7 @@ pub fn ParquetReader(
                     <div class="flex space-x-8">
                         <button
                             class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                let base = "py-2 px-1 border-b-2 font-medium";
                                 if active_tab.get() == "file" {
                                     return format!("{base} border-green-500 text-green-600");
                                 }
@@ -213,7 +213,7 @@ pub fn ParquetReader(
                         </button>
                         <button
                             class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                let base = "py-2 px-1 border-b-2 font-medium";
                                 if active_tab.get() == "url" {
                                     return format!("{base} border-green-500 text-green-600");
                                 }
@@ -227,7 +227,7 @@ pub fn ParquetReader(
                         </button>
                         <button
                             class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium text-sm";
+                                let base = "py-2 px-1 border-b-2 font-medium";
                                 if active_tab.get() == "s3" {
                                     return format!("{base} border-green-500 text-green-600");
                                 }

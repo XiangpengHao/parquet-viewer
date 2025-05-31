@@ -137,16 +137,16 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
         .unwrap();
 
     view! {
-        <div class="flex items-center mb-4 mt-4">
-            <div class="w-3/4 font-mono text-sm overflow-auto relative group max-h-[200px]">
-                <pre class="whitespace-pre p-2 rounded">
+        <div class="flex items-center mb-2 mt-2">
+            <div class="w-3/4 font-mono overflow-auto relative group max-h-[200px]">
+                <pre class="whitespace-pre rounded">
                     <code class="language-sql" inner_html=highlighted_sql_input></code>
                 </pre>
             </div>
             <div class="w-1/4">
                 <div class="flex justify-end">
                     <div class="flex items-center rounded-md">
-                        <div class="text-sm text-gray-500 font-mono relative group">
+                        <div class="text-gray-500 font-mono relative group">
                             <span class=TOOLTIP_CLASSES>{format!("SELECT * FROM view_{id}")}</span>
                             {format!("view_{id}")}
                         </div>
@@ -271,7 +271,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
         }}
 
         <div
-            class="max-h-[32rem] overflow-auto relative text-sm"
+            class="max-h-[32rem] overflow-auto relative"
             node_ref=table_container
             on:scroll=handle_scroll
         >
@@ -288,7 +288,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                     _ => "min-w-[200px]"
                                 };
                                 view! {
-                                    <th class=format!("px-4 py-1 text-left {width} leading-tight")>
+                                    <th class=format!("px-1 py-1 text-left {width} leading-tight")>
                                         <div class="truncate" title=field.name().clone()>
                                             {field.name().clone()}
                                         </div>
@@ -317,7 +317,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                             let cell_value = column.as_ref().value_to_string(row_idx);
 
                                             view! {
-                                                <td class="px-4 py-1 leading-tight text-gray-700 break-words">
+                                                <td class="px-1 py-1 leading-tight text-gray-700 break-words">
                                                     {if cell_value.len() > 100 {
                                                         view! {
                                                             <details class="custom-details relative">
@@ -378,9 +378,9 @@ pub fn QueryResultView(
     view! {
         <div class="p-3 bg-white border border-gray-300 rounded-md hover:shadow-md transition-shadow duration-200">
             <div class="flex justify-between items-center border-b border-gray-100 mb-2">
-                <div class="text-sm text-gray-500">{result.user_input}</div>
+                <div class="text-gray-500">{result.user_input}</div>
                 <div class="flex items-center">
-                    <div class="text-sm text-gray-500 mr-2">
+                    <div class="text-gray-500 mr-2">
                         {move || {
                             let now = js_sys::Date::new_0();
                             format!(

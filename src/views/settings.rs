@@ -46,7 +46,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                 >
                     // Header with close button
                     <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-2xl font-bold">"Settings"</h2>
+                        <h2 class="text-xl font-bold">"Settings"</h2>
                         <button
                             class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200"
                             on:click=close_modal
@@ -77,9 +77,9 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             // Anthropic API Section
                             <div class="bg-gray-50 p-4 rounded-lg">
-                                <h3 class="text-xl font-medium mb-5">"Natural Language to SQL"</h3>
+                                <h3 class="text-lg font-medium mb-5">"Natural Language to SQL"</h3>
                                 <div class="mb-5">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <label class="block font-medium text-gray-700 mb-2">
                                         "Claude API Key"
                                         <a
                                             href="https://console.anthropic.com/account/keys"
@@ -97,9 +97,9 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                             set_anthropic_key.set(value);
                                         }
                                         prop:value=anthropic_key
-                                        class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                        class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                     />
-                                    <p class="mt-3 text-sm text-gray-600 italic">
+                                    <p class="mt-3 text-gray-600 italic">
                                         "If no API key is provided, it uses Xiangpeng's personal token -- \
                                         use reasonably and "
                                         <a
@@ -116,10 +116,10 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
 
                             // S3 Configuration Section
                             <div class="bg-gray-50 p-6 rounded-lg">
-                                <h3 class="text-xl font-medium mb-5">"S3 Configuration"</h3>
-                                <div class="space-y-5">
+                                <h3 class="text-lg font-medium mb-5">"S3 Configuration"</h3>
+                                <div class="space-y-3">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <label class="block font-medium text-gray-700 mb-1">
                                             "S3 Endpoint"
                                         </label>
                                         <input
@@ -130,11 +130,11 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                                 set_s3_endpoint.set(value);
                                             }
                                             prop:value=s3_endpoint
-                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <label class="block font-medium text-gray-700 mb-1">
                                             "Access Key ID"
                                         </label>
                                         <input
@@ -145,11 +145,11 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                                 set_s3_access_key_id.set(value);
                                             }
                                             prop:value=s3_access_key_id
-                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <label class="block font-medium text-gray-700 mb-1">
                                             "Secret Access Key"
                                         </label>
                                         <input
@@ -160,7 +160,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                                 set_s3_secret_key.set(value);
                                             }
                                             prop:value=s3_secret_key
-                                            class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                         />
                                     </div>
                                 </div>
@@ -170,7 +170,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
 
                     // Footer with Done button
                     <div class="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
-                        <div class="text-sm text-gray-600 text-left">
+                        <div class="text-gray-600 text-left">
                             "Built by"
                             <a
                                 href="https://xiangpeng.systems"
