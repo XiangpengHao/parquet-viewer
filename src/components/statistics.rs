@@ -53,18 +53,18 @@ pub fn StatisticsDisplay(statistics: Option<Statistics>) -> impl IntoView {
                     {min_val
                         .map(|val| {
                             view! {
-                                <div class="flex-1 min-w-[200px] px-2 py-1 rounded border border-gray-200">
+                                <div class="flex-1 min-w-[200px] max-h-20 px-2 py-1 rounded border border-gray-200 overflow-y-auto">
                                     <span class="text-gray-600 font-medium">"Min: "</span>
-                                    <span class="text-gray-800">{val}</span>
+                                    <span class="text-gray-800 break-words">{val}</span>
                                 </div>
                             }
                         })}
                     {max_val
                         .map(|val| {
                             view! {
-                                <div class="flex-1 min-w-[200px] px-2 py-1 rounded border border-gray-200">
+                                <div class="flex-1 min-w-[200px] max-h-20 px-2 py-1 rounded border border-gray-200 overflow-y-auto">
                                     <span class="text-gray-600 font-medium">"Max: "</span>
-                                    <span class="text-gray-800">{val}</span>
+                                    <span class="text-gray-800 break-words">{val}</span>
                                 </div>
                             }
                         })}

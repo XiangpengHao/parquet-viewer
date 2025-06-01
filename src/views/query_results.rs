@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use arrow::array::{Array, types::*};
+use arrow::compute::concat_batches;
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use arrow_array::{downcast_integer, downcast_integer_array};
@@ -99,13 +100,14 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
     let (show_plan, set_show_plan) = signal(false);
     let query_result_clone1 = result.record_batches.clone();
     let query_result_clone2 = result.record_batches.clone();
+    let merged_record_batch = concat_batches(
+        &result.record_batches[0].schema(),
+        result.record_batches.iter().collect::<Vec<_>>(),
+    )
+    .expect("Failed to merge record batches");
     let sql_clone = sql.clone();
-    let schema = result.physical_plan.schema();
-    let total_rows = result
-        .record_batches
-        .iter()
-        .map(|b| b.num_rows())
-        .sum::<usize>();
+    let schema = merged_record_batch.schema();
+    let total_rows = merged_record_batch.num_rows();
     let (current_page, set_current_page) = signal(1);
     let visible_rows = move || (current_page.get() * 20).min(total_rows);
     let table_container = NodeRef::<leptos::html::Div>::new();
@@ -131,10 +133,13 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
         "hljs.highlight({},{{ language: 'sql' }}).value",
         js_sys::JSON::stringify(&JsValue::from_str(&sql)).unwrap()
     );
-    let highlighted_sql_input = js_sys::eval(&highlighted_sql_input)
-        .unwrap()
-        .as_string()
-        .unwrap();
+    let highlighted_sql_input = match js_sys::eval(&highlighted_sql_input) {
+        Ok(v) => v.as_string().unwrap(),
+        Err(e) => {
+            logging::log!("Error highlighting SQL: {e:?}");
+            sql
+        }
+    };
 
     view! {
         <div class="flex items-center mb-2 mt-2">
@@ -311,9 +316,9 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                         children=move |row_idx| {
                             view! {
                                 <tr class="hover:bg-gray-50">
-                                    {(0..result.record_batches[0].num_columns())
+                                    {(0..merged_record_batch.num_columns())
                                         .map(|col_idx| {
-                                            let column = result.record_batches[0].column(col_idx);
+                                            let column = merged_record_batch.column(col_idx);
                                             let cell_value = column.as_ref().value_to_string(row_idx);
 
                                             view! {
@@ -575,5 +580,52 @@ impl ArrayExt for dyn Array {
             }
             t => format!("Unsupported datatype {t}"),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use arrow_array::Int32Array;
+    use arrow_schema::{Field, Schema};
+    use datafusion::physical_plan::placeholder_row::PlaceholderRowExec;
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+
+    use super::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    fn test_render_query_result_view(result: ExecutionResult) {
+        let document = document();
+        let test_wrapper = document.create_element("section").unwrap();
+        let _ = document.body().unwrap().append_child(&test_wrapper);
+
+        let _dispose = mount_to(test_wrapper.clone().unchecked_into(), move || {
+            view! {
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+            <QueryResultViewInner result=result.clone() sql="SELECT * FROM test".to_string() id=0 /> }
+        });
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_query_result_view_with_multiple_batches() {
+        let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int32, false)]));
+        let plan = PlaceholderRowExec::new(schema.clone());
+        let result = ExecutionResult {
+            record_batches: Arc::new(vec![
+                RecordBatch::try_new(
+                    schema.clone(),
+                    vec![Arc::new(Int32Array::from(vec![1, 2, 3]))],
+                )
+                .unwrap(),
+                RecordBatch::try_new(
+                    schema.clone(),
+                    vec![Arc::new(Int32Array::from(vec![4, 5, 6]))],
+                )
+                .unwrap(),
+            ]),
+            physical_plan: Arc::new(plan),
+        };
+        test_render_query_result_view(result);
     }
 }
