@@ -19,7 +19,7 @@ pub struct MetadataDisplay {
     pub columns: u64,
     pub has_row_group_stats: bool,
     pub has_column_index: bool,
-    pub has_page_index: bool,
+    pub has_offset_index: bool,
     pub has_bloom_filter: bool,
     pub schema: SchemaRef,
     pub metadata: Arc<ParquetMetaData>,
@@ -50,7 +50,7 @@ impl MetadataDisplay {
             .column_index()
             .and_then(|ci| ci.first().map(|c| !c.is_empty()))
             .unwrap_or(false);
-        let has_page_index = metadata
+        let has_offset_index = metadata
             .offset_index()
             .and_then(|ci| ci.first().map(|c| !c.is_empty()))
             .unwrap_or(false);
@@ -66,7 +66,7 @@ impl MetadataDisplay {
                 .map(|c| c.statistics().is_some())
                 .unwrap_or(false),
             has_column_index,
-            has_page_index,
+            has_offset_index,
             has_bloom_filter: first_column
                 .map(|c| c.bloom_filter_offset().is_some())
                 .unwrap_or(false),
@@ -100,10 +100,10 @@ impl std::fmt::Display for MetadataDisplay {
             } else {
                 "✗ Column Index "
             },
-            if self.has_page_index {
-                "✓ Page Index "
+            if self.has_offset_index {
+                "✓ Offset Index "
             } else {
-                "✗ Page Index "
+                "✗ Offset Index "
             },
             if self.has_bloom_filter {
                 "✓ Bloom Filter"

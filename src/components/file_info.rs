@@ -12,7 +12,7 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> i
         .to_string();
     let version = metadata_display.metadata.file_metadata().version();
     let has_bloom_filter = metadata_display.has_bloom_filter;
-    let has_page_index = metadata_display.has_page_index;
+    let has_offset_index = metadata_display.has_offset_index;
     let has_column_index = metadata_display.has_column_index;
     let has_row_group_stats = metadata_display.has_row_group_stats;
 
@@ -81,13 +81,13 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> i
                         "border-green-200 text-green-700"
                     } else {
                         "border-gray-200 text-gray-600"
-                    }>{if has_column_index { "✓" } else { "✗" }} " Column Index"</div>
+                    }>{if has_column_index { "✓" } else { "✗" }} " Page stats"</div>
                 <div class="p-1 rounded border ".to_owned()
-                    + if has_page_index {
+                    + if has_offset_index {
                         "border-green-200 text-green-700"
                     } else {
                         "border-gray-200 text-gray-600"
-                    }>{if has_page_index { "✓" } else { "✗" }} " Page Index"</div>
+                    }>{if has_offset_index { "✓" } else { "✗" }} " Page offsets"</div>
                 <div class="p-1 rounded border ".to_owned()
                     + if has_bloom_filter {
                         "border-green-200 text-green-700"
