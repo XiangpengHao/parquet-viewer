@@ -12,6 +12,7 @@ use parquet::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetadataDisplay {
     pub file_size: u64,
+    pub compressed_row_group_size: u64,
     pub uncompressed_size: u64,
     pub compression_ratio: f64,
     pub row_group_count: u64,
@@ -23,12 +24,18 @@ pub struct MetadataDisplay {
     pub has_bloom_filter: bool,
     pub schema: SchemaRef,
     pub metadata: Arc<ParquetMetaData>,
-    pub metadata_len: u64,
+    pub metadata_memory_size: u64,
+    pub footer_size: u64,
 }
 
 impl MetadataDisplay {
-    pub fn from_metadata(metadata: Arc<ParquetMetaData>, metadata_len: u64) -> Result<Self> {
-        let compressed_size = metadata
+    pub fn from_metadata(
+        metadata: Arc<ParquetMetaData>,
+        metadata_memory_size: u64,
+        file_size: u64,
+        footer_size: u64,
+    ) -> Result<Self> {
+        let compressed_row_group_size = metadata
             .row_groups()
             .iter()
             .map(|rg| rg.compressed_size())
@@ -56,9 +63,10 @@ impl MetadataDisplay {
             .unwrap_or(false);
 
         Ok(Self {
-            file_size: compressed_size,
+            file_size,
+            compressed_row_group_size,
             uncompressed_size,
-            compression_ratio: compressed_size as f64 / uncompressed_size as f64,
+            compression_ratio: compressed_row_group_size as f64 / uncompressed_size as f64,
             row_group_count: metadata.num_row_groups() as u64,
             row_count: metadata.file_metadata().num_rows() as u64,
             columns: schema.fields.len() as u64,
@@ -72,7 +80,8 @@ impl MetadataDisplay {
                 .unwrap_or(false),
             schema: Arc::new(schema),
             metadata,
-            metadata_len,
+            metadata_memory_size,
+            footer_size,
         })
     }
 
@@ -85,8 +94,11 @@ impl std::fmt::Display for MetadataDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "File Size: {} MB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
+            "File Size: {} MB\nCompressed Row Groups: {} MB\nFooter Size: {} KB\nMemory Size: {} KB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
             self.file_size as f64 / 1_048_576.0, // Convert bytes to MB
+            self.compressed_row_group_size as f64 / 1_048_576.0, // Convert bytes to MB
+            self.footer_size as f64 / 1024.0,    // Convert bytes to KB
+            self.metadata_memory_size as f64 / 1024.0, // Convert bytes to KB
             self.row_group_count,
             self.row_count,
             self.columns,

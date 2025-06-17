@@ -26,9 +26,21 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> i
                     </span>
                 </div>
                 <div class="space-y-1">
+                    <span class="text-gray-400 text-xs">"Compressed row groups"</span>
+                    <span class="block">
+                        {format!("{:.2} MB", metadata_display.compressed_row_group_size as f64 / 1_048_576.0)}
+                    </span>
+                </div>
+                <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Metadata size"</span>
                     <span class="block">
-                        {format!("{:.2} KB", metadata_display.metadata_len as f64 / 1024.0)}
+                        {format!("{:.2} KB", metadata_display.footer_size as f64 / 1024.0)}
+                    </span>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-gray-400 text-xs">"Metadata in memory size"</span>
+                    <span class="block">
+                        {format!("{:.2} KB", metadata_display.metadata_memory_size as f64 / 1024.0)}
                     </span>
                 </div>
                 <div class="space-y-1">

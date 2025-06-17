@@ -85,12 +85,44 @@ impl ParquetUnresolved {
     }
 
     pub async fn try_into_resolved(self, ctx: &SessionContext) -> Result<ParquetResolved> {
+        // Get the actual file size from the object store
+        let file_meta = self
+            .object_store
+            .head(&self.path_relative_to_object_store)
+            .await?;
+        let actual_file_size = file_meta.size;
+
+        // Get the footer size by reading the last 8 bytes and decoding the metadata length
+        let footer_size = {
+            use parquet::file::FOOTER_SIZE;
+
+            let footer_bytes = self
+                .object_store
+                .get_range(
+                    &self.path_relative_to_object_store,
+                    (actual_file_size - FOOTER_SIZE as u64)..actual_file_size,
+                )
+                .await?;
+
+            // Decode the footer to get the metadata length
+            let footer_tail = &footer_bytes[footer_bytes.len() - FOOTER_SIZE..];
+            let metadata_len = u32::from_le_bytes([
+                footer_tail[0],
+                footer_tail[1],
+                footer_tail[2],
+                footer_tail[3],
+            ]) as u64;
+
+            metadata_len + FOOTER_SIZE as u64
+        };
+
         let mut reader = ParquetObjectReader::new(
             self.object_store.clone(),
             self.path_relative_to_object_store.clone(),
         )
         .with_preload_column_index(true)
         .with_preload_offset_index(true);
+
         let metadata = reader.get_metadata(None).await?;
 
         let table_path = self.table_path();
@@ -104,7 +136,7 @@ impl ParquetUnresolved {
                 "Object store {} not found, registering",
                 self.object_store_url
             );
-            ctx.register_object_store(self.object_store_url.as_ref(), self.object_store);
+            ctx.register_object_store(self.object_store_url.as_ref(), self.object_store.clone());
         } else {
             logging::log!(
                 "Object store {} found, using existing store",
@@ -116,13 +148,18 @@ impl ParquetUnresolved {
 
         logging::log!("registered parquet table: {}", self.table_name.as_str());
 
-        let size = metadata.memory_size();
+        let metadata_memory_size = metadata.memory_size();
         Ok(ParquetResolved::new(
             reader,
             self.table_name.as_str().to_string(),
             self.path_relative_to_object_store,
             self.object_store_url,
-            MetadataDisplay::from_metadata(metadata, size as u64)?,
+            MetadataDisplay::from_metadata(
+                metadata,
+                metadata_memory_size as u64,
+                actual_file_size,
+                footer_size,
+            )?,
         ))
     }
 }
