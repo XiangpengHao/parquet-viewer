@@ -44,6 +44,12 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> i
                     </span>
                 </div>
                 <div class="space-y-1">
+                    <span class="text-gray-400 text-xs">"Bloom filter size"</span>
+                    <span class="block">
+                        {format!("{:.2} MB", metadata_display.total_bloom_filter_size as f64 / 1_048_576.0)}
+                    </span>
+                </div>
+                <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Uncompressed"</span>
                     <span class="block">
                         {format!(

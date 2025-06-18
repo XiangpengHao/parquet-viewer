@@ -22,6 +22,7 @@ pub struct MetadataDisplay {
     pub has_column_index: bool,
     pub has_offset_index: bool,
     pub has_bloom_filter: bool,
+    pub total_bloom_filter_size: u64,
     pub schema: SchemaRef,
     pub metadata: Arc<ParquetMetaData>,
     pub metadata_memory_size: u64,
@@ -62,6 +63,19 @@ impl MetadataDisplay {
             .and_then(|ci| ci.first().map(|c| !c.is_empty()))
             .unwrap_or(false);
 
+        let has_bloom_filter = first_column
+            .map(|c| c.bloom_filter_offset().is_some())
+            .unwrap_or(false);
+
+        // Calculate total bloom filter size across all row groups and columns
+        let total_bloom_filter_size = metadata
+            .row_groups()
+            .iter()
+            .flat_map(|rg| rg.columns())
+            .filter_map(|col| col.bloom_filter_length())
+            .map(|len| len as u64)
+            .sum();
+
         Ok(Self {
             file_size,
             compressed_row_group_size,
@@ -75,9 +89,8 @@ impl MetadataDisplay {
                 .unwrap_or(false),
             has_column_index,
             has_offset_index,
-            has_bloom_filter: first_column
-                .map(|c| c.bloom_filter_offset().is_some())
-                .unwrap_or(false),
+            has_bloom_filter,
+            total_bloom_filter_size,
             schema: Arc::new(schema),
             metadata,
             metadata_memory_size,
@@ -94,11 +107,12 @@ impl std::fmt::Display for MetadataDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "File Size: {} MB\nCompressed Row Groups: {} MB\nFooter Size: {} KB\nMemory Size: {} KB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
+            "File Size: {} MB\nCompressed Row Groups: {} MB\nFooter Size: {} KB\nMemory Size: {} KB\nBloom Filter Size: {} KB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
             self.file_size as f64 / 1_048_576.0, // Convert bytes to MB
             self.compressed_row_group_size as f64 / 1_048_576.0, // Convert bytes to MB
             self.footer_size as f64 / 1024.0,    // Convert bytes to KB
             self.metadata_memory_size as f64 / 1024.0, // Convert bytes to KB
+            self.total_bloom_filter_size as f64 / 1024.0, // Convert bytes to KB
             self.row_group_count,
             self.row_count,
             self.columns,
