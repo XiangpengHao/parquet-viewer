@@ -26,10 +26,7 @@ Parquet viewer is made possible with the [funding](https://xiangpeng.systems/fun
 For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet`](https://parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet) will load the file from github.
 `parquet-viewer` is smart enough to only download the data that is relevant to your query, usually a few KBs, even if the file is large.
 
-- You can use `parquet-viewer.py` in `utils` to open a local file. Only works on Chrome or Firefox (not Safari).
-```bash
-./parquet-viewer.py /path/to/your/file.parquet
-```
+- If you have parquet files on remote servers, a useful tip is to use [sshfs](https://github.com/libfuse/sshfs) to mount the folder from the server to your local machine. This allows you to access your remote parquet files without opening additional ports for this tool.
 
 ## Development
 
