@@ -168,12 +168,15 @@ impl WebFileReader {
 
     /// Get a slice of the file
     pub async fn get_range(&self, range: Range<u64>) -> Result<Bytes, String> {
-        logging::log!("Fetching range {:?} from file", range);
-
+        logging::log!(
+            "get_range: [f64] Fetching range {}...{} from file",
+            range.start as f64,
+            range.end as f64
+        );
         // Use the slice method to get only the requested range
         let blob = self
             .file
-            .slice_with_i32_and_i32(range.start as i32, range.end as i32)
+            .slice_with_f64_and_f64(range.start as f64, range.end as f64)
             .map_err(|e| format!("Failed to slice file: {e:?}"))?;
 
         let array_buffer = JsFuture::from(blob.array_buffer()).await.unwrap();
