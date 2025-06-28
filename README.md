@@ -38,8 +38,7 @@ Checkout the awesome [Leptos](https://github.com/leptos-rs/leptos) framework.
 #### Run locally
 ```bash
 cargo install trunk --locked
-
-trunk serve --release  --no-autoreload
+trunk serve --release --no-autoreload
 ```
 
 #### Run tests
