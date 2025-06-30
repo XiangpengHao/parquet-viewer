@@ -47,11 +47,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             };
 
             // [3]: all encodings
-            for encoding_iter in col.encodings() {
-                leptos::logging::log!("eeee {} {}", i, encoding_iter);
+            for encoding_it in col.encodings() {
                 aggregated_column_info[i]
                     .3
-                    .insert(format!("{:?}", encoding_iter));
+                    .insert(format!("{encoding_it:?}"));
             }
 
             // [4]: all compression
