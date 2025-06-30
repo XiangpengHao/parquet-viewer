@@ -50,6 +50,7 @@ uuid = { version = "1.16.0", features = ["v4", "js"] }
 tokio = { version = "1.45.0", features = ["rt"] }
 gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
+byte-unit = "5.1.6"
 
 [profile.release]
 strip = true

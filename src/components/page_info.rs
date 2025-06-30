@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use byte_unit::{Byte, UnitType};
 use bytes::{Buf, Bytes};
 use leptos::prelude::*;
 use parquet::{
@@ -186,7 +187,7 @@ pub fn PageInfo(
             let mut page_info = Vec::new();
             for page in page_reader.flatten() {
                 let page_type = page.page_type();
-                let page_size = page.buffer().len() as f64 / 1024.0;
+                let page_size = page.buffer().len() as u64;
                 let num_values = page.num_values();
                 page_info.push((page_type, page_size, num_values, page.encoding()));
             }
@@ -225,7 +226,10 @@ pub fn PageInfo(
                                             <div class="grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 hover:bg-gray-50">
                                                 <span>{format!("{i}")}</span>
                                                 <span>{format!("{page_type:?}")}</span>
-                                                <span>{format!("{} KB", size.round() as i64)}</span>
+                                                <span>{format!(
+                                                    "{:.0}",
+                                                    Byte::from_u64(*size).get_appropriate_unit(UnitType::Binary)
+                                                )}</span>
                                                 <span>{format_rows(*values as u64)}</span>
                                                 <span>{format!("{encoding:?}")}</span>
                                             </div>
