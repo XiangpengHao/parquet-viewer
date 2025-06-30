@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow_schema::SchemaRef;
+use byte_unit::{Byte, UnitType};
 use datafusion::execution::object_store::ObjectStoreUrl;
 use object_store::path::Path;
 use parquet::{
@@ -107,12 +108,12 @@ impl std::fmt::Display for MetadataDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "File Size: {} MB\nCompressed Row Groups: {} MB\nFooter Size: {} KB\nMemory Size: {} KB\nBloom Filter Size: {} KB\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
-            self.file_size as f64 / 1_048_576.0, // Convert bytes to MB
-            self.compressed_row_group_size as f64 / 1_048_576.0, // Convert bytes to MB
-            self.footer_size as f64 / 1024.0,    // Convert bytes to KB
-            self.metadata_memory_size as f64 / 1024.0, // Convert bytes to KB
-            self.total_bloom_filter_size as f64 / 1024.0, // Convert bytes to KB
+            "File Size: {:.2}\nCompressed Row Groups: {:.2}\nFooter Size: {:.2}\nMemory Size: {:.2}\nBloom Filter Size: {:.2}\nRow Groups: {}\nTotal Rows: {}\nColumns: {}\nFeatures: {}{}{}{}",
+            Byte::from_u64(self.file_size).get_appropriate_unit(UnitType::Binary),
+            Byte::from_u64(self.compressed_row_group_size).get_appropriate_unit(UnitType::Binary),
+            Byte::from_u64(self.footer_size).get_appropriate_unit(UnitType::Binary),
+            Byte::from_u64(self.metadata_memory_size).get_appropriate_unit(UnitType::Binary),
+            Byte::from_u64(self.total_bloom_filter_size).get_appropriate_unit(UnitType::Binary),
             self.row_group_count,
             self.row_count,
             self.columns,

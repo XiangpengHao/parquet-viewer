@@ -2,6 +2,7 @@ use crate::{
     ParquetResolved,
     components::{FileLevelInfo, PageInfo, StatisticsDisplay},
 };
+use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
 use parquet::{basic::Compression, file::metadata::ParquetMetaData};
 use std::sync::Arc;
@@ -160,8 +161,8 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 fn RowGroupInfo(metadata: Arc<ParquetMetaData>, row_group_id: usize) -> impl IntoView {
     let row_group_info = move || {
         let rg = metadata.row_group(row_group_id);
-        let compressed_size = rg.compressed_size() as f64 / 1_048_576.0;
-        let uncompressed_size = rg.total_byte_size() as f64 / 1_048_576.0;
+        let compressed_size = rg.compressed_size() as u64;
+        let uncompressed_size = rg.total_byte_size() as u64;
         let num_rows = rg.num_rows() as u64;
         (compressed_size, uncompressed_size, num_rows)
     };
@@ -171,15 +172,21 @@ fn RowGroupInfo(metadata: Arc<ParquetMetaData>, row_group_id: usize) -> impl Int
         <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-md">
             <div class="space-y-1">
                 <div class="text-gray-500">"Compressed"</div>
-                <div>{format!("{compressed_size:.2} MB")}</div>
+                <div>{format!(
+                    "{:.2}",
+                    Byte::from_u64(compressed_size).get_appropriate_unit(UnitType::Binary)
+                )}</div>
             </div>
             <div class="space-y-1">
                 <div class="text-gray-500">"Uncompressed"</div>
-                <div>{format!("{uncompressed_size:.2} MB")}</div>
+                <div>{format!(
+                    "{:.2}",
+                    Byte::from_u64(uncompressed_size).get_appropriate_unit(UnitType::Binary)
+                )}</div>
             </div>
             <div class="space-y-1">
                 <div class="text-gray-500">"Compression%"</div>
-                <div>{format!("{:.1}%", compressed_size / uncompressed_size * 100.0)}</div>
+                <div>{format!("{:.1}%", compressed_size as f64 / uncompressed_size as f64 * 100.0)}</div>
             </div>
             <div class="space-y-1">
                 <div class="text-gray-500">"Rows"</div>
@@ -191,8 +198,8 @@ fn RowGroupInfo(metadata: Arc<ParquetMetaData>, row_group_id: usize) -> impl Int
 
 #[derive(Clone)]
 struct ColumnInfo {
-    compressed_size: f64,
-    uncompressed_size: f64,
+    compressed_size: u64,
+    uncompressed_size: u64,
     compression: Compression,
 }
 
@@ -207,8 +214,8 @@ pub fn ColumnInfo(
 
         let rg = metadata.row_group(row_group_id);
         let col = rg.column(column_id);
-        let compressed_size = col.compressed_size() as f64 / 1_048_576.0;
-        let uncompressed_size = col.uncompressed_size() as f64 / 1_048_576.0;
+        let compressed_size = col.compressed_size() as u64;
+        let uncompressed_size = col.uncompressed_size() as u64;
         let compression = col.compression();
 
         ColumnInfo {
@@ -226,18 +233,24 @@ pub fn ColumnInfo(
                 <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-md">
                     <div class="space-y-1">
                         <div class="text-gray-500">"Compressed"</div>
-                        <div>{format!("{:.2} MB", column_info.compressed_size)}</div>
+                        <div>{format!(
+                            "{:.2}",
+                            Byte::from_u64(column_info.compressed_size).get_appropriate_unit(UnitType::Binary)
+                        )}</div>
                     </div>
                     <div class="space-y-1">
                         <div class="text-gray-500">"Uncompressed"</div>
-                        <div>{format!("{:.2} MB", column_info.uncompressed_size)}</div>
+                        <div>{format!(
+                            "{:.2}",
+                            Byte::from_u64(column_info.uncompressed_size).get_appropriate_unit(UnitType::Binary)
+                        )}</div>
                     </div>
                     <div class="space-y-1">
                         <div class="text-gray-500">"Compression%"</div>
                         <div>
                             {format!(
                                 "{:.1}%",
-                                column_info.compressed_size / column_info.uncompressed_size * 100.0,
+                                column_info.compressed_size as f64 / column_info.uncompressed_size as f64 * 100.0,
                             )}
                         </div>
                     </div>

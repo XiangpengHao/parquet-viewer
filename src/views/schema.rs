@@ -7,6 +7,7 @@ use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
 use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
 use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
+use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
 use std::sync::Arc;
 
@@ -250,13 +251,11 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
 fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<UInt64Type>();
     let size = col.value(row_idx);
-    if size > 1_048_576 {
-        format!("{:.2} MB", size as f64 / 1_048_576.0).into_any()
-    } else if size > 1024 {
-        format!("{:.2} KB", size as f64 / 1024.0).into_any()
-    } else {
-        format!("{size} B").into_any()
-    }
+    format!(
+        "{:.2}",
+        Byte::from_u64(size).get_appropriate_unit(UnitType::Binary)
+    )
+    .into_any()
 }
 
 fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {

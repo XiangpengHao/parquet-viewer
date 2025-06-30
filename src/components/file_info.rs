@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 
 use crate::utils::format_rows;
+use byte_unit::{Byte, UnitType};
 
 #[component]
 pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> impl IntoView {
@@ -22,39 +23,54 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> i
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"File size"</span>
                     <span class="block">
-                        {format!("{:.2} MB", metadata_display.file_size as f64 / 1_048_576.0)}
+                        {format!(
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.file_size).get_appropriate_unit(UnitType::Binary)
+                        )}
                     </span>
                 </div>
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Compressed row groups"</span>
                     <span class="block">
-                        {format!("{:.2} MB", metadata_display.compressed_row_group_size as f64 / 1_048_576.0)}
+                        {format!(
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.compressed_row_group_size).get_appropriate_unit(UnitType::Binary)
+                        )}
                     </span>
                 </div>
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Metadata size"</span>
                     <span class="block">
-                        {format!("{:.2} KB", metadata_display.footer_size as f64 / 1024.0)}
+                        {format!(
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.footer_size).get_appropriate_unit(UnitType::Binary)
+                        )}
                     </span>
                 </div>
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Metadata in memory size"</span>
                     <span class="block">
-                        {format!("{:.2} KB", metadata_display.metadata_memory_size as f64 / 1024.0)}
+                        {format!(
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.metadata_memory_size).get_appropriate_unit(UnitType::Binary)
+                        )}
                     </span>
                 </div>
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Bloom filter size"</span>
                     <span class="block">
-                        {format!("{:.2} MB", metadata_display.total_bloom_filter_size as f64 / 1_048_576.0)}
+                        {format!(
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.total_bloom_filter_size).get_appropriate_unit(UnitType::Binary)
+                        )}
                     </span>
                 </div>
                 <div class="space-y-1">
                     <span class="text-gray-400 text-xs">"Uncompressed"</span>
                     <span class="block">
                         {format!(
-                            "{:.2} MB",
-                            metadata_display.uncompressed_size as f64 / 1_048_576.0,
+                            "{:.2}",
+                            Byte::from_u64(metadata_display.uncompressed_size).get_appropriate_unit(UnitType::Binary)
                         )}
                     </span>
                 </div>
