@@ -8,6 +8,7 @@ use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
 use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
 use leptos::prelude::*;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 #[component]
@@ -22,28 +23,55 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         .first()
         .map(|rg| rg.columns().len())
         .unwrap_or(0);
-    let mut aggregated_column_info = vec![(0, 0, None, 0); parquet_column_count];
+
+    // aggregated_column_info has followings:
+    // [0]: compressed_size
+    // [1]: uncompressed_size
+    // [2]: null_count from col.statistics
+    // [3]: all encodings
+    // [4]: all compression
+    let mut aggregated_column_info =
+        vec![(0, 0, 0, HashSet::<String>::new(), HashSet::<String>::new()); parquet_column_count];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
+            // [0]: compressed_size
             aggregated_column_info[i].0 += col.compressed_size() as u64;
+
+            // [1]: uncompressed_size
             aggregated_column_info[i].1 += col.uncompressed_size() as u64;
-            aggregated_column_info[i].2 = Some(col.compression());
-            aggregated_column_info[i].3 += match col.statistics() {
+
+            // [2]: null_count from col.statistics
+            aggregated_column_info[i].2 += match col.statistics() {
                 None => 0,
                 Some(statistics) => statistics.null_count_opt().unwrap_or(0),
             };
+
+            // [3]: all encodings
+            for encoding_iter in col.encodings() {
+                leptos::logging::log!("eeee {} {}", i, encoding_iter);
+                aggregated_column_info[i]
+                    .3
+                    .insert(format!("{:?}", encoding_iter));
+            }
+
+            // [4]: all compression
+            aggregated_column_info[i]
+                .4
+                .insert(format!("{:?}", col.compression()));
         }
     }
 
     let parquet_columns = Memo::new(move |_| {
         let schema = Schema::new(vec![
             Field::new("ID", DataType::UInt32, false),
-            Field::new("Name", DataType::Utf8, false),
-            Field::new("Type", DataType::Utf8, false),
+            Field::new("Name", DataType::Utf8, false), // String
+            Field::new("Type", DataType::Utf8, false), // String
             Field::new("Compressed", DataType::UInt64, false),
             Field::new("Uncompressed", DataType::UInt64, false),
             Field::new("Compression ratio", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
+            Field::new("All encodings", DataType::Utf8, false), // String
+            Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
             aggregated_column_info
@@ -77,7 +105,22 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             }));
 
         let null_count =
-            UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.3 as u32));
+            UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.2 as u32));
+
+        // a set of all encoding types
+        let all_encoding_types = StringArray::from_iter_values(
+            aggregated_column_info
+                .iter()
+                .map(|col| col.3.iter().cloned().collect::<Vec<String>>().join(", ")),
+        );
+
+        // a set of all compression types
+        let all_compression_types = StringArray::from_iter_values(
+            aggregated_column_info
+                .iter()
+                .map(|col| col.4.iter().cloned().collect::<Vec<String>>().join(", ")),
+        );
+
         RecordBatch::try_new(
             Arc::new(schema),
             vec![
@@ -88,18 +131,24 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 Arc::new(uncompressed),
                 Arc::new(compression_ratio),
                 Arc::new(null_count),
+                Arc::new(all_encoding_types),
+                Arc::new(all_compression_types),
             ],
         )
         .unwrap()
     });
+
+    // parquet_formatter must match with the defined parquet_columns
     let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
-        None,
-        None,
-        None,
-        Some(Box::new(format_u64_size)),
-        Some(Box::new(format_u64_size)),
-        Some(Box::new(format_f32_percentage)),
-        None,
+        None,                                  // id
+        None,                                  // name
+        None,                                  // data_type
+        Some(Box::new(format_u64_size)),       // compressed
+        Some(Box::new(format_u64_size)),       // uncompressed
+        Some(Box::new(format_f32_percentage)), // compression_ratio
+        None,                                  // null_count
+        None,                                  // all_encoding_types
+        None,                                  // all_compression_types
     ];
 
     let arrow_column_count = schema.fields().len();
