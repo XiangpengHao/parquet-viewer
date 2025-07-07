@@ -127,7 +127,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         format!(
                             "{} [{:.0}%]",
                             k,
-                            *v as f32 * 100.0 / metadata.row_groups().len() as f32
+                            *v * 100.0 / metadata.row_groups().len() as f32
                         )
                     })
                     .collect::<Vec<String>>()
