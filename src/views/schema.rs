@@ -125,7 +125,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 assert_ne!(total, 0.0, "The total number of encodings cannot be zero");
                 col.3
                     .iter()
-                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v as f32 * 100.0 / total))
+                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v * 100.0 / total))
                     .collect::<Vec<String>>()
                     .join(", ")
             }));
