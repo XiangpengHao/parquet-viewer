@@ -61,7 +61,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     .3
                     .entry(format!("{encoding_it:?}"))
                     .or_insert(0 as f32) += 1.0 / col.encodings().len() as f32;
-                // Each row group can contain multiple encodings. For simplicity, we estimate that all encodings within a single row group collectively count as one.
+                // Each column-chunk can contain multiple encodings. For simplicity, we estimate that all encodings within a single column-chunk collectively count as one.
             }
 
             // [4]: all compression
@@ -121,15 +121,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         // a hashmap of all encoding types
         let all_encoding_types =
             StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
+                let total: f32 = col.3.values().sum();
+                assert_ne!(total, 0.0, "The total number of encodings cannot be zero");
                 col.3
                     .iter()
-                    .map(|(k, v)| {
-                        format!(
-                            "{} [{:.0}%]",
-                            k,
-                            *v * 100.0 / metadata.row_groups().len() as f32
-                        )
-                    })
+                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v as f32 * 100.0 / total))
                     .collect::<Vec<String>>()
                     .join(", ")
             }));
@@ -137,15 +133,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         // a hashmap of all compression types
         let all_compression_types =
             StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
+                let total: u32 = col.4.values().sum();
+                assert_ne!(total, 0, "The total number of compressions cannot be zero");
                 col.4
                     .iter()
-                    .map(|(k, v)| {
-                        format!(
-                            "{} [{:.0}%]",
-                            k,
-                            *v as f32 * 100.0 / metadata.row_groups().len() as f32
-                        )
-                    })
+                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v as f32 * 100.0 / total as f32))
                     .collect::<Vec<String>>()
                     .join(", ")
             }));
