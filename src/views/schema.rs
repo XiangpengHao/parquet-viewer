@@ -36,7 +36,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             0,
             0,
             0,
-            HashMap::<String, u32>::new(),
+            HashMap::<String, f32>::new(),
             HashMap::<String, u32>::new()
         );
         parquet_column_count
@@ -60,7 +60,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 *aggregated_column_info[i]
                     .3
                     .entry(format!("{encoding_it:?}"))
-                    .or_insert(0) += 1;
+                    .or_insert(0 as f32) += 1.0 / col.encodings().len() as f32;
+                // Each row group can contain multiple encodings. For simplicity, we estimate that all encodings within a single row group collectively count as one.
             }
 
             // [4]: all compression
@@ -120,18 +121,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         // a hashmap of all encoding types
         let all_encoding_types =
             StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
-                let total_encoding_count: u32 = col.3.values().sum(); // this is a multiple of number of row groups
-                assert_ne!(
-                    total_encoding_count, 0,
-                    "The total number of encodings cannot be zero"
-                );
                 col.3
                     .iter()
                     .map(|(k, v)| {
                         format!(
                             "{} [{:.0}%]",
                             k,
-                            *v as f32 * 100.0 / total_encoding_count as f32
+                            *v as f32 * 100.0 / metadata.row_groups().len() as f32
                         )
                     })
                     .collect::<Vec<String>>()
