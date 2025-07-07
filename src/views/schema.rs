@@ -9,7 +9,7 @@ use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
 use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[component]
@@ -31,8 +31,16 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     // [2]: null_count from col.statistics
     // [3]: all encodings
     // [4]: all compression
-    let mut aggregated_column_info =
-        vec![(0, 0, 0, HashSet::<String>::new(), HashSet::<String>::new()); parquet_column_count];
+    let mut aggregated_column_info = vec![
+        (
+            0,
+            0,
+            0,
+            HashMap::<String, f32>::new(),
+            HashMap::<String, u32>::new()
+        );
+        parquet_column_count
+    ];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
             // [0]: compressed_size
@@ -49,15 +57,18 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
             // [3]: all encodings
             for encoding_it in col.encodings() {
-                aggregated_column_info[i]
+                *aggregated_column_info[i]
                     .3
-                    .insert(format!("{encoding_it:?}"));
+                    .entry(format!("{encoding_it:?}"))
+                    .or_insert(0 as f32) += 1.0 / col.encodings().len() as f32;
+                // Each column-chunk can contain multiple encodings. For simplicity, we estimate that all encodings within a single column-chunk collectively count as one.
             }
 
             // [4]: all compression
-            aggregated_column_info[i]
+            *aggregated_column_info[i]
                 .4
-                .insert(format!("{:?}", col.compression()));
+                .entry(format!("{:?}", col.compression()))
+                .or_insert(0) += 1;
         }
     }
 
@@ -107,19 +118,29 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         let null_count =
             UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.2 as u32));
 
-        // a set of all encoding types
-        let all_encoding_types = StringArray::from_iter_values(
-            aggregated_column_info
-                .iter()
-                .map(|col| col.3.iter().cloned().collect::<Vec<String>>().join(", ")),
-        );
+        // a hashmap of all encoding types
+        let all_encoding_types =
+            StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
+                let total: f32 = col.3.values().sum();
+                assert_ne!(total, 0.0, "The total number of encodings cannot be zero");
+                col.3
+                    .iter()
+                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v * 100.0 / total))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            }));
 
-        // a set of all compression types
-        let all_compression_types = StringArray::from_iter_values(
-            aggregated_column_info
-                .iter()
-                .map(|col| col.4.iter().cloned().collect::<Vec<String>>().join(", ")),
-        );
+        // a hashmap of all compression types
+        let all_compression_types =
+            StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
+                let total: u32 = col.4.values().sum();
+                assert_ne!(total, 0, "The total number of compressions cannot be zero");
+                col.4
+                    .iter()
+                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v as f32 * 100.0 / total as f32))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            }));
 
         RecordBatch::try_new(
             Arc::new(schema),
