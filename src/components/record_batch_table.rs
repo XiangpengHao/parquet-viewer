@@ -2,9 +2,8 @@ use arrow::array::PrimitiveArray;
 use arrow::compute::{SortOptions, sort_to_indices};
 use arrow::datatypes::UInt32Type;
 use arrow_array::RecordBatch;
+use arrow_cast::display::array_value_to_string;
 use leptos::prelude::*;
-
-use crate::views::query_results::ArrayExt;
 
 pub type RecordFormatter = Box<dyn Fn(&RecordBatch, (usize, usize)) -> AnyView + Send + Sync>;
 
@@ -108,7 +107,7 @@ pub fn RecordBatchTable(
                                                     view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
                                                 }
                                                 None => {
-                                                    let cell_value = col.as_ref().value_to_string(row_idx);
+                                                    let cell_value = array_value_to_string(col.as_ref(), row_idx).unwrap_or_else(|_| "NULL".to_string());
                                                     view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
                                                 }
                                             }

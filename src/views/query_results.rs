@@ -1,18 +1,10 @@
 use std::sync::Arc;
 
-use arrow::array::{Array, types::*};
 use arrow::compute::concat_batches;
-use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
-use arrow_array::{downcast_integer, downcast_integer_array};
-use datafusion::common::cast::{
-    as_date32_array, as_date64_array, as_decimal128_array, as_decimal256_array, as_float32_array,
-    as_float64_array,
-};
-use datafusion::{
-    common::cast::{as_binary_array, as_binary_view_array, as_string_view_array},
-    physical_plan::ExecutionPlan,
-};
+use arrow_array::downcast_integer;
+use arrow_cast::display::array_value_to_string;
+use datafusion::physical_plan::ExecutionPlan;
 use leptos::{logging, prelude::*};
 use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
@@ -319,7 +311,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                                     {(0..merged_record_batch.num_columns())
                                         .map(|col_idx| {
                                             let column = merged_record_batch.column(col_idx);
-                                            let cell_value = column.as_ref().value_to_string(row_idx);
+                                            let cell_value = array_value_to_string(column.as_ref(), row_idx).unwrap_or_else(|_| "NULL".to_string());
 
                                             view! {
                                                 <td class="px-1 py-1 leading-tight text-gray-700 break-words">
@@ -458,135 +450,10 @@ pub fn QueryResultView(
     }
 }
 
-pub(crate) trait ArrayExt {
-    fn value_to_string(&self, index: usize) -> String;
-}
-
-impl ArrayExt for dyn Array {
-    fn value_to_string(&self, index: usize) -> String {
-        use arrow::array::*;
-
-        let array = self;
-
-        downcast_integer_array!(
-            array => {
-                format!("{}", array.value(index))
-            }
-            DataType::Float64 => {
-                let array = as_float64_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Float32 => {
-                let array = as_float32_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Date64 => {
-                let array = as_date64_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Date32 => {
-                let array = as_date32_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Decimal128(_, _) => {
-                let array = as_decimal128_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Decimal256(_, _) => {
-                let array = as_decimal256_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Boolean => {
-                let array = as_boolean_array(array);
-                array.value(index).to_string()
-            }
-            DataType::Utf8 => {
-                let array = as_string_array(array);
-                array.value(index).to_string()
-            }
-            DataType::LargeUtf8 => {
-                let array = as_largestring_array(array);
-                array.value(index).to_string()
-            }
-            DataType::Utf8View => {
-                let array = as_string_view_array(array).unwrap();
-                array.value(index).to_string()
-            }
-            DataType::Binary => {
-                let array = as_binary_array(array).unwrap();
-                let value = array.value(index);
-                String::from_utf8_lossy(value).to_string()
-            }
-            DataType::BinaryView => {
-                let array = as_binary_view_array(array).unwrap();
-                let value = array.value(index);
-                String::from_utf8_lossy(value).to_string()
-            }
-            DataType::List(_) => {
-                let array = as_list_array(array);
-                let value = array.value(index);
-                let len = value.len();
-                format!("[{}]",  (0..len).map(|i| value.value_to_string(i)).collect::<Vec<_>>().join(", "))
-            }
-            DataType::Struct(_) => {
-                let array = as_struct_array(array);
-                let len = array.num_columns();
-                format!("[{}]",  (0..len).map(|i| array.column(i).value_to_string(index)).collect::<Vec<_>>().join(", "))
-            }
-            DataType::Dictionary(key_type, _) => {
-                match key_type.as_ref() {
-                    DataType::Int8 => {
-                        let array = as_dictionary_array::<Int8Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::Int16 => {
-                        let array = as_dictionary_array::<Int16Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::Int32 => {
-                        let array = as_dictionary_array::<Int32Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::Int64 => {
-                        let array = as_dictionary_array::<Int64Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::UInt8 => {
-                        let array = as_dictionary_array::<UInt8Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::UInt16 => {
-                        let array = as_dictionary_array::<UInt16Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::UInt32 => {
-                        let array = as_dictionary_array::<UInt32Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    DataType::UInt64 => {
-                        let array = as_dictionary_array::<UInt64Type>(array);
-                        let values = array.values();
-                        values.value_to_string(array.key(index).unwrap_or_default())
-                    }
-                    _ => format!("Unsupported dictionary key type {key_type}"),
-                }
-            }
-            t => format!("Unsupported datatype {t}"),
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use arrow_array::Int32Array;
-    use arrow_schema::{Field, Schema};
+    use arrow_schema::{DataType, Field, Schema};
     use datafusion::physical_plan::placeholder_row::PlaceholderRowExec;
     use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
