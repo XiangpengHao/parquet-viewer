@@ -376,7 +376,17 @@ pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
         .unwrap_or("uploaded.parquet")
         .to_string();
 
-    let builder = Http::default().endpoint(&endpoint);
+    let builder = {
+        let mut http_builder = Http::default().endpoint(&endpoint);
+        let username = url.username();
+        if !username.is_empty() {
+            http_builder = http_builder.username(username);
+        }
+        if let Some(password) = url.password() {
+            http_builder = http_builder.password(password);
+        }
+        http_builder
+    };
     let op = Operator::new(builder)?;
     let op = op.finish();
     let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
