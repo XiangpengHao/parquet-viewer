@@ -1,6 +1,6 @@
 use crate::SESSION_CTX;
 use crate::components::{RecordBatchTable, RecordFormatter};
-use crate::utils::execute_query_inner;
+use crate::utils::{ColumnChunk, execute_query_inner};
 use crate::{ParquetResolved, utils::format_arrow_type};
 use arrow::array::AsArray;
 use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
@@ -8,8 +8,10 @@ use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
 use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
 use byte_unit::{Byte, UnitType};
-use leptos::prelude::*;
-use std::collections::HashMap;
+use leptos::{logging, prelude::*};
+use parquet::arrow::async_reader::AsyncFileReader;
+use parquet::file::serialized_reader::SerializedPageReader;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[component]
@@ -36,7 +38,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             0,
             0,
             0,
-            HashMap::<String, f32>::new(),
+            HashSet::<String>::new(),
             HashMap::<String, u32>::new()
         );
         parquet_column_count
@@ -57,11 +59,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
             // [3]: all encodings
             for encoding_it in col.encodings() {
-                *aggregated_column_info[i]
+                aggregated_column_info[i]
                     .3
-                    .entry(format!("{encoding_it:?}"))
-                    .or_insert(0 as f32) += 1.0 / col.encodings().len() as f32;
-                // Each column-chunk can contain multiple encodings. For simplicity, we estimate that all encodings within a single column-chunk collectively count as one.
+                    .insert(format!("{encoding_it:?}"));
+                // Note that would contain the encodings from definition and repetation level
             }
 
             // [4]: all compression
@@ -82,6 +83,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             Field::new("Compression ratio", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
             Field::new("All encodings", DataType::Utf8, false), // String
+            Field::new("Page Encodings", DataType::Utf8, true),
             Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
@@ -118,17 +120,15 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         let null_count =
             UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.2 as u32));
 
-        // a hashmap of all encoding types
         let all_encoding_types =
             StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
-                let total: f32 = col.3.values().sum();
-                assert_ne!(total, 0.0, "The total number of encodings cannot be zero");
-                col.3
-                    .iter()
-                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v * 100.0 / total))
-                    .collect::<Vec<String>>()
-                    .join(", ")
+                let mut encodings: Vec<String> = col.3.iter().cloned().collect();
+                encodings.sort(); // Sort for consistent ordering
+                encodings.join(", ")
             }));
+
+        let page_encodings =
+            StringArray::from_iter((0..parquet_column_count).map(|_| None::<String>));
 
         // a hashmap of all compression types
         let all_compression_types =
@@ -153,11 +153,59 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 Arc::new(compression_ratio),
                 Arc::new(null_count),
                 Arc::new(all_encoding_types),
+                Arc::new(page_encodings),
                 Arc::new(all_compression_types),
             ],
         )
         .unwrap()
     });
+
+    let (col_page_encodings, set_col_page_encodings) = signal(
+        (0..parquet_column_count)
+            .map(|_| None)
+            .collect::<Vec<Option<LocalResource<String>>>>(),
+    );
+    let parquet_reader_clone = parquet_reader.clone();
+    let page_encodings_formatter =
+        move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
+            let parquet_reader = parquet_reader_clone.clone();
+            col_page_encodings.with(
+                move |col_page_encodings| match &col_page_encodings[row_idx] {
+                    Some(res) => {
+                        let res = res.clone();
+                        view! {
+                            {move || {
+                                Suspend::new(async move {
+                                    let encodings = res.await;
+                                    format!("{encodings}").into_any()
+                                })
+                            }}
+                        }
+                        .into_any()
+                    }
+                    None => view! {
+                        <span
+                            class="text-gray-500 cursor-pointer"
+                            on:click=move |_| {
+                                logging::log!(
+                                    "Click to compute page encodings for column {}",
+                                    row_idx
+                                );
+                                set_col_page_encodings
+                                    .update(|col_page_encodings| {
+                                        col_page_encodings[row_idx] = Some(
+                                            calculate_page_encodings(parquet_reader.clone(), row_idx),
+                                        );
+                                    });
+                            }
+                        >
+                            "Click to compute"
+                        </span>
+                    }
+                    .into_any(),
+                },
+            )
+        };
 
     // parquet_formatter must match with the defined parquet_columns
     let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
@@ -169,7 +217,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         Some(Box::new(format_f32_percentage)), // compression_ratio
         None,                                  // null_count
         None,                                  // all_encoding_types
-        None,                                  // all_compression_types
+        Some(Box::new(page_encodings_formatter)),
+        None, // all_compression_types
     ];
 
     let arrow_column_count = schema.fields().len();
@@ -277,7 +326,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-3 flex-1 overflow-auto">
             <h2 class="font-semibold mb-4">"Parquet Columns"</h2>
-            <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
+            <div class="overflow-x-auto w-full">
+                <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
+            </div>
 
             <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
             <RecordBatchTable data=arrow_schema_table.get() formatter=schema_formatter />
@@ -301,6 +352,62 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 })}
         </div>
     }
+}
+
+fn calculate_page_encodings(
+    parquet_reader: Arc<ParquetResolved>,
+    column_id: usize,
+) -> LocalResource<String> {
+    LocalResource::new(move || {
+        let mut column_reader = parquet_reader.reader().clone();
+        let metadata = parquet_reader.metadata().metadata.clone();
+        async move {
+            let mut encoding_counts = HashMap::new();
+            let mut total_pages = 0;
+
+            for (_rg_idx, rg) in metadata.row_groups().iter().enumerate() {
+                let col = rg.column(column_id);
+                let byte_range = col.byte_range();
+                let bytes = column_reader
+                    .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
+                    .await
+                    .unwrap();
+
+                let chunk = ColumnChunk::new(bytes, byte_range);
+
+                let page_reader =
+                    SerializedPageReader::new(Arc::new(chunk), col, rg.num_rows() as usize, None)
+                        .unwrap();
+
+                for page in page_reader.flatten() {
+                    total_pages += 1;
+
+                    // Count the encoding type
+                    *encoding_counts.entry(page.encoding()).or_insert(0) += 1;
+                }
+            }
+
+            if total_pages == 0 {
+                return "No pages found".to_string();
+            }
+
+            let mut sorted_encodings: Vec<_> = encoding_counts.into_iter().collect();
+            // The `Encoding` enum derives `Ord`, so we can sort by the key.
+            sorted_encodings.sort_by_key(|(encoding, _)| *encoding);
+
+            sorted_encodings
+                .iter()
+                .map(|(encoding, count)| {
+                    format!(
+                        "{:?} [{:.2}%]",
+                        encoding,
+                        (*count as f32 / total_pages as f32) * 100.0
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
+    })
 }
 
 fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResource<u32> {
