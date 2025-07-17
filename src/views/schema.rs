@@ -82,8 +82,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             Field::new("Uncompressed", DataType::UInt64, false),
             Field::new("Compression ratio", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
-            Field::new("All encodings", DataType::Utf8, false), // String
-            Field::new("Page Encodings", DataType::Utf8, true),
+            Field::new("All encodings*", DataType::Utf8, false), // String
+            Field::new("Page Encodings**", DataType::Utf8, true), // String
             Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
@@ -172,12 +172,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             col_page_encodings.with(
                 move |col_page_encodings| match &col_page_encodings[row_idx] {
                     Some(res) => {
-                        let res = res.clone();
+                        let res = *res;
                         view! {
                             {move || {
                                 Suspend::new(async move {
                                     let encodings = res.await;
-                                    format!("{encodings}").into_any()
+                                    encodings.into_any()
                                 })
                             }}
                         }
@@ -329,6 +329,14 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             <div class="overflow-x-auto w-full">
                 <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
             </div>
+            <div class="text-xs text-gray-600 mt-2">
+                <p>
+                "* \"All encodings\" lists all encodings read from file metadata (may include repetition/definition level encodings)."
+                </p>
+                <p>
+                "** \"Page Encodings\" would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
+                </p>
+            </div>
 
             <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
             <RecordBatchTable data=arrow_schema_table.get() formatter=schema_formatter />
@@ -365,7 +373,7 @@ fn calculate_page_encodings(
             let mut encoding_counts = HashMap::new();
             let mut total_pages = 0;
 
-            for (_rg_idx, rg) in metadata.row_groups().iter().enumerate() {
+            for rg in metadata.row_groups() {
                 let col = rg.column(column_id);
                 let byte_range = col.byte_range();
                 let bytes = column_reader
