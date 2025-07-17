@@ -3,12 +3,17 @@ use std::sync::Arc;
 use anyhow::Result;
 use arrow_array::RecordBatch;
 use arrow_schema::{DataType, Field};
+use bytes::{Buf, Bytes};
 use datafusion::{
     physical_plan::{ExecutionPlan, collect},
     prelude::SessionContext,
 };
 use leptos::logging;
-use parquet::arrow::ArrowWriter;
+use parquet::{
+    arrow::ArrowWriter,
+    errors::ParquetError,
+    file::reader::{ChunkReader, Length},
+};
 use web_sys::{
     js_sys,
     wasm_bindgen::{JsCast, JsValue},
@@ -143,4 +148,34 @@ pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
     writer.close().expect("Failed to close writer");
 
     download_data("query_results.parquet", buf);
+}
+
+pub struct ColumnChunk {
+    data: Bytes,
+    byte_range: (u64, u64),
+}
+
+impl ColumnChunk {
+    pub fn new(data: Bytes, byte_range: (u64, u64)) -> Self {
+        Self { data, byte_range }
+    }
+}
+
+impl Length for ColumnChunk {
+    fn len(&self) -> u64 {
+        self.byte_range.1 - self.byte_range.0
+    }
+}
+
+impl ChunkReader for ColumnChunk {
+    type T = bytes::buf::Reader<Bytes>;
+    fn get_read(&self, offset: u64) -> Result<Self::T, ParquetError> {
+        let start = offset - self.byte_range.0;
+        Ok(self.data.slice(start as usize..).reader())
+    }
+
+    fn get_bytes(&self, offset: u64, length: usize) -> Result<Bytes, ParquetError> {
+        let start = offset - self.byte_range.0;
+        Ok(self.data.slice(start as usize..(start as usize + length)))
+    }
 }

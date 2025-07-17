@@ -1,43 +1,16 @@
 use std::sync::Arc;
 
 use byte_unit::{Byte, UnitType};
-use bytes::{Buf, Bytes};
 use leptos::prelude::*;
 use parquet::{
     arrow::async_reader::AsyncFileReader,
-    errors::ParquetError,
-    file::{
-        page_index::index::Index,
-        reader::{ChunkReader, Length, SerializedPageReader},
-    },
+    file::{page_index::index::Index, reader::SerializedPageReader},
 };
 
-use crate::{parquet_ctx::ParquetResolved, utils::format_rows};
-
-struct ColumnChunk {
-    data: Bytes,
-    byte_range: (u64, u64),
-}
-
-impl Length for ColumnChunk {
-    fn len(&self) -> u64 {
-        self.byte_range.1 - self.byte_range.0
-    }
-}
-
-impl ChunkReader for ColumnChunk {
-    type T = bytes::buf::Reader<Bytes>;
-    fn get_read(&self, offset: u64) -> Result<Self::T, ParquetError> {
-        let start = offset - self.byte_range.0;
-        Ok(self.data.slice(start as usize..).reader())
-    }
-
-    fn get_bytes(&self, offset: u64, length: usize) -> Result<Bytes, ParquetError> {
-        let start = offset - self.byte_range.0;
-        Ok(self.data.slice(start as usize..(start as usize + length)))
-    }
-}
-
+use crate::{
+    parquet_ctx::ParquetResolved,
+    utils::{ColumnChunk, format_rows},
+};
 #[component]
 fn IndexDisplay(index: Index) -> impl IntoView {
     match index {
@@ -173,10 +146,8 @@ pub fn PageInfo(
                 .await
                 .unwrap();
 
-            let chunk = ColumnChunk {
-                data: bytes,
-                byte_range,
-            };
+            let chunk = ColumnChunk::new(bytes, byte_range);
+
             let rg = metadata.row_group(row_group_id);
             let col = rg.column(column_id);
 
