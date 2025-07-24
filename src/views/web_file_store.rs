@@ -12,8 +12,8 @@ use futures::stream::BoxStream;
 use leptos::logging;
 use object_store::{
     Error as ObjectStoreError, GetOptions, GetRange, GetResult, GetResultPayload, ListResult,
-    MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOpts, PutOptions, PutPayload, PutResult,
-    path::Path,
+    MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOptions, PutOptions, PutPayload,
+    PutResult, path::Path,
 };
 use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys::Uint8Array;
@@ -51,7 +51,7 @@ impl ObjectStore for WebFileObjectStore {
     async fn put_multipart_opts(
         &self,
         _location: &Path,
-        _opts: PutMultipartOpts,
+        _opts: PutMultipartOptions,
     ) -> Result<Box<dyn MultipartUpload>, ObjectStoreError> {
         unreachable!()
     }

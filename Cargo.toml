@@ -10,7 +10,7 @@ arrow-array = { version = "55.0.0", default-features = false }
 arrow-cast = { version = "55.0.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "47.0.0", default-features = false, features = [
+datafusion = { version = "48.0.0", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.8", features = ["csr", "nightly"] }
