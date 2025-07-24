@@ -9,8 +9,8 @@ use bytes::Bytes;
 use futures::{lock::Mutex, stream::BoxStream};
 use leptos::logging::log;
 use object_store::{
-    GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOpts,
-    PutOptions, PutPayload, PutResult, path::Path,
+    GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta, ObjectStore,
+    PutMultipartOptions, PutOptions, PutPayload, PutResult, path::Path,
 };
 use object_store_opendal::OpendalStore;
 
@@ -48,10 +48,10 @@ impl ObjectStore for ObjectStoreCache {
 
     async fn put_multipart_opts(
         &self,
-        location: &Path,
-        opts: PutMultipartOpts,
+        _location: &Path,
+        _opts: PutMultipartOptions,
     ) -> Result<Box<dyn MultipartUpload>, object_store::Error> {
-        self.inner.put_multipart_opts(location, opts).await
+        unimplemented!()
     }
 
     async fn get(&self, location: &Path) -> Result<GetResult, object_store::Error> {

@@ -1,20 +1,20 @@
 [package]
-name = "parquet-explorer"
+name = "parquet-viewer"
 version = "0.1.22"
 edition = "2024"
 
 [dependencies]
-arrow = { version = "55.0.0", default-features = false }
-arrow-schema = { version = "55.0.0", default-features = false }
-arrow-array = { version = "55.0.0", default-features = false }
-arrow-cast = { version = "55.0.0", default-features = false }
+arrow = { version = "55.2.0", default-features = false }
+arrow-schema = { version = "55.2.0", default-features = false }
+arrow-array = { version = "55.2.0", default-features = false }
+arrow-cast = { version = "55.2.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "47.0.0", default-features = false, features = [
+datafusion = { version = "48.0.1", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.8", features = ["csr", "nightly"] }
-parquet = { version = "55.0.0", features = [
+parquet = { version = "55.2.0", features = [
 	"arrow",
 	"snap",
 	"flate2",
@@ -22,7 +22,7 @@ parquet = { version = "55.0.0", features = [
 	"async",
 	"zstd",
 ], default-features = false }
-serde_json = "1.0.140"
+serde_json = "1.0.141"
 wasm-bindgen-futures = "0.4.50"
 web-sys = { version = "0.3.77", features = [
 	"HtmlInputElement",
@@ -37,18 +37,18 @@ chrono = { version = "0.4", features = ["wasmbind"] }
 futures = "0.3.31"
 zstd = { version = "*", features = ["wasm", "thin"], default-features = false }
 serde = { version = "1.0" }
-opendal = { version = "0.53.3", default-features = false, features = [
+opendal = { version = "0.54.0", default-features = false, features = [
 	"services-s3",
 	"services-http",
 ] }
-object_store_opendal = { version = "0.52.1", features = ["send_wrapper"] }
-leptos_router = { version = "0.8.2", features = ["nightly"] }
-object_store = "0.12.1"
+object_store_opendal = { version = "0.54.0", features = ["send_wrapper"] }
+leptos_router = { version = "0.8.5", features = ["nightly"] }
+object_store = "0.12.3"
 async-trait = "0.1.88"
 url = "2.5.4"
 anyhow = "1.0"
-uuid = { version = "1.16.0", features = ["v4", "js"] }
-tokio = { version = "1.45.0", features = ["rt"] }
+uuid = { version = "1.17.0", features = ["v4", "js"] }
+tokio = { version = "1.46.1", features = ["rt"] }
 gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.1.6"
