@@ -7,48 +7,49 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    { nixpkgs
-    , rust-overlay
-    , flake-utils
-    , ...
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
+        pkgs = import nixpkgs { inherit system overlays; };
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+            toolchain.default.override {
+              targets = [ "wasm32-unknown-unknown" ];
+            });
+          rustc = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+            toolchain.default.override {
+              targets = [ "wasm32-unknown-unknown" ];
+            });
         };
-      in
-      {
-        devShells.default = with pkgs;
-          mkShell {
-            buildInputs = [
-              openssl
-              pkg-config
-              eza
-              fd
-              trunk
-              wasm-pack
-              wabt
-              leptosfmt
-              nodejs
-              typescript
-              pnpm
-              vsce
-              chromedriver
-              chromium
-              llvmPackages_19.clang-unwrapped
-              llvmPackages_19.libcxx
-              (rust-bin.fromRustupToolchainFile (./rust-toolchain.toml))
-            ];
-            shellHook = ''
-              export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
-              export C_INCLUDE_PATH="${pkgs.llvmPackages_19.libcxx.dev}/include/c++/v1:${pkgs.llvmPackages_19.clang-unwrapped.lib}/lib/clang/19/include"
-              export CPLUS_INCLUDE_PATH="${pkgs.llvmPackages_19.libcxx.dev}/include/c++/v1:${pkgs.llvmPackages_19.clang-unwrapped.lib}/lib/clang/19/include"
-            '';
-          };
-      }
-    );
+      in {
+        packages.default = rustPlatform.buildRustPackage {
+          name = "paquet-viewer";
+          version = "0.1.22";
+          cargoHash = "sha256-c+usWtW5cCsTGbQ5g17rSNlycbDky5rEYn/0aSED3FM=";
+          hardeningDisable = [ "all" ];
+          buildInputs = with pkgs; [
+            openssl
+            pkg-config
+            eza
+            fd
+            trunk
+            wasm-pack
+            wabt
+            leptosfmt
+            nodejs
+            typescript
+            pnpm
+            vsce
+            chromedriver
+            chromium
+            llvmPackages_20.clang
+            lld_20
+            llvmPackages_20.libcxx
+          ];
+          src = ./.;
+        };
+        devShells.default =
+          pkgs.mkShell { inputsFrom = [ self.packages.${system}.default ]; };
+      });
 }
