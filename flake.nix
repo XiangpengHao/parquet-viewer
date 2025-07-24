@@ -46,10 +46,17 @@
             llvmPackages_20.clang
             lld_20
             llvmPackages_20.libcxx
+            glibc_multi
           ];
           src = ./.;
         };
-        devShells.default =
-          pkgs.mkShell { inputsFrom = [ self.packages.${system}.default ]; };
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ self.packages.${system}.default ];
+          shellHook = ''
+            unset NIX_HARDENING_ENABLE
+            export CC=${pkgs.llvmPackages_20.clang}/bin/clang
+            export C_INCLUDE_PATH="${pkgs.glibc_multi.dev}/include"
+          '';
+        };
       });
 }
