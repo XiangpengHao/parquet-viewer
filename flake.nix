@@ -55,7 +55,6 @@
           shellHook = ''
             unset NIX_HARDENING_ENABLE
             export CC=${pkgs.llvmPackages_20.clang}/bin/clang
-            export C_INCLUDE_PATH="${pkgs.glibc_multi.dev}/include"
           '';
         };
       });
