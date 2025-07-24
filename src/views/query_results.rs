@@ -303,7 +303,7 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
                 </thead>
                 <tbody>
                     <For
-                        each=move || (0..visible_rows())
+                        each=move || 0..visible_rows()
                         key=|row_idx| *row_idx
                         children=move |row_idx| {
                             view! {
