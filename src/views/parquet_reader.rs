@@ -36,7 +36,7 @@ impl TableNameWithoutExtension {
         if !file_name_with_extension.ends_with(".parquet") {
             return Err(anyhow::anyhow!("File name must end with .parquet"));
         }
-        let file_name = file_name_with_extension.split('.').next().unwrap();
+        let file_name = file_name_with_extension.strip_suffix(".parquet").unwrap();
         Ok(Self {
             table_name: file_name.to_string(),
         })
