@@ -16,10 +16,12 @@
           cargo = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
             toolchain.default.override {
               targets = [ "wasm32-unknown-unknown" ];
+              extensions = [ "rust-src" ];
             });
           rustc = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
             toolchain.default.override {
               targets = [ "wasm32-unknown-unknown" ];
+              extensions = [ "rust-src" ];
             });
         };
       in {
