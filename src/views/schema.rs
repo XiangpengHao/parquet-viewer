@@ -118,14 +118,14 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             Field::new("ID", DataType::UInt32, false),
             Field::new("Name", DataType::Utf8, false), // String
             Field::new("Type", DataType::Utf8, false), // String
-            Field::new("Compressed", DataType::UInt64, false),
-            Field::new("Uncompressed", DataType::UInt64, false),
-            Field::new("Raw data", DataType::UInt64, false),
-            Field::new("Compression ratio", DataType::Float32, false),
-            Field::new("Raw compression ratio", DataType::Float32, false),
+            Field::new("Logical size (L)*", DataType::UInt64, false),
+            Field::new("Encoded size (E)*", DataType::UInt64, false),
+            Field::new("Compressed size (C)*", DataType::UInt64, false),
+            Field::new("Compression ratio = E/C", DataType::Float32, false),
+            Field::new("Encoded compression ratio = L/C", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
-            Field::new("All encodings*", DataType::Utf8, false), // String
-            Field::new("Page encodings**", DataType::Utf8, true), // String
+            Field::new("All encodings**", DataType::Utf8, false), // String
+            Field::new("Page encodings***", DataType::Utf8, true), // String
             Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
@@ -213,9 +213,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 Arc::new(id),
                 Arc::new(name),
                 Arc::new(data_type),
-                Arc::new(compressed),
-                Arc::new(uncompressed),
                 Arc::new(raw_data_size),
+                Arc::new(uncompressed),
+                Arc::new(compressed),
                 Arc::new(compression_ratio),
                 Arc::new(raw_compression_ratio),
                 Arc::new(null_count),
@@ -279,9 +279,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         None,                                  // id
         None,                                  // name
         None,                                  // data_type
-        Some(Box::new(format_u64_size)),       // compressed
-        Some(Box::new(format_u64_size)),       // uncompressed
         Some(Box::new(format_u64_size)),       // in-memory raw data size - show "-" for BYTE_ARRAY
+        Some(Box::new(format_u64_size)),       // uncompressed
+        Some(Box::new(format_u64_size)),       // compressed
         Some(Box::new(format_f32_percentage)), // compression_ratio
         Some(Box::new(format_f32_percentage)), // raw_compression_ratio - show "-" for BYTE_ARRAY
         None,                                  // null_count
@@ -400,10 +400,15 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             </div>
             <div class="text-xs text-gray-600 mt-2">
                 <p>
-                "* \"All encodings\" lists all encodings read from file metadata (may include repetition/definition level encodings)."
+                "*: " <strong>Logical size</strong>" (before encoding or compression) -> " 
+                      <strong>Encoded size</strong>" (after encoding, before compression) -> " 
+                      <strong>Compressed size</strong>" (after both encoding and compression)"
                 </p>
                 <p>
-                "** \"Page encodings\" would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
+                "**: " <strong>All encodings</strong> " lists all encodings read from file metadata (may include repetition/definition level encodings)."
+                </p>
+                <p>
+                "***: " <strong>Page encodings</strong> " would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
                 </p>
             </div>
 
