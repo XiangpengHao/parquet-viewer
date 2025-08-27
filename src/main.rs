@@ -107,7 +107,7 @@ fn App() -> impl IntoView {
     }
 
     view! {
-        <div class="container mx-auto px-4 py-4 max-w-6xl text-xs">
+        <div class="container mx-auto px-4 py-4 text-xs">
             <h1 class="text-2xl font-bold mb-2 flex items-center justify-between">
                 <span>"Parquet Viewer"</span>
                 <div class="flex items-center gap-4">
