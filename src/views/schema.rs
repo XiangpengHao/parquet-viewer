@@ -120,12 +120,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             Field::new("Type", DataType::Utf8, false), // String
             Field::new("Compressed", DataType::UInt64, false),
             Field::new("Uncompressed", DataType::UInt64, false),
-            Field::new("Raw size", DataType::UInt64, false),
+            Field::new("Raw data", DataType::UInt64, false),
             Field::new("Compression ratio", DataType::Float32, false),
             Field::new("Raw compression ratio", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
             Field::new("All encodings*", DataType::Utf8, false), // String
-            Field::new("Page Encodings**", DataType::Utf8, true), // String
+            Field::new("Page encodings**", DataType::Utf8, true), // String
             Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
@@ -281,9 +281,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         None,                                          // data_type
         Some(Box::new(format_u64_size)),               // compressed
         Some(Box::new(format_u64_size)),               // uncompressed
-        Some(Box::new(format_u64_size_or_dash)),       // in-memory raw data size - show "-" for BYTE_ARRAY
+        Some(Box::new(format_u64_size)),              // in-memory raw data size - show "-" for BYTE_ARRAY
         Some(Box::new(format_f32_percentage)),         // compression_ratio
-        Some(Box::new(format_f32_percentage_or_dash)), // raw_compression_ratio - show "-" for BYTE_ARRAY
+        Some(Box::new(format_f32_percentage)),         // raw_compression_ratio - show "-" for BYTE_ARRAY
         None,                                          // null_count
         None,                                          // all_encoding_types
         Some(Box::new(page_encodings_formatter)),
@@ -403,7 +403,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 "* \"All encodings\" lists all encodings read from file metadata (may include repetition/definition level encodings)."
                 </p>
                 <p>
-                "** \"Page Encodings\" would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
+                "** \"Page encodings\" would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
                 </p>
             </div>
 
@@ -504,18 +504,10 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
 fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<UInt64Type>();
     let size = col.value(row_idx);
-    format!(
-        "{:.2}",
-        Byte::from_u64(size).get_appropriate_unit(UnitType::Binary)
-    )
-    .into_any()
-}
-
-fn format_u64_size_or_dash(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
-    let col = val.column(col_idx).as_primitive::<UInt64Type>();
-    let size = col.value(row_idx);
+    
+    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
     if size == 0 {
-        let type_col = val.column(2).as_string::<i32>();
+        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
         let type_str = type_col.value(row_idx);
         if type_str == "BYTE_ARRAY" {
             return "-".into_any();
@@ -531,14 +523,10 @@ fn format_u64_size_or_dash(val: &RecordBatch, (col_idx, row_idx): (usize, usize)
 fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<Float32Type>();
     let percentage = col.value(row_idx);
-    format!("{:.0}%", percentage * 100.0).into_any()
-}
-
-fn format_f32_percentage_or_dash(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
-    let col = val.column(col_idx).as_primitive::<Float32Type>();
-    let percentage = col.value(row_idx);
+    
+    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
     if percentage == 0.0 {
-        let type_col = val.column(2).as_string::<i32>();
+        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
         let type_str = type_col.value(row_idx);
         if type_str == "BYTE_ARRAY" {
             return "-".into_any();
