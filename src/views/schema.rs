@@ -276,16 +276,16 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     // parquet_formatter must match with the defined parquet_columns
     let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
-        None,                                          // id
-        None,                                          // name
-        None,                                          // data_type
-        Some(Box::new(format_u64_size)),               // compressed
-        Some(Box::new(format_u64_size)),               // uncompressed
-        Some(Box::new(format_u64_size)),              // in-memory raw data size - show "-" for BYTE_ARRAY
-        Some(Box::new(format_f32_percentage)),         // compression_ratio
-        Some(Box::new(format_f32_percentage)),         // raw_compression_ratio - show "-" for BYTE_ARRAY
-        None,                                          // null_count
-        None,                                          // all_encoding_types
+        None,                                  // id
+        None,                                  // name
+        None,                                  // data_type
+        Some(Box::new(format_u64_size)),       // compressed
+        Some(Box::new(format_u64_size)),       // uncompressed
+        Some(Box::new(format_u64_size)),       // in-memory raw data size - show "-" for BYTE_ARRAY
+        Some(Box::new(format_f32_percentage)), // compression_ratio
+        Some(Box::new(format_f32_percentage)), // raw_compression_ratio - show "-" for BYTE_ARRAY
+        None,                                  // null_count
+        None,                                  // all_encoding_types
         Some(Box::new(page_encodings_formatter)),
         None, // all_compression_types
     ];
@@ -504,7 +504,7 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
 fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<UInt64Type>();
     let size = col.value(row_idx);
-    
+
     // Check if this should show "-" for variable-length types (BYTE_ARRAY)
     if size == 0 {
         let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
@@ -523,7 +523,7 @@ fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> Any
 fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<Float32Type>();
     let percentage = col.value(row_idx);
-    
+
     // Check if this should show "-" for variable-length types (BYTE_ARRAY)
     if percentage == 0.0 {
         let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2

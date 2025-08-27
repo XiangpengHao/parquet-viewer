@@ -1,6 +1,6 @@
 [build]
 minify = "on_release"
-
+cargo_args = ["-j", "4"]
 
 # Watch configuration
 [watch]
