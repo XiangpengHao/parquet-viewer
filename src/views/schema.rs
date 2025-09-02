@@ -10,9 +10,49 @@ use arrow_schema::{DataType, Field, Schema};
 use byte_unit::{Byte, UnitType};
 use leptos::{logging, prelude::*};
 use parquet::arrow::async_reader::AsyncFileReader;
+use parquet::file::metadata::ParquetMetaData;
 use parquet::file::serialized_reader::SerializedPageReader;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
+/// Estimate Arrow in-memory size for a column based on its Parquet physical type
+/// Returns None for variable-length data types that cannot be reliably estimated
+fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) -> Option<u64> {
+    let total_rows: usize = metadata
+        .row_groups()
+        .iter()
+        .map(|rg| rg.num_rows() as usize)
+        .sum();
+
+    if total_rows == 0 {
+        return Some(0);
+    }
+
+    let first_col = metadata.row_group(0).column(column_index);
+    let physical_type = first_col.column_type();
+
+    let bytes_per_value = match physical_type {
+        parquet::basic::Type::BOOLEAN => 1,
+        parquet::basic::Type::INT32 => 4,
+        parquet::basic::Type::INT64 => 8,
+        parquet::basic::Type::INT96 => 12,
+        parquet::basic::Type::FLOAT => 4,
+        parquet::basic::Type::DOUBLE => 8,
+        parquet::basic::Type::BYTE_ARRAY => {
+            // Variable-length data - cannot estimate reliably
+            return None;
+        }
+        parquet::basic::Type::FIXED_LEN_BYTE_ARRAY => {
+            first_col.column_descr().type_length() as usize
+        }
+    };
+
+    // Estimate Arrow memory: data + validity bitmap + metadata overhead
+    let data_size = total_rows * bytes_per_value;
+    let validity_bitmap_size = total_rows.div_ceil(8); // Round up to nearest byte
+    let metadata_overhead = 64; // Rough estimate for array metadata
+    Some((data_size + validity_bitmap_size + metadata_overhead) as u64)
+}
 
 #[component]
 pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
@@ -78,12 +118,14 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             Field::new("ID", DataType::UInt32, false),
             Field::new("Name", DataType::Utf8, false), // String
             Field::new("Type", DataType::Utf8, false), // String
-            Field::new("Compressed", DataType::UInt64, false),
-            Field::new("Uncompressed", DataType::UInt64, false),
-            Field::new("Compression ratio", DataType::Float32, false),
+            Field::new("Logical size (L)*", DataType::UInt64, false),
+            Field::new("Encoded size (E)*", DataType::UInt64, false),
+            Field::new("Compressed size (C)*", DataType::UInt64, false),
+            Field::new("Compression ratio = E/C", DataType::Float32, false),
+            Field::new("Encoded compression ratio = L/C", DataType::Float32, false),
             Field::new("Null count", DataType::UInt32, false),
-            Field::new("All encodings*", DataType::Utf8, false), // String
-            Field::new("Page Encodings**", DataType::Utf8, true), // String
+            Field::new("All encodings**", DataType::Utf8, false), // String
+            Field::new("Page encodings***", DataType::Utf8, true), // String
             Field::new("All compressions", DataType::Utf8, false), // String
         ]);
         let id = UInt32Array::from_iter_values(
@@ -108,14 +150,37 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.0));
         let uncompressed =
             UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.1));
-        let compression_ratio =
-            Float32Array::from_iter_values(aggregated_column_info.iter().map(|col| {
-                if col.1 > 0 {
-                    col.0 as f32 / col.1 as f32
-                } else {
-                    0.0
-                }
-            }));
+
+        let mut raw_data_sizes = Vec::new();
+        let mut compression_ratios = Vec::new();
+        let mut raw_compression_ratios = Vec::new();
+        for (i, col) in aggregated_column_info.iter().enumerate() {
+            let compression_ratio = if col.0 > 0 {
+                col.1 as f32 / col.0 as f32
+            } else {
+                0.0
+            };
+            let (raw_data_size, raw_compression_ratio) =
+                match calculate_arrow_memory_size(&metadata, i) {
+                    Some(raw_size) => {
+                        let ratio = if col.0 > 0 {
+                            raw_size as f32 / col.0 as f32
+                        } else {
+                            0.0
+                        };
+                        (raw_size, ratio)
+                    }
+                    None => {
+                        (0, 0.0) // For variable-length data, set to 0 for now (will be displayed as "-")
+                    }
+                };
+            raw_data_sizes.push(raw_data_size);
+            compression_ratios.push(compression_ratio);
+            raw_compression_ratios.push(raw_compression_ratio);
+        }
+        let raw_data_size = UInt64Array::from_iter_values(raw_data_sizes);
+        let compression_ratio = Float32Array::from_iter_values(compression_ratios);
+        let raw_compression_ratio = Float32Array::from_iter_values(raw_compression_ratios);
 
         let null_count =
             UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.2 as u32));
@@ -148,9 +213,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 Arc::new(id),
                 Arc::new(name),
                 Arc::new(data_type),
-                Arc::new(compressed),
+                Arc::new(raw_data_size),
                 Arc::new(uncompressed),
+                Arc::new(compressed),
                 Arc::new(compression_ratio),
+                Arc::new(raw_compression_ratio),
                 Arc::new(null_count),
                 Arc::new(all_encoding_types),
                 Arc::new(page_encodings),
@@ -212,9 +279,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         None,                                  // id
         None,                                  // name
         None,                                  // data_type
-        Some(Box::new(format_u64_size)),       // compressed
+        Some(Box::new(format_u64_size)),       // in-memory raw data size - show "-" for BYTE_ARRAY
         Some(Box::new(format_u64_size)),       // uncompressed
+        Some(Box::new(format_u64_size)),       // compressed
         Some(Box::new(format_f32_percentage)), // compression_ratio
+        Some(Box::new(format_f32_percentage)), // raw_compression_ratio - show "-" for BYTE_ARRAY
         None,                                  // null_count
         None,                                  // all_encoding_types
         Some(Box::new(page_encodings_formatter)),
@@ -331,10 +400,15 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             </div>
             <div class="text-xs text-gray-600 mt-2">
                 <p>
-                "* \"All encodings\" lists all encodings read from file metadata (may include repetition/definition level encodings)."
+                "*: " <strong>Logical size</strong>" (before encoding or compression) -> "
+                      <strong>Encoded size</strong>" (after encoding, before compression) -> "
+                      <strong>Compressed size</strong>" (after both encoding and compression)"
                 </p>
                 <p>
-                "** \"Page Encodings\" would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
+                "**: " <strong>All encodings</strong> " lists all encodings read from file metadata (may include repetition/definition level encodings)."
+                </p>
+                <p>
+                "***: " <strong>Page encodings</strong> " would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
                 </p>
             </div>
 
@@ -435,6 +509,15 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
 fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<UInt64Type>();
     let size = col.value(row_idx);
+
+    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
+    if size == 0 {
+        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
+        let type_str = type_col.value(row_idx);
+        if type_str == "BYTE_ARRAY" {
+            return "-".into_any();
+        }
+    }
     format!(
         "{:.2}",
         Byte::from_u64(size).get_appropriate_unit(UnitType::Binary)
@@ -445,5 +528,14 @@ fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> Any
 fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<Float32Type>();
     let percentage = col.value(row_idx);
-    format!("{:.2}%", percentage * 100.0).into_any()
+
+    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
+    if percentage == 0.0 {
+        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
+        let type_str = type_col.value(row_idx);
+        if type_str == "BYTE_ARRAY" {
+            return "-".into_any();
+        }
+    }
+    format!("{:.0}%", percentage * 100.0).into_any()
 }
