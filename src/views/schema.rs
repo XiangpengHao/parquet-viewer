@@ -400,8 +400,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             </div>
             <div class="text-xs text-gray-600 mt-2">
                 <p>
-                "*: " <strong>Logical size</strong>" (before encoding or compression) -> " 
-                      <strong>Encoded size</strong>" (after encoding, before compression) -> " 
+                "*: " <strong>Logical size</strong>" (before encoding or compression) -> "
+                      <strong>Encoded size</strong>" (after encoding, before compression) -> "
                       <strong>Compressed size</strong>" (after both encoding and compression)"
                 </p>
                 <p>
