@@ -539,9 +539,9 @@ fn format_f32_comp_ratio(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) 
     }
     // Format ratio with appropriate precision
     match ratio {
-        r if r < 10.0 => format!("{:.2}x", r),
-        r if r < 100.0 => format!("{:.1}x", r),
-        _ => format!("{:.0}x", ratio),
+        r if r < 10.0 => format!("{r:.2}x"),
+        r if r < 100.0 => format!("{r:.1}x"),
+        _ => format!("{ratio:.0}x"),
     }
     .into_any()
 }
