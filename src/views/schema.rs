@@ -282,8 +282,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         Some(Box::new(format_u64_size)),       // in-memory raw data size - show "-" for BYTE_ARRAY
         Some(Box::new(format_u64_size)),       // uncompressed
         Some(Box::new(format_u64_size)),       // compressed
-        Some(Box::new(format_f32_percentage)), // compression_ratio
-        Some(Box::new(format_f32_percentage)), // raw_compression_ratio - show "-" for BYTE_ARRAY
+        Some(Box::new(format_f32_comp_ratio)), // compression_ratio
+        Some(Box::new(format_f32_comp_ratio)), // raw_compression_ratio - show "-" for BYTE_ARRAY
         None,                                  // null_count
         None,                                  // all_encoding_types
         Some(Box::new(page_encodings_formatter)),
@@ -525,17 +525,23 @@ fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> Any
     .into_any()
 }
 
-fn format_f32_percentage(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
+fn format_f32_comp_ratio(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
     let col = val.column(col_idx).as_primitive::<Float32Type>();
-    let percentage = col.value(row_idx);
+    let ratio = col.value(row_idx);
 
     // Check if this should show "-" for variable-length types (BYTE_ARRAY)
-    if percentage == 0.0 {
+    if ratio == 0.0 {
         let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
         let type_str = type_col.value(row_idx);
         if type_str == "BYTE_ARRAY" {
             return "-".into_any();
         }
     }
-    format!("{:.0}%", percentage * 100.0).into_any()
+    // Format ratio with appropriate precision
+    match ratio {
+        r if r < 10.0 => format!("{r:.2}x"),
+        r if r < 100.0 => format!("{r:.1}x"),
+        _ => format!("{ratio:.0}x"),
+    }
+    .into_any()
 }
