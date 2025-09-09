@@ -10,7 +10,7 @@ arrow-array = { version = "55.2.0", default-features = false }
 arrow-cast = { version = "55.2.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "49.0.0", default-features = false, features = [
+datafusion = { version = "49.0.2", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.8", features = ["csr", "nightly"] }
@@ -22,9 +22,9 @@ parquet = { version = "55.2.0", features = [
 	"async",
 	"zstd",
 ], default-features = false }
-serde_json = "1.0.141"
-wasm-bindgen-futures = "0.4.50"
-web-sys = { version = "0.3.77", features = [
+serde_json = "1.0.143"
+wasm-bindgen-futures = "0.4.51"
+web-sys = { version = "0.3.78", features = [
 	"HtmlInputElement",
 	"FileList",
 	"File",
@@ -42,13 +42,13 @@ opendal = { version = "0.54.0", default-features = false, features = [
 	"services-http",
 ] }
 object_store_opendal = { version = "0.54.0", features = ["send_wrapper"] }
-leptos_router = { version = "0.8.5", features = ["nightly"] }
+leptos_router = { version = "0.8.6", features = ["nightly"] }
 object_store = "0.12.3"
-async-trait = "0.1.88"
-url = "2.5.4"
+async-trait = "0.1.89"
+url = "2.5.7"
 anyhow = "1.0"
-uuid = { version = "1.17.0", features = ["v4", "js"] }
-tokio = { version = "1.46.1", features = ["rt"] }
+uuid = { version = "1.18.1", features = ["v4", "js"] }
+tokio = { version = "1.47.1", features = ["rt"] }
 gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.1.6"
@@ -59,4 +59,4 @@ opt-level = "s"
 panic = "abort"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.50"
+wasm-bindgen-test = "0.3.51"
