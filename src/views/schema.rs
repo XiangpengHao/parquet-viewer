@@ -42,9 +42,7 @@ fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) 
             // Variable-length data - cannot estimate reliably
             return None;
         }
-        parquet::basic::Type::FIXED_LEN_BYTE_ARRAY => {
-            first_col.column_descr().type_length() as u64
-        }
+        parquet::basic::Type::FIXED_LEN_BYTE_ARRAY => first_col.column_descr().type_length() as u64,
     };
 
     // Estimate Arrow memory: data + validity bitmap + metadata overhead
