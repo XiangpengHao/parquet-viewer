@@ -18,11 +18,11 @@ use std::sync::Arc;
 /// Estimate Arrow in-memory size for a column based on its Parquet physical type
 /// Returns None for variable-length data types that cannot be reliably estimated
 fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) -> Option<u64> {
-    let total_rows: usize = metadata
+    let total_rows: u64 = metadata
         .row_groups()
         .iter()
-        .map(|rg| rg.num_rows() as usize)
-        .sum();
+        .map(|rg| rg.num_rows() as u64)
+        .sum::<u64>();
 
     if total_rows == 0 {
         return Some(0);
@@ -43,7 +43,7 @@ fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) 
             return None;
         }
         parquet::basic::Type::FIXED_LEN_BYTE_ARRAY => {
-            first_col.column_descr().type_length() as usize
+            first_col.column_descr().type_length() as u64
         }
     };
 
@@ -51,7 +51,7 @@ fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) 
     let data_size = total_rows * bytes_per_value;
     let validity_bitmap_size = total_rows.div_ceil(8); // Round up to nearest byte
     let metadata_overhead = 64; // Rough estimate for array metadata
-    Some((data_size + validity_bitmap_size + metadata_overhead) as u64)
+    Some(data_size + validity_bitmap_size + metadata_overhead)
 }
 
 #[component]
