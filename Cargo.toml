@@ -10,8 +10,8 @@ arrow-array = { version = "55.2.0", default-features = false }
 arrow-cast = { version = "55.2.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "49.0.2", default-features = false, features = [
-	"parquet",
+datafusion = { version = "50.0.0", git = "https://github.com/apache/datafusion", branch = "branch-50", submodules = false, default-features = false, features = [
+        "parquet",
 ] }
 leptos = { version = "0.8", features = ["csr", "nightly"] }
 parquet = { version = "55.2.0", features = [
