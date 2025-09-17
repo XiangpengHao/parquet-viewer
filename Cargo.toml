@@ -4,17 +4,17 @@ version = "0.1.27"
 edition = "2024"
 
 [dependencies]
-arrow = { version = "55.2.0", default-features = false }
-arrow-schema = { version = "55.2.0", default-features = false }
-arrow-array = { version = "55.2.0", default-features = false }
-arrow-cast = { version = "55.2.0", default-features = false }
+arrow = { version = "56.1.0", default-features = false }
+arrow-schema = { version = "56.1.0", default-features = false }
+arrow-array = { version = "56.1.0", default-features = false }
+arrow-cast = { version = "56.1.0", default-features = false }
 bytes = "1.10.1"
 console_error_panic_hook = "0.1.7"
-datafusion = { version = "49.0.2", default-features = false, features = [
+datafusion = { version = "50.0.0", default-features = false, features = [
 	"parquet",
 ] }
 leptos = { version = "0.8", features = ["csr", "nightly"] }
-parquet = { version = "55.2.0", features = [
+parquet = { version = "56.1.0", features = [
 	"arrow",
 	"snap",
 	"flate2",
@@ -22,9 +22,9 @@ parquet = { version = "55.2.0", features = [
 	"async",
 	"zstd",
 ], default-features = false }
-serde_json = "1.0.143"
-wasm-bindgen-futures = "0.4.51"
-web-sys = { version = "0.3.78", features = [
+serde_json = "1.0.145"
+wasm-bindgen-futures = "0.4.53"
+web-sys = { version = "0.3.80", features = [
 	"HtmlInputElement",
 	"FileList",
 	"File",
@@ -59,4 +59,4 @@ opt-level = "s"
 panic = "abort"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.51"
+wasm-bindgen-test = "0.3.53"
