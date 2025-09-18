@@ -13,16 +13,14 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         rustPlatform = pkgs.makeRustPlatform {
-          cargo = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
-            toolchain.default.override {
+          cargo = pkgs.rust-bin.nightly."2025-08-28".default.override {
               targets = [ "wasm32-unknown-unknown" ];
               extensions = [ "rust-src" ];
-            });
-          rustc = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
-            toolchain.default.override {
-              targets = [ "wasm32-unknown-unknown" ];
-              extensions = [ "rust-src" ];
-            });
+          };
+          rustc = pkgs.rust-bin.nightly."2025-08-28".default.override {
+            targets = [ "wasm32-unknown-unknown" ];
+            extensions = [ "rust-src" ];
+          };
         };
       in {
         packages.default = rustPlatform.buildRustPackage {
