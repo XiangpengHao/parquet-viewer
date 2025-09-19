@@ -1,10 +1,14 @@
 use crate::{
     ParquetResolved,
     components::{FileLevelInfo, PageInfo, StatisticsDisplay},
+    utils::count_column_chunk_pages,
 };
 use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
-use parquet::{basic::Compression, file::metadata::ParquetMetaData};
+use parquet::{
+    basic::Compression, 
+    file::metadata::ParquetMetaData,
+};
 use std::sync::Arc;
 
 use crate::utils::format_rows;
@@ -35,7 +39,9 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         let col = rg.column(selected_column.get());
         col.statistics().cloned()
     };
-    let metadata_for_col = metadata_display.metadata.clone();
+
+    let reader_for_column_info = parquet_reader.clone();
+    let reader_for_page_info = parquet_reader.clone();
 
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-3 text-xs">
@@ -113,7 +119,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                         </div>
 
                                         <ColumnInfo
-                                            metadata=metadata_for_col.clone()
+                                            parquet_reader=reader_for_column_info.clone()
                                             row_group_id=selected_row_group.get()
                                             column_id=selected_column.get()
                                         />
@@ -140,7 +146,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                 </div>
                                 <div>
                                     <PageInfo
-                                        parquet_reader=parquet_reader.clone()
+                                        parquet_reader=reader_for_page_info.clone()
                                         row_group_id=selected_row_group.get()
                                         column_id=selected_column.get()
                                     />
@@ -205,13 +211,13 @@ struct ColumnInfo {
 
 #[component]
 pub fn ColumnInfo(
-    metadata: Arc<ParquetMetaData>,
+    parquet_reader: Arc<ParquetResolved>,
     row_group_id: usize,
     column_id: usize,
 ) -> impl IntoView {
+    let metadata = parquet_reader.metadata().metadata.clone();
+    
     let column_info = {
-        let metadata = metadata.clone();
-
         let rg = metadata.row_group(row_group_id);
         let col = rg.column(column_id);
         let compressed_size = col.compressed_size() as u64;
@@ -225,12 +231,21 @@ pub fn ColumnInfo(
         }
     };
 
+    let page_count = LocalResource::new(move || {
+        let mut column_reader = parquet_reader.reader().clone();
+        let metadata = metadata.clone();
+        async move {
+            match count_column_chunk_pages(&mut column_reader, &metadata, row_group_id, column_id).await {
+                Ok(count) => count,
+                Err(_) => 0,
+            }
+        }
+    });
+
     view! {
         <div class="space-y-8">
-            // Column Selection
             <div class="flex flex-col space-y-2">
-
-                <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-md">
+                <div class="grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-md">
                     <div class="space-y-1">
                         <div class="text-gray-500">"Compressed"</div>
                         <div>{format!(
@@ -255,11 +270,21 @@ pub fn ColumnInfo(
                         </div>
                     </div>
                     <div class="space-y-1">
-                        <div class="text-gray-500">"Compression Type"</div>
+                        <div class="text-gray-500">"CompressionType"</div>
                         <div>{format!("{:?}", column_info.compression)}</div>
                     </div>
+                    <div class="space-y-1">
+                        <div class="text-gray-500">"Pages"</div>
+                        <div>
+                            <Suspense fallback=move || view! { <span class="text-gray-400">"..."</span> }>
+                                {move || Suspend::new(async move {
+                                    let count = page_count.await;
+                                    count.to_string().into_any()
+                                })}
+                            </Suspense>
+                        </div>
+                    </div>
                 </div>
-
             </div>
         </div>
     }
