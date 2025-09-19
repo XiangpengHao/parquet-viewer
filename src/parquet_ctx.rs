@@ -57,9 +57,13 @@ impl MetadataDisplay {
 
         let has_column_index = metadata
             .column_index()
-            .and_then(|ci| ci.first().map(|row_group_indexes| {
-                row_group_indexes.iter().any(|index| !matches!(index, Index::NONE))
-            }))
+            .and_then(|ci| {
+                ci.first().map(|row_group_indexes| {
+                    row_group_indexes
+                        .iter()
+                        .any(|index| !matches!(index, Index::NONE))
+                })
+            })
             .unwrap_or(false);
 
         let has_offset_index = metadata

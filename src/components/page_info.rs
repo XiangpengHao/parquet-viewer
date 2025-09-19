@@ -130,13 +130,13 @@ pub fn PageInfo(
         let rg = metadata.row_group(row_group_id);
         let col = rg.column(column_id);
         col.byte_range()
-    }; 
+    };
     let page_index = metadata
         .column_index()
         .and_then(|v| v.get(row_group_id).map(|v| v.get(column_id)))
         .flatten()
         .cloned();
-    
+
     let page_info = LocalResource::new(move || {
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
