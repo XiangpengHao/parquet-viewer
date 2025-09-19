@@ -10,9 +10,12 @@ use datafusion::{
 };
 use leptos::logging;
 use parquet::{
-    arrow::ArrowWriter,
+    arrow::{ArrowWriter, async_reader::AsyncFileReader},
     errors::ParquetError,
-    file::reader::{ChunkReader, Length},
+    file::{
+        reader::{ChunkReader, Length, SerializedPageReader},
+        metadata::ParquetMetaData,
+    },
 };
 use web_sys::{
     js_sys,
@@ -148,6 +151,80 @@ pub(crate) fn export_to_parquet_inner(query_result: &[RecordBatch]) {
     writer.close().expect("Failed to close writer");
 
     download_data("query_results.parquet", buf);
+}
+
+/// Counts the number of pages in a column chunk by reading and iterating through all pages.
+pub async fn count_column_chunk_pages(
+    column_reader: &mut impl AsyncFileReader,
+    metadata: &ParquetMetaData,
+    row_group_id: usize,
+    column_id: usize,
+) -> Result<usize> {
+    let row_group = metadata.row_group(row_group_id);
+    let column_chunk = row_group.column(column_id);
+    let byte_range = column_chunk.byte_range();
+    
+    let bytes = column_reader
+        .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
+        .await?;
+    let chunk = ColumnChunk::new(bytes, byte_range);
+    
+    // Create a page reader
+    let page_reader = SerializedPageReader::new(
+        Arc::new(chunk), 
+        column_chunk, 
+        row_group.num_rows() as usize, 
+        None
+    )?;
+    
+    let page_count = page_reader.flatten().count();
+    Ok(page_count)
+}
+
+/// Information about all pages in a column chunk, for `get_column_chunk_page_info`
+#[derive(Debug, Clone)]
+pub struct PageInfo {
+    pub page_type: parquet::basic::PageType,
+    pub size_bytes: u64,
+    pub num_values: u32,
+    pub encoding: parquet::basic::Encoding,
+}
+
+/// Gets detailed information about all pages in a column chunk.
+pub async fn get_column_chunk_page_info(
+    column_reader: &mut impl AsyncFileReader,
+    metadata: &ParquetMetaData,
+    row_group_id: usize,
+    column_id: usize,
+) -> Result<Vec<PageInfo>> {
+    let row_group = metadata.row_group(row_group_id);
+    let column_chunk = row_group.column(column_id);
+    let byte_range = column_chunk.byte_range();
+    
+    let bytes = column_reader
+        .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
+        .await?;
+    let chunk = ColumnChunk::new(bytes, byte_range);
+    
+    // Create a page reader 
+    let page_reader = SerializedPageReader::new(
+        Arc::new(chunk), 
+        column_chunk, 
+        row_group.num_rows() as usize, 
+        None
+    )?;
+    
+    let mut pages = Vec::new();
+    for page in page_reader.flatten() {
+        pages.push(PageInfo {
+            page_type: page.page_type(),
+            size_bytes: page.buffer().len() as u64,
+            num_values: page.num_values(),
+            encoding: page.encoding(),
+        });
+    }
+    
+    Ok(pages)
 }
 
 pub struct ColumnChunk {
