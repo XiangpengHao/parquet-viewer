@@ -133,10 +133,9 @@ pub fn PageInfo(
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
         async move {
-            match get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id).await {
-                Ok(pages) => pages,
-                Err(_) => Vec::new(),
-            }
+            get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id)
+                .await
+                .unwrap_or_default()
         }
     });
 
