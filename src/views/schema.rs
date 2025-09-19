@@ -444,7 +444,14 @@ fn calculate_page_encodings(
             let mut total_pages = 0;
 
             for (row_group_id, _rg) in metadata.row_groups().iter().enumerate() {
-                match get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id).await {
+                match get_column_chunk_page_info(
+                    &mut column_reader,
+                    &metadata,
+                    row_group_id,
+                    column_id,
+                )
+                .await
+                {
                     Ok(pages) => {
                         for page in pages {
                             total_pages += 1;
@@ -452,7 +459,7 @@ fn calculate_page_encodings(
                         }
                     }
                     Err(_) => {
-                        continue;  // Skip this row group if we can't read it
+                        continue;
                     }
                 }
             }

@@ -13,8 +13,8 @@ use parquet::{
     arrow::{ArrowWriter, async_reader::AsyncFileReader},
     errors::ParquetError,
     file::{
-        reader::{ChunkReader, Length, SerializedPageReader},
         metadata::ParquetMetaData,
+        reader::{ChunkReader, Length, SerializedPageReader},
     },
 };
 use web_sys::{
@@ -163,20 +163,21 @@ pub async fn count_column_chunk_pages(
     let row_group = metadata.row_group(row_group_id);
     let column_chunk = row_group.column(column_id);
     let byte_range = column_chunk.byte_range();
-    
+
     let bytes = column_reader
         .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
         .await?;
+
     let chunk = ColumnChunk::new(bytes, byte_range);
-    
+
     // Create a page reader
     let page_reader = SerializedPageReader::new(
-        Arc::new(chunk), 
-        column_chunk, 
-        row_group.num_rows() as usize, 
-        None
+        Arc::new(chunk),
+        column_chunk,
+        row_group.num_rows() as usize,
+        None,
     )?;
-    
+
     let page_count = page_reader.flatten().count();
     Ok(page_count)
 }
@@ -200,20 +201,21 @@ pub async fn get_column_chunk_page_info(
     let row_group = metadata.row_group(row_group_id);
     let column_chunk = row_group.column(column_id);
     let byte_range = column_chunk.byte_range();
-    
+
     let bytes = column_reader
         .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
         .await?;
+
     let chunk = ColumnChunk::new(bytes, byte_range);
-    
-    // Create a page reader 
+
+    // Create a page reader
     let page_reader = SerializedPageReader::new(
-        Arc::new(chunk), 
-        column_chunk, 
-        row_group.num_rows() as usize, 
-        None
+        Arc::new(chunk),
+        column_chunk,
+        row_group.num_rows() as usize,
+        None,
     )?;
-    
+
     let mut pages = Vec::new();
     for page in page_reader.flatten() {
         pages.push(PageInfo {
@@ -223,7 +225,7 @@ pub async fn get_column_chunk_page_info(
             encoding: page.encoding(),
         });
     }
-    
+
     Ok(pages)
 }
 

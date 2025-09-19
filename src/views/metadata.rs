@@ -5,10 +5,7 @@ use crate::{
 };
 use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
-use parquet::{
-    basic::Compression, 
-    file::metadata::ParquetMetaData,
-};
+use parquet::{basic::Compression, file::metadata::ParquetMetaData};
 use std::sync::Arc;
 
 use crate::utils::format_rows;
@@ -216,7 +213,7 @@ pub fn ColumnInfo(
     column_id: usize,
 ) -> impl IntoView {
     let metadata = parquet_reader.metadata().metadata.clone();
-    
+
     let column_info = {
         let rg = metadata.row_group(row_group_id);
         let col = rg.column(column_id);
