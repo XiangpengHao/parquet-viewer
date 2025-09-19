@@ -126,16 +126,34 @@ pub fn PageInfo(
     column_id: usize,
 ) -> impl IntoView {
     let metadata = parquet_reader.metadata().metadata.clone();
-    let byte_range = {
-        let rg = metadata.row_group(row_group_id);
-        let col = rg.column(column_id);
-        col.byte_range()
-    };
+    
+    // Debug logging for column index
+    let column_indexes = metadata.column_index();
+    web_sys::console::log_1(&format!("=== Column Index Debug for row_group={}, column={} ===", row_group_id, column_id).into());
+    
+    if let Some(all_indexes) = &column_indexes {
+        web_sys::console::log_1(&format!("Total row groups with column indexes: {}", all_indexes.len()).into());
+        
+        for (rg_idx, row_group_indexes) in all_indexes.iter().enumerate() {
+            web_sys::console::log_1(&format!("  Row group {}: {} columns have indexes", rg_idx, row_group_indexes.len()).into());
+            
+            for (col_idx, col_index) in row_group_indexes.iter().enumerate() {
+                let has_data = !matches!(col_index, Index::NONE);
+                web_sys::console::log_1(&format!("    Column {}: has_data={}", col_idx, has_data).into());
+            }
+        }
+    } else {
+        web_sys::console::log_1(&"No column indexes found in metadata".into());
+    }
+    
     let page_index = metadata
         .column_index()
         .and_then(|v| v.get(row_group_id).map(|v| v.get(column_id)))
         .flatten()
         .cloned();
+        
+    web_sys::console::log_1(&format!("Page index for this specific column: {}", 
+        if page_index.is_some() { "FOUND" } else { "NOT FOUND" }).into());
 
     let page_info = LocalResource::new(move || {
         let mut column_reader = parquet_reader.reader().clone();

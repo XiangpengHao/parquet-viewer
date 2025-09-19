@@ -7,7 +7,7 @@ use datafusion::execution::object_store::ObjectStoreUrl;
 use object_store::path::Path;
 use parquet::{
     arrow::{async_reader::ParquetObjectReader, parquet_to_arrow_schema},
-    file::metadata::ParquetMetaData,
+    file::{metadata::ParquetMetaData, page_index::index::Index},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,8 +57,37 @@ impl MetadataDisplay {
 
         let has_column_index = metadata
             .column_index()
-            .and_then(|ci| ci.first().map(|c| !c.is_empty()))
+            .and_then(|ci| ci.first().map(|row_group_indexes| {
+                // Debug: Print the actual Vec content
+                web_sys::console::log_1(&format!("=== Vec<Index> Content Debug ===").into());
+                web_sys::console::log_1(&format!("row_group_indexes.len() = {}", row_group_indexes.len()).into());
+                
+                for (i, index) in row_group_indexes.iter().enumerate() {
+                    web_sys::console::log_1(&format!("  Index[{}] = {:?}", i, index).into());
+                    web_sys::console::log_1(&format!("  Index[{}] is Index::NONE? {}", i, matches!(index, Index::NONE)).into());
+                }
+                
+                let any_non_none = row_group_indexes.iter().any(|index| !matches!(index, Index::NONE));
+                web_sys::console::log_1(&format!("any_non_none result = {}", any_non_none).into());
+                
+                any_non_none
+            }))
             .unwrap_or(false);
+            
+        // Debug logging for file-level column index check
+        web_sys::console::log_1(&"=== File-level Column Index Debug ===".into());
+        if let Some(column_indexes) = metadata.column_index() {
+            web_sys::console::log_1(&format!("Found column indexes for {} row groups", column_indexes.len()).into());
+            if let Some(first_rg_indexes) = column_indexes.first() {
+                web_sys::console::log_1(&format!("First row group has {} column indexes", first_rg_indexes.len()).into());
+                let first_is_empty = first_rg_indexes.is_empty();
+                web_sys::console::log_1(&format!("First row group indexes is_empty: {}", first_is_empty).into());
+                web_sys::console::log_1(&format!("File-level has_column_index will be: {}", !first_is_empty).into());
+            }
+        } else {
+            web_sys::console::log_1(&"No column indexes found at file level".into());
+        }
+
         let has_offset_index = metadata
             .offset_index()
             .and_then(|ci| ci.first().map(|c| !c.is_empty()))
