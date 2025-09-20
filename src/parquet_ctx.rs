@@ -7,7 +7,7 @@ use datafusion::execution::object_store::ObjectStoreUrl;
 use object_store::path::Path;
 use parquet::{
     arrow::{async_reader::ParquetObjectReader, parquet_to_arrow_schema},
-    file::metadata::ParquetMetaData,
+    file::{metadata::ParquetMetaData, page_index::index::Index},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,8 +57,15 @@ impl MetadataDisplay {
 
         let has_column_index = metadata
             .column_index()
-            .and_then(|ci| ci.first().map(|c| !c.is_empty()))
+            .and_then(|ci| {
+                ci.first().map(|row_group_indexes| {
+                    row_group_indexes
+                        .iter()
+                        .any(|index| !matches!(index, Index::NONE))
+                })
+            })
             .unwrap_or(false);
+
         let has_offset_index = metadata
             .offset_index()
             .and_then(|ci| ci.first().map(|c| !c.is_empty()))
