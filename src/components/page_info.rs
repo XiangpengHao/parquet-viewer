@@ -2,14 +2,11 @@ use std::sync::Arc;
 
 use byte_unit::{Byte, UnitType};
 use leptos::prelude::*;
-use parquet::{
-    arrow::async_reader::AsyncFileReader,
-    file::{page_index::index::Index, reader::SerializedPageReader},
-};
+use parquet::file::page_index::index::Index;
 
 use crate::{
     parquet_ctx::ParquetResolved,
-    utils::{ColumnChunk, format_rows},
+    utils::{format_rows, get_column_chunk_page_info},
 };
 #[component]
 fn IndexDisplay(index: Index) -> impl IntoView {
@@ -126,11 +123,6 @@ pub fn PageInfo(
     column_id: usize,
 ) -> impl IntoView {
     let metadata = parquet_reader.metadata().metadata.clone();
-    let byte_range = {
-        let rg = metadata.row_group(row_group_id);
-        let col = rg.column(column_id);
-        col.byte_range()
-    };
     let page_index = metadata
         .column_index()
         .and_then(|v| v.get(row_group_id).map(|v| v.get(column_id)))
@@ -141,29 +133,9 @@ pub fn PageInfo(
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
         async move {
-            let bytes = column_reader
-                .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
+            get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id)
                 .await
-                .unwrap();
-
-            let chunk = ColumnChunk::new(bytes, byte_range);
-
-            let rg = metadata.row_group(row_group_id);
-            let col = rg.column(column_id);
-
-            let page_reader =
-                SerializedPageReader::new(Arc::new(chunk), col, rg.num_rows() as usize, None)
-                    .unwrap();
-
-            let mut page_info = Vec::new();
-            for page in page_reader.flatten() {
-                let page_type = page.page_type();
-                let page_size = page.buffer().len() as u64;
-                let num_values = page.num_values();
-                page_info.push((page_type, page_size, num_values, page.encoding()));
-            }
-
-            page_info
+                .unwrap_or_default()
         }
     });
 
@@ -188,21 +160,21 @@ pub fn PageInfo(
                     }>
                         <div class="max-h-32 overflow-y-auto space-y-1">
                             {move || Suspend::new(async move {
-                                let page_info = page_info.await;
-                                page_info
+                                let pages = page_info.await;
+                                pages
                                     .iter()
                                     .enumerate()
-                                    .map(|(i, (page_type, size, values, encoding))| {
+                                    .map(|(i, page)| {
                                         view! {
                                             <div class="grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 hover:bg-gray-50">
                                                 <span>{format!("{i}")}</span>
-                                                <span>{format!("{page_type:?}")}</span>
+                                                <span>{format!("{:?}", page.page_type)}</span>
                                                 <span>{format!(
                                                     "{:.0}",
-                                                    Byte::from_u64(*size).get_appropriate_unit(UnitType::Binary)
+                                                    Byte::from_u64(page.size_bytes).get_appropriate_unit(UnitType::Binary)
                                                 )}</span>
-                                                <span>{format_rows(*values as u64)}</span>
-                                                <span>{format!("{encoding:?}")}</span>
+                                                <span>{format_rows(page.num_values as u64)}</span>
+                                                <span>{format!("{:?}", page.encoding)}</span>
                                             </div>
                                         }
                                     })

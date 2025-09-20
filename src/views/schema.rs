@@ -1,6 +1,6 @@
 use crate::SESSION_CTX;
 use crate::components::{RecordBatchTable, RecordFormatter};
-use crate::utils::{ColumnChunk, execute_query_inner};
+use crate::utils::{execute_query_inner, get_column_chunk_page_info};
 use crate::{ParquetResolved, utils::format_arrow_type};
 use arrow::array::AsArray;
 use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
@@ -9,9 +9,7 @@ use arrow_array::{StringArray, UInt32Array};
 use arrow_schema::{DataType, Field, Schema};
 use byte_unit::{Byte, UnitType};
 use leptos::{logging, prelude::*};
-use parquet::arrow::async_reader::AsyncFileReader;
 use parquet::file::metadata::ParquetMetaData;
-use parquet::file::serialized_reader::SerializedPageReader;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -445,25 +443,24 @@ fn calculate_page_encodings(
             let mut encoding_counts = HashMap::new();
             let mut total_pages = 0;
 
-            for rg in metadata.row_groups() {
-                let col = rg.column(column_id);
-                let byte_range = col.byte_range();
-                let bytes = column_reader
-                    .get_bytes(byte_range.0..(byte_range.0 + byte_range.1))
-                    .await
-                    .unwrap();
-
-                let chunk = ColumnChunk::new(bytes, byte_range);
-
-                let page_reader =
-                    SerializedPageReader::new(Arc::new(chunk), col, rg.num_rows() as usize, None)
-                        .unwrap();
-
-                for page in page_reader.flatten() {
-                    total_pages += 1;
-
-                    // Count the encoding type
-                    *encoding_counts.entry(page.encoding()).or_insert(0) += 1;
+            for (row_group_id, _rg) in metadata.row_groups().iter().enumerate() {
+                match get_column_chunk_page_info(
+                    &mut column_reader,
+                    &metadata,
+                    row_group_id,
+                    column_id,
+                )
+                .await
+                {
+                    Ok(pages) => {
+                        for page in pages {
+                            total_pages += 1;
+                            *encoding_counts.entry(page.encoding).or_insert(0) += 1;
+                        }
+                    }
+                    Err(_) => {
+                        continue;
+                    }
                 }
             }
 
