@@ -10,6 +10,27 @@ use std::sync::Arc;
 
 use crate::utils::format_rows;
 
+/// Mirror `Compression::codec_to_string` from `arrow-rs` so we can keep parity with the
+/// formatting used by upstream metadata printing helpers.
+trait CompressionExt {
+    fn codec_to_string(self) -> &'static str;
+}
+
+impl CompressionExt for Compression {
+    fn codec_to_string(self) -> &'static str {
+        match self {
+            Compression::UNCOMPRESSED => "UNCOMPRESSED",
+            Compression::SNAPPY => "SNAPPY",
+            Compression::GZIP(_) => "GZIP",
+            Compression::LZO => "LZO",
+            Compression::BROTLI(_) => "BROTLI",
+            Compression::LZ4 => "LZ4",
+            Compression::ZSTD(_) => "ZSTD",
+            Compression::LZ4_RAW => "LZ4_RAW",
+        }
+    }
+}
+
 #[component]
 pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let metadata_display = parquet_reader.metadata().clone();
@@ -267,7 +288,7 @@ pub fn ColumnInfo(
                     </div>
                     <div class="space-y-1">
                         <div class="text-gray-500">"CompressionType"</div>
-                        <div>{format!("{:?}", column_info.compression)}</div>
+                        <div>{column_info.compression.codec_to_string()}</div>
                     </div>
                     <div class="space-y-1">
                         <div class="text-gray-500">"Pages"</div>
