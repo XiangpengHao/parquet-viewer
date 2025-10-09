@@ -143,8 +143,12 @@ impl ParquetUnresolved {
                 self.object_store_url
             );
         }
-        ctx.register_parquet(self.table_name.as_str(), &table_path, Default::default())
-            .await?;
+        ctx.register_parquet(
+            format!("\"{}\"", self.table_name.as_str()),
+            &table_path,
+            Default::default(),
+        )
+        .await?;
 
         logging::log!("registered parquet table: {}", self.table_name.as_str());
 

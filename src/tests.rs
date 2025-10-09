@@ -115,6 +115,23 @@ async fn test_read_parquet_with_empty_rows() {
     test_render_record_batch_table(rows[0].clone());
 }
 
+#[wasm_bindgen_test]
+async fn test_read_parquet_with_uppercase_name() {
+    let ctx = SESSION_CTX.clone();
+    let parquet_unresolved = register_parquet_file(
+        "UPPERCASE_NAME.parquet",
+        gen_parquet_with_page_stats(EnabledStatistics::Page),
+    )
+    .await;
+    let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
+    let (rows, _) = execute_query_inner("select count(*) from \"UPPERCASE_NAME\"", &ctx)
+        .await
+        .unwrap();
+
+    test_render_schema_and_meta(table);
+    test_render_record_batch_table(rows[0].clone());
+}
+
 fn gen_parquet_with_nested_column() -> Vec<u8> {
     let fields = Fields::from(vec![
         Field::new("b", DataType::Int64, false),
