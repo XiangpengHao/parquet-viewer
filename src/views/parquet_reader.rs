@@ -143,14 +143,18 @@ impl ParquetUnresolved {
                 self.object_store_url
             );
         }
+
+        // Use a unique name from url to avoid collisions
+        let unique_table_name = format!("\"{}_{}\"", self.table_name.as_str(), self.object_store_url.as_str());
+        
         ctx.register_parquet(
-            format!("\"{}\"", self.table_name.as_str()),
+            unique_table_name.clone(),
             &table_path,
             Default::default(),
         )
         .await?;
 
-        logging::log!("registered parquet table: {}", self.table_name.as_str());
+        logging::log!("parquet table: {} has the registered unique name {}", self.table_name.as_str(), unique_table_name);
 
         let metadata_memory_size = metadata.memory_size();
         Ok(ParquetResolved::new(
