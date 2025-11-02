@@ -152,7 +152,7 @@ impl ParquetUnresolved {
             .replace('-', "_");
         let registered_table_name = format!("{}_{}", self.table_name.as_str(), url_hash); // The unique name for registration in DataFusion 
         ctx.register_parquet(
-            registered_table_name.clone(),
+            format!("\"{}\"", registered_table_name),
             &table_path,
             Default::default(),
         )
