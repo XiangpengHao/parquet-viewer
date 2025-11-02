@@ -17,20 +17,33 @@ fn nl_cache(key: &str, file_name: &str) -> Option<String> {
 }
 
 pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) -> Result<String> {
-    // if the input seems to be a SQL query, return it as is
+    // if the input seems to be a SQL query, replace table names with registered names
     if input.starts_with("select") || input.starts_with("SELECT") {
-        return Ok(input.to_string());
+        let sql = input.replace(
+            &format!("\"{}\"", context.table_name()),
+            &format!("\"{}\"", context.registered_table_name()),
+        );
+        // Also handle unquoted table names
+        let sql = sql.replace(
+            &format!(" {} ", context.table_name()),
+            &format!(" \"{}\" ", context.registered_table_name()),
+        );
+        let sql = sql.replace(
+            &format!(" {}\n", context.table_name()),
+            &format!(" \"{}\" ", context.registered_table_name()),
+        );
+        return Ok(sql);
     }
 
     // check if the input is in the cache
-    let cached_sql = nl_cache(input, context.table_name());
+    let cached_sql = nl_cache(input, context.registered_table_name());
     if let Some(sql) = cached_sql {
         return Ok(sql);
     }
 
     // otherwise, treat it as some natural language
     let schema = context.metadata().schema();
-    let file_name = context.table_name();
+    let file_name = context.registered_table_name();
     let api_key = get_stored_value(ANTHROPIC_API_KEY);
     let schema_str = schema_to_brief_str(schema);
 

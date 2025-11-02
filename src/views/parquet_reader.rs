@@ -143,19 +143,32 @@ impl ParquetUnresolved {
                 self.object_store_url
             );
         }
+
+        let url_hash = self
+            .object_store_url
+            .as_str()
+            .replace("://", "_")
+            .replace('/', "")
+            .replace('-', "_");
+        let registered_table_name = format!("{}_{}", self.table_name.as_str(), url_hash); // The unique name for registration in DataFusion 
         ctx.register_parquet(
-            format!("\"{}\"", self.table_name.as_str()),
+            format!("\"{}\"", registered_table_name),
             &table_path,
             Default::default(),
         )
         .await?;
 
-        logging::log!("registered parquet table: {}", self.table_name.as_str());
+        logging::log!(
+            "parquet table: {} has the registered unique name {}",
+            self.table_name.as_str(),
+            registered_table_name
+        );
 
         let metadata_memory_size = metadata.memory_size();
         Ok(ParquetResolved::new(
             reader,
             self.table_name.as_str().to_string(),
+            registered_table_name.clone(),
             self.path_relative_to_object_store,
             self.object_store_url,
             MetadataDisplay::from_metadata(

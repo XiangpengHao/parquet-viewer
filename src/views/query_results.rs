@@ -28,6 +28,7 @@ pub(crate) struct QueryResult {
     generated_sql: LocalResource<Result<String, String>>,
     display: bool,
     user_input: String,
+    parquet_table: Arc<ParquetResolved>,
 }
 
 #[derive(Clone)]
@@ -43,13 +44,16 @@ const SVG_CLASSES: &str = "h-5 w-5";
 impl QueryResult {
     pub fn new(id: usize, user_query: String, parquet_table: Arc<ParquetResolved>) -> Self {
         let user_query_clone = user_query.clone();
-        let generated_sql = LocalResource::new(move || {
-            let user_query = user_query.clone();
+        let generated_sql = LocalResource::new({
             let parquet_table = parquet_table.clone();
-            async move {
-                crate::nl_to_sql::user_input_to_sql(&user_query, &parquet_table)
-                    .await
-                    .map_err(|e| e.to_string())
+            move || {
+                let user_query = user_query.clone();
+                let parquet_table = parquet_table.clone();
+                async move {
+                    crate::nl_to_sql::user_input_to_sql(&user_query, &parquet_table)
+                        .await
+                        .map_err(|e| e.to_string())
+                }
             }
         });
         let query_result = LocalResource::new(move || async move {
@@ -71,6 +75,7 @@ impl QueryResult {
             generated_sql,
             user_input: user_query_clone,
             display: true,
+            parquet_table,
         }
     }
 
@@ -88,7 +93,13 @@ impl QueryResult {
 }
 
 #[component]
-pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> impl IntoView {
+pub fn QueryResultViewInner(
+    result: ExecutionResult,
+    sql: String,
+    id: usize,
+    table_name: String,
+    registered_table_name: String,
+) -> impl IntoView {
     let (show_plan, set_show_plan) = signal(false);
     let query_result_clone1 = result.record_batches.clone();
     let query_result_clone2 = result.record_batches.clone();
@@ -123,7 +134,11 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize) -> 
 
     let highlighted_sql_input = format!(
         "hljs.highlight({},{{ language: 'sql' }}).value",
-        js_sys::JSON::stringify(&JsValue::from_str(&sql)).unwrap()
+        js_sys::JSON::stringify(&JsValue::from_str(&sql.replace(
+            &format!("\"{}\"", registered_table_name),
+            &format!("\"{}\"", table_name)
+        )))
+        .unwrap()
     );
     let highlighted_sql_input = match js_sys::eval(&highlighted_sql_input) {
         Ok(v) => v.as_string().unwrap(),
@@ -367,6 +382,8 @@ pub fn QueryResultView(
     toggle_display: impl Fn(usize) + 'static + Send + Clone,
 ) -> impl IntoView {
     let id = result.id;
+    let table_name = result.parquet_table.table_name().to_string();
+    let registered_table_name = result.parquet_table.registered_table_name().to_string();
 
     let (progress, set_progress) = signal("Generating SQL...".to_string());
 
@@ -420,6 +437,8 @@ pub fn QueryResultView(
                 view! { <div>{move || progress()}</div> }
             }>
                 {move || {
+                    let table_name = table_name.clone();
+                    let registered_table_name = registered_table_name.clone();
                     Suspend::new(async move {
                         let sql = match result.generated_sql.await {
                             Ok(sql) => sql,
@@ -433,7 +452,7 @@ pub fn QueryResultView(
                         match result {
                             Ok(result) => {
 
-                                view! { <QueryResultViewInner result=result sql=sql id=id /> }
+                                view! { <QueryResultViewInner result=result sql=sql id=id table_name=table_name registered_table_name=registered_table_name /> }
                                     .into_any()
                             }
                             Err(e) => {
@@ -470,7 +489,7 @@ mod tests {
             view! {
             <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
-            <QueryResultViewInner result=result.clone() sql="SELECT * FROM test".to_string() id=0 /> }
+            <QueryResultViewInner result=result.clone() sql="SELECT * FROM test".to_string() id=0 table_name="test_table".to_string() registered_table_name="registered_test_table".to_string() /> }
         });
     }
 
