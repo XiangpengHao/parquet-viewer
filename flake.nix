@@ -41,8 +41,8 @@
             typescript
             pnpm
             vsce
-            chromedriver
-            chromium
+            geckodriver
+            firefox
             llvmPackages_20.clang
             lld_20
             llvmPackages_20.libcxx

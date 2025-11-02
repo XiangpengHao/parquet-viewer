@@ -45,7 +45,7 @@ trunk serve --release --no-autoreload
 
 ```bash
 cargo install wasm-pack --locked
-wasm-pack test --headless --chrome
+wasm-pack test --headless --firefox
 ```
 
 #### Build VS Code extension
@@ -57,6 +57,20 @@ npm run compile
 vsce login xiangpeng-systems
 vsce package
 vsce publish
+```
+
+## Citation
+
+If you use Parquet Viewer in your research or wish to refer to it in your publications, please use the following BibTeX entry:
+
+```bibtex
+@software{parquet_viewer,
+  author = {Xiangpeng Hao and Jigao Luo and LLM and {ParquetViewer developers}},
+  title = {Parquet Viewer: Interactive Parquet File Explorer},
+  year = {2025},
+  url = {https://github.com/XiangpengHao/parquet-viewer},
+  note = {Online at: https://parquet-viewer.xiangpeng.systems}
+}
 ```
 
 ## License

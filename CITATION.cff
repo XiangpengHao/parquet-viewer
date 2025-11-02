@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Hao"
+    given-names: "Xiangpeng"
+  - family-names: "Luo"
+    given-names: "Jigao"
+  - name: "LLM"
+  - name: "ParquetViewer developers"
+title: "Parquet Viewer: Interactive Parquet File Explorer"
+version: 0.1.31
+date-released: 2025-01-01
+url: "https://github.com/XiangpengHao/parquet-viewer"
+repository-code: "https://github.com/XiangpengHao/parquet-viewer"
