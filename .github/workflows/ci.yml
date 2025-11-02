@@ -40,8 +40,8 @@ jobs:
           nix develop --command bash -c "
             cargo fmt --all -- --check && \
             cargo clippy -- -D warnings && \
-            wasm-pack test --headless --chrome
+            CHROMEDRIVER_ARGS='--disable-dev-shm-usage --no-sandbox' wasm-pack test --headless --chrome
           "
       - name: Set result output
         id: result
-        run: echo "success=true" >> $GITHUB_OUTPUT 
+        run: echo "success=true" >> $GITHUB_OUTPUT
