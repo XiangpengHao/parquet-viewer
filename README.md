@@ -65,7 +65,7 @@ If you use Parquet Viewer in your research or wish to refer to it in your public
 
 ```bibtex
 @software{parquet_viewer,
-  author = {Xiangpeng Hao and Jigao Luo and Jonas Dedden and {ParquetViewer developers}},
+  author = {Xiangpeng Hao and Jigao Luo and LLM and {ParquetViewer developers}},
   title = {Parquet Viewer: Interactive Parquet File Explorer},
   year = {2025},
   url = {https://github.com/XiangpengHao/parquet-viewer},
