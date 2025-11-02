@@ -23,14 +23,14 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     }
 
     // check if the input is in the cache
-    let cached_sql = nl_cache(input, context.table_name());
+    let cached_sql = nl_cache(input, context.registered_table_name());
     if let Some(sql) = cached_sql {
         return Ok(sql);
     }
 
     // otherwise, treat it as some natural language
     let schema = context.metadata().schema();
-    let file_name = context.table_name();
+    let file_name = context.registered_table_name();
     let api_key = get_stored_value(ANTHROPIC_API_KEY);
     let schema_str = schema_to_brief_str(schema);
 
