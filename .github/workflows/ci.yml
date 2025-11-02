@@ -40,7 +40,7 @@ jobs:
           nix develop --command bash -c "
             cargo fmt --all -- --check && \
             cargo clippy -- -D warnings && \
-            wasm-pack test --headless --chrome
+            wasm-pack test --headless --firefox
           "
       - name: Set result output
         id: result
