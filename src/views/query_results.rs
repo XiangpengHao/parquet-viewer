@@ -93,7 +93,13 @@ impl QueryResult {
 }
 
 #[component]
-pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize, table_name: String, registered_table_name: String) -> impl IntoView {
+pub fn QueryResultViewInner(
+    result: ExecutionResult,
+    sql: String,
+    id: usize,
+    table_name: String,
+    registered_table_name: String,
+) -> impl IntoView {
     let (show_plan, set_show_plan) = signal(false);
     let query_result_clone1 = result.record_batches.clone();
     let query_result_clone2 = result.record_batches.clone();
@@ -128,7 +134,11 @@ pub fn QueryResultViewInner(result: ExecutionResult, sql: String, id: usize, tab
 
     let highlighted_sql_input = format!(
         "hljs.highlight({},{{ language: 'sql' }}).value",
-        js_sys::JSON::stringify(&JsValue::from_str(&sql.replace(&format!("\"{}\"", registered_table_name), &format!("\"{}\"", table_name)))).unwrap()
+        js_sys::JSON::stringify(&JsValue::from_str(&sql.replace(
+            &format!("\"{}\"", registered_table_name),
+            &format!("\"{}\"", table_name)
+        )))
+        .unwrap()
     );
     let highlighted_sql_input = match js_sys::eval(&highlighted_sql_input) {
         Ok(v) => v.as_string().unwrap(),

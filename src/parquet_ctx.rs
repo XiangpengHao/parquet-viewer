@@ -151,8 +151,8 @@ impl std::fmt::Display for MetadataDisplay {
 #[derive(Debug, Clone)]
 pub struct ParquetResolved {
     reader: ParquetObjectReader,
-    table_name: String,             // The original table name for display
-    registered_table_name: String,  // The unique name for registration in DataFusion 
+    table_name: String,            // The original table name for display
+    registered_table_name: String, // The unique name for registration in DataFusion
     path: Path,
     object_store_url: ObjectStoreUrl,
     metadata: MetadataDisplay,

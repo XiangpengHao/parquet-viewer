@@ -21,16 +21,16 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     if input.starts_with("select") || input.starts_with("SELECT") {
         let sql = input.replace(
             &format!("\"{}\"", context.table_name()),
-            &format!("\"{}\"", context.registered_table_name())
+            &format!("\"{}\"", context.registered_table_name()),
         );
         // Also handle unquoted table names
         let sql = sql.replace(
             &format!(" {} ", context.table_name()),
-            &format!(" \"{}\" ", context.registered_table_name())
+            &format!(" \"{}\" ", context.registered_table_name()),
         );
         let sql = sql.replace(
             &format!(" {}\n", context.table_name()),
-            &format!(" \"{}\" ", context.registered_table_name())
+            &format!(" \"{}\" ", context.registered_table_name()),
         );
         return Ok(sql);
     }
