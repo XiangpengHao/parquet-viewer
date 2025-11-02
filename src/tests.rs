@@ -38,7 +38,8 @@ async fn test_read_parquet() {
         .await
         .expect("Should successfully parse a valid parquet URL");
 
-    let (rows, _) = execute_query_inner("select count(*) from \"aws-edge-locations\"", &ctx)
+    let query = format!("select count(*) from \"{}\"", table.registered_table_name());
+    let (rows, _) = execute_query_inner(&query, &ctx)
         .await
         .unwrap();
 
@@ -104,7 +105,8 @@ async fn test_read_parquet_with_empty_rows() {
     let parquet_unresolved =
         register_parquet_file("empty_rows.parquet", gen_parquet_with_empty_rows()).await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    let (rows, _) = execute_query_inner("select count(*) from \"empty_rows\"", &ctx)
+    let query = format!("select count(*) from \"{}\"", table.registered_table_name());
+    let (rows, _) = execute_query_inner(&query, &ctx)
         .await
         .unwrap();
     assert_eq!(rows.len(), 1);
@@ -124,7 +126,8 @@ async fn test_read_parquet_with_uppercase_name() {
     )
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    let (rows, _) = execute_query_inner("select count(*) from \"UPPERCASE_NAME\"", &ctx)
+    let query = format!("select count(*) from \"{}\"", table.registered_table_name());
+    let (rows, _) = execute_query_inner(&query, &ctx)
         .await
         .unwrap();
 
@@ -165,7 +168,8 @@ async fn test_read_parquet_with_nested_column() {
     let parquet_unresolved =
         register_parquet_file("nested_column.parquet", gen_parquet_with_nested_column()).await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    let (rows, _) = execute_query_inner("select a.b, a.c from \"nested_column\"", &ctx)
+    let query = format!("select a.b, a.c from \"{}\"", table.registered_table_name());
+    let (rows, _) = execute_query_inner(&query, &ctx)
         .await
         .unwrap();
     logging::log!("{}", pretty_format_batches(&rows).unwrap());
