@@ -39,9 +39,7 @@ async fn test_read_parquet() {
         .expect("Should successfully parse a valid parquet URL");
 
     let query = format!("select count(*) from \"{}\"", table.registered_table_name());
-    let (rows, _) = execute_query_inner(&query, &ctx)
-        .await
-        .unwrap();
+    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].column(0).len(), 1);
@@ -106,9 +104,7 @@ async fn test_read_parquet_with_empty_rows() {
         register_parquet_file("empty_rows.parquet", gen_parquet_with_empty_rows()).await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select count(*) from \"{}\"", table.registered_table_name());
-    let (rows, _) = execute_query_inner(&query, &ctx)
-        .await
-        .unwrap();
+    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].column(0).len(), 1);
     assert_eq!(rows[0].column(0).as_primitive::<Int64Type>().values()[0], 0);
@@ -127,9 +123,7 @@ async fn test_read_parquet_with_uppercase_name() {
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select count(*) from \"{}\"", table.registered_table_name());
-    let (rows, _) = execute_query_inner(&query, &ctx)
-        .await
-        .unwrap();
+    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
 
     test_render_schema_and_meta(table);
     test_render_record_batch_table(rows[0].clone());
@@ -169,9 +163,7 @@ async fn test_read_parquet_with_nested_column() {
         register_parquet_file("nested_column.parquet", gen_parquet_with_nested_column()).await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select a.b, a.c from \"{}\"", table.registered_table_name());
-    let (rows, _) = execute_query_inner(&query, &ctx)
-        .await
-        .unwrap();
+    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
     logging::log!("{}", pretty_format_batches(&rows).unwrap());
     assert_eq!(rows.len(), 1);
     let rows = rows[0].clone();
