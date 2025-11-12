@@ -10,6 +10,7 @@ use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
 
 use crate::SESSION_CTX;
+use crate::components::ui::PANEL;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
 use crate::views::plan_visualizer::PhysicalPlan;
 use crate::{ParquetResolved, utils::execute_query_inner};
@@ -149,14 +150,14 @@ pub fn QueryResultViewInner(
     };
 
     view! {
-        <div class="flex items-center mb-2 mt-2">
-            <div class="w-3/4 font-mono overflow-auto relative group max-h-[200px]">
+        <div class="mb-2 mt-2 flex flex-col gap-2 lg:flex-row lg:items-start">
+            <div class="w-full max-h-[200px] font-mono overflow-auto relative group lg:w-3/4">
                 <pre class="whitespace-pre rounded">
                     <code class="language-sql" inner_html=highlighted_sql_input></code>
                 </pre>
             </div>
-            <div class="w-1/4">
-                <div class="flex justify-end">
+            <div class="w-full lg:w-1/4">
+                <div class="flex flex-wrap justify-end gap-2">
                     <div class="flex items-center rounded-md">
                         <div class="text-gray-500 font-mono relative group">
                             <span class=TOOLTIP_CLASSES>{format!("SELECT * FROM view_{id}")}</span>
@@ -283,7 +284,7 @@ pub fn QueryResultViewInner(
         }}
 
         <div
-            class="max-h-[32rem] overflow-auto relative"
+            class="max-h-[32rem] overflow-auto overflow-x-auto relative"
             node_ref=table_container
             on:scroll=handle_scroll
         >
@@ -390,7 +391,7 @@ pub fn QueryResultView(
     let toggle_display = toggle_display.clone();
 
     view! {
-        <div class="p-3 bg-white border border-gray-300 rounded-md hover:shadow-md transition-shadow duration-200">
+        <div class=format!("{} p-3 hover:shadow-md transition-shadow duration-200", PANEL)>
             <div class="flex justify-between items-center border-b border-gray-100 mb-2">
                 <div class="text-gray-500">{result.user_input}</div>
                 <div class="flex items-center">

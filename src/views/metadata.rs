@@ -63,7 +63,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
 
     view! {
         <div class="bg-white rounded-lg border border-gray-300 p-3 text-xs">
-            <div class="flex items-center mb-2">
+            <div class="flex flex-col gap-1 mb-2 sm:flex-row sm:items-center sm:justify-between">
                 <h2 class="text-gray-900">"Metadata"</h2>
                 <a
                     href="https://parquet.apache.org/docs/file-format/metadata/"
@@ -74,13 +74,13 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     "(doc)"
                 </a>
             </div>
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid gap-6 lg:grid-cols-2">
                 <div>
                     <FileLevelInfo metadata_display=metadata_display.clone() />
                     {move || {
                         if row_group_count > 0u64 {
                             view! {
-                                <div class="flex flex-row justify-between mt-2">
+                                <div class="mt-2 flex flex-col gap-4 md:flex-row md:justify-between">
                                     <div>
                                         <div class="flex items-center mb-2">
                                             <label for="row-group-select" class="text-gray-700 w-32">
@@ -117,7 +117,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                                             </label>
                                             <select
                                                 id="column-select"
-                                                class="w-full bg-white text-gray-700 rounded-lg border border-gray-200 px-2 py-1 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer "
+                                                class="w-full bg-white text-gray-700 rounded-lg border border-gray-200 px-2 py-1 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
                                                 on:change=move |ev| {
                                                     set_selected_column
                                                         .set(event_target_value(&ev).parse::<usize>().unwrap_or(0))

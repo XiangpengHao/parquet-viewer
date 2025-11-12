@@ -185,7 +185,8 @@ fn App() -> impl IntoView {
                                 }
                             })
                     }}
-                </div> <div class="space-y-2">
+                </div>
+                <div class="space-y-2">
                     <For
                         each=move || query_results.get().into_iter().filter(|r| r.display()).rev()
                         key=|result| result.id()

@@ -1,6 +1,9 @@
 use leptos::prelude::*;
 
-use crate::utils::get_stored_value;
+use crate::{
+    components::ui::{BUTTON_PRIMARY, INPUT_BASE},
+    utils::get_stored_value,
+};
 
 #[component]
 pub fn QueryInput(
@@ -41,20 +44,17 @@ pub fn QueryInput(
     };
 
     view! {
-        <div class="flex gap-2 items-center flex-col relative">
-            <div class="w-full flex gap-2 items-center">
+        <div class="flex w-full flex-col gap-2">
+            <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                     type="text"
                     on:input=move |ev| set_input_value(Some(event_target_value(&ev)))
                     prop:value=input_value
                     on:keydown=key_down
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    class=format!("flex-1 {}", INPUT_BASE)
                 />
                 <div class="flex items-center gap-1">
-                    <button
-                        on:click=button_press
-                        class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 whitespace-nowrap"
-                    >
+                    <button on:click=button_press class=BUTTON_PRIMARY>
                         "Run Query"
                     </button>
                     <div class="relative group">
@@ -72,7 +72,7 @@ pub fn QueryInput(
                                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                         </svg>
-                        <div class="absolute bottom-full right-0 mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                        <div class="pointer-events-none absolute bottom-full right-0 mb-2 w-64 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
                             "SQL (begin with 'SELECT') or natural language, your choice!"
                         </div>
                     </div>
