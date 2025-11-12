@@ -16,7 +16,7 @@ use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
 use crate::utils::{get_stored_value, save_to_storage};
 use crate::views::web_file_store::WebFileObjectStore;
 use crate::{
-    components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, PANEL_PADDED_TIGHT},
+    components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel},
     object_store_cache::ObjectStoreCache,
 };
 
@@ -250,7 +250,7 @@ pub fn ParquetReader(
     }
 
     view! {
-        <div class=PANEL_PADDED_TIGHT>
+        <Panel class="rounded-lg p-2">
             <div class="border-b border-gray-200 mb-4">
                 <nav class="-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div class="flex flex-wrap items-center gap-4 md:gap-8">
@@ -329,7 +329,7 @@ pub fn ParquetReader(
                     </Show>
                 }
             }
-        </div>
+        </Panel>
     }
 }
 

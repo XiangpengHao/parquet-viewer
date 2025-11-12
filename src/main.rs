@@ -15,7 +15,6 @@ mod parquet_ctx;
 mod tests;
 mod utils;
 mod views;
-
 use views::metadata::MetadataView;
 use views::parquet_reader::{ParquetReader, ParquetUnresolved, read_from_vscode};
 use views::query_input::QueryInput;

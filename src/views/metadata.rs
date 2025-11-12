@@ -1,6 +1,9 @@
 use crate::{
     ParquetResolved,
-    components::{FileLevelInfo, PageInfo, StatisticsDisplay},
+    components::{
+        FileLevelInfo, PageInfo, StatisticsDisplay,
+        ui::{Panel, SectionHeader},
+    },
     utils::count_column_chunk_pages,
 };
 use byte_unit::{Byte, UnitType};
@@ -62,18 +65,21 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let reader_for_page_info = parquet_reader.clone();
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-3 text-xs">
-            <div class="flex flex-col gap-1 mb-2 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-gray-900">"Metadata"</h2>
-                <a
-                    href="https://parquet.apache.org/docs/file-format/metadata/"
-                    target="_blank"
-                    class="text-blue-500 hover:text-blue-700 text-xs ml-1"
-                    title="Parquet Metadata Documentation"
-                >
-                    "(doc)"
-                </a>
-            </div>
+        <Panel class="rounded-lg p-3 text-xs">
+            <SectionHeader
+                title="Metadata"
+                trailing=view! {
+                    <a
+                        href="https://parquet.apache.org/docs/file-format/metadata/"
+                        target="_blank"
+                        class="text-blue-500 hover:text-blue-700 text-xs ml-1"
+                        title="Parquet Metadata Documentation"
+                    >
+                        "(doc)"
+                    </a>
+                }
+                    .into_any()
+            />
             <div class="grid gap-6 lg:grid-cols-2">
                 <div>
                     <FileLevelInfo metadata_display=metadata_display.clone() />
@@ -177,7 +183,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     }
                 }}
             </div>
-        </div>
+        </Panel>
     }
 }
 

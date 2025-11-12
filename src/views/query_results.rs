@@ -10,7 +10,7 @@ use web_sys::js_sys;
 use web_sys::wasm_bindgen::{JsCast, JsValue};
 
 use crate::SESSION_CTX;
-use crate::components::ui::PANEL;
+use crate::components::ui::Panel;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
 use crate::views::plan_visualizer::PhysicalPlan;
 use crate::{ParquetResolved, utils::execute_query_inner};
@@ -391,7 +391,7 @@ pub fn QueryResultView(
     let toggle_display = toggle_display.clone();
 
     view! {
-        <div class=format!("{} p-3 hover:shadow-md transition-shadow duration-200", PANEL)>
+        <Panel class="p-3">
             <div class="flex justify-between items-center border-b border-gray-100 mb-2">
                 <div class="text-gray-500">{result.user_input}</div>
                 <div class="flex items-center">
@@ -466,7 +466,7 @@ pub fn QueryResultView(
                     })
                 }}
             </Suspense>
-        </div>
+        </Panel>
     }
 }
 
