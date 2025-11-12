@@ -38,7 +38,7 @@ pub fn SectionHeader(
     let extra = class.map(|c| c.trim().to_string()).unwrap_or_default();
     let base = "flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between";
     let classes = if extra.is_empty() {
-        format!("{base}")
+        base.to_string()
     } else {
         format!("{base} {extra}")
     };
