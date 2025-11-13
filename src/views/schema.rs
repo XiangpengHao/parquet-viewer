@@ -1,5 +1,8 @@
 use crate::SESSION_CTX;
-use crate::components::{RecordBatchTable, RecordFormatter};
+use crate::components::{
+    RecordBatchTable, RecordFormatter,
+    ui::{Panel, SectionHeader},
+};
 use crate::utils::{execute_query_inner, get_column_chunk_page_info};
 use crate::{ParquetResolved, utils::format_arrow_type};
 use arrow::array::AsArray;
@@ -389,8 +392,8 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         vec![None, None, None, None, Some(Box::new(distinct_formatter))];
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-3 flex-1 overflow-auto">
-            <h2 class="font-semibold mb-4">"Parquet Columns"</h2>
+        <Panel class="rounded-lg p-3 flex-1 overflow-auto">
+            <SectionHeader title="Parquet Columns" class="mb-4" />
             <div class="overflow-x-auto w-full">
                 <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
             </div>
@@ -408,7 +411,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                 </p>
             </div>
 
-            <h2 class="font-semibold mb-4 mt-8">"Arrow Schema"</h2>
+            <SectionHeader title="Arrow Schema" class="mt-8 mb-4" />
             <RecordBatchTable data=arrow_schema_table.get() formatter=schema_formatter />
 
             {(!schema.metadata().is_empty())
@@ -428,7 +431,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                         </div>
                     }
                 })}
-        </div>
+        </Panel>
     }
 }
 

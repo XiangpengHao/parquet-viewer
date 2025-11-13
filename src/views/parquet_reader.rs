@@ -12,10 +12,13 @@ use std::sync::Arc;
 use url::Url;
 use web_sys::js_sys;
 
-use crate::object_store_cache::ObjectStoreCache;
 use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
 use crate::utils::{get_stored_value, save_to_storage};
 use crate::views::web_file_store::WebFileObjectStore;
+use crate::{
+    components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel},
+    object_store_cache::ObjectStoreCache,
+};
 
 const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
@@ -247,10 +250,10 @@ pub fn ParquetReader(
     }
 
     view! {
-        <div class="bg-white rounded-lg border border-gray-300 p-2">
+        <Panel class="rounded-lg p-2">
             <div class="border-b border-gray-200 mb-4">
-                <nav class="-mb-px flex justify-between items-center">
-                    <div class="flex space-x-8">
+                <nav class="-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div class="flex flex-wrap items-center gap-4 md:gap-8">
                         <button
                             class=move || {
                                 let base = "py-2 px-1 border-b-2 font-medium";
@@ -326,7 +329,7 @@ pub fn ParquetReader(
                     </Show>
                 }
             }
-        </div>
+        </Panel>
     }
 }
 
@@ -448,7 +451,7 @@ pub fn UrlReader(
                 }
                 class="w-full"
             >
-                <div class="flex space-x-2">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                         type="url"
                         placeholder="Enter Parquet file URL"
@@ -456,12 +459,9 @@ pub fn UrlReader(
                             set_url.set(event_target_value(&ev));
                         }
                         prop:value=url
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class=format!("flex-1 {}", INPUT_BASE)
                     />
-                    <button
-                        type="submit"
-                        class="px-4 py-2 border border-green-500 text-green-500 rounded-md hover:bg-green-50"
-                    >
+                    <button type="submit" class=BUTTON_GHOST>
                         "Read URL"
                     </button>
                 </div>
@@ -548,26 +548,26 @@ fn S3Reader(
                 }
                 class="space-y-4 w-full"
             >
-                <div class="flex flex-wrap gap-4">
-                    <div class="flex-1 min-w-[200px] max-w-[200px]">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">"Bucket"</label>
                         <input
                             type="text"
                             on:input=on_s3_bucket_change
                             prop:value=s3_bucket
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class=format!("w-full {}", INPUT_BASE)
                         />
                     </div>
-                    <div class="flex-1 min-w-[150px] max-w-[150px]">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">"Region"</label>
                         <input
                             type="text"
                             on:input=on_s3_region_change
                             prop:value=s3_region
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class=format!("w-full {}", INPUT_BASE)
                         />
                     </div>
-                    <div class="flex-[2] min-w-[250px]">
+                    <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             "File Path"
                         </label>
@@ -575,17 +575,14 @@ fn S3Reader(
                             type="text"
                             on:input=on_s3_file_path_change
                             prop:value=s3_file_path
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class=format!("w-full {}", INPUT_BASE)
                         />
                     </div>
-                    <div class="flex-1 min-w-[120px] max-w-[120px] self-end">
-                        <button
-                            type="submit"
-                            class="w-full px-4 py-2 border border-green-500 text-green-500 rounded-md hover:border-green-600 hover:text-green-600"
-                        >
-                            "Read S3"
-                        </button>
-                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class=format!("{} w-full sm:w-auto text-center", BUTTON_OUTLINE)>
+                        "Read S3"
+                    </button>
                 </div>
             </form>
         </div>

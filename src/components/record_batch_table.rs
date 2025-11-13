@@ -59,66 +59,68 @@ pub fn RecordBatchTable(
     let data_clone = data.clone();
 
     view! {
-        <table class="w-full border-collapse text-xs">
-            <thead>
-                <tr>
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-xs">
+                <thead>
+                    <tr>
+                        {move || {
+                            column_names
+                                .iter()
+                                .enumerate()
+                                .map(|(i, name)| {
+                                    let is_sorted = sort_column.get() == Some(i);
+                                    let direction_icon = if is_sorted {
+                                        if sort_ascending.get() { "↑" } else { "↓" }
+                                    } else {
+                                        ""
+                                    };
+
+                                    view! {
+                                        <th
+                                            class="text-left px-3 py-1 border-b border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                                            on:click=move |_| handle_column_click(i)
+                                        >
+                                            <span>{name.clone()}</span>
+                                            <span class="ml-1">{direction_icon}</span>
+                                        </th>
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                        }}
+                    </tr>
+                </thead>
+                <tbody>
                     {move || {
-                        column_names
-                            .iter()
-                            .enumerate()
-                            .map(|(i, name)| {
-                                let is_sorted = sort_column.get() == Some(i);
-                                let direction_icon = if is_sorted {
-                                    if sort_ascending.get() { "↑" } else { "↓" }
-                                } else {
-                                    ""
-                                };
+                        let indices = sorted_data.get();
+                        (0..indices.len())
+                            .map(|idx| {
+                                let row_idx = indices.value(idx) as usize;
 
                                 view! {
-                                    <th
-                                        class="text-left px-3 py-1 border-b border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                                        on:click=move |_| handle_column_click(i)
-                                    >
-                                        <span>{name.clone()}</span>
-                                        <span class="ml-1">{direction_icon}</span>
-                                    </th>
+                                    <tr class="hover:bg-gray-50 border-b border-gray-100">
+                                        {(0..data_clone.num_columns())
+                                            .zip(formatter.iter())
+                                            .map(|(col_idx, formatter)| {
+                                                let col = data_clone.column(col_idx);
+                                                match formatter {
+                                                    Some(formatter) => {
+                                                        let cell_value = formatter(&data_clone, (col_idx, row_idx));
+                                                        view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
+                                                    }
+                                                    None => {
+                                                        let cell_value = array_value_to_string(col.as_ref(), row_idx).unwrap_or_else(|_| "NULL".to_string());
+                                                        view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
+                                                    }
+                                                }
+                                            })
+                                            .collect::<Vec<_>>()}
+                                    </tr>
                                 }
                             })
                             .collect::<Vec<_>>()
                     }}
-                </tr>
-            </thead>
-            <tbody>
-                {move || {
-                    let indices = sorted_data.get();
-                    (0..indices.len())
-                        .map(|idx| {
-                            let row_idx = indices.value(idx) as usize;
-
-                            view! {
-                                <tr class="hover:bg-gray-50 border-b border-gray-100">
-                                    {(0..data_clone.num_columns())
-                                        .zip(formatter.iter())
-                                        .map(|(col_idx, formatter)| {
-                                            let col = data_clone.column(col_idx);
-                                            match formatter {
-                                                Some(formatter) => {
-                                                    let cell_value = formatter(&data_clone, (col_idx, row_idx));
-                                                    view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
-                                                }
-                                                None => {
-                                                    let cell_value = array_value_to_string(col.as_ref(), row_idx).unwrap_or_else(|_| "NULL".to_string());
-                                                    view! { <td class="px-3 py-1">{cell_value}</td> }.into_any()
-                                                }
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()}
-                                </tr>
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                }}
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     }
 }

@@ -2,6 +2,7 @@ use leptos::html::*;
 use leptos::prelude::*;
 use leptos::*;
 
+use crate::components::ui::{BUTTON_PRIMARY, INPUT_BASE, Panel, SectionHeader};
 use crate::utils::get_stored_value;
 use crate::utils::save_to_storage;
 
@@ -40,34 +41,37 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                 class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out"
                 on:click=close_modal
             >
-                <div
-                    class="relative bg-white rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300"
+                <Panel
+                    class="relative rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300"
                     on:click=stop_propagation
                 >
-                    // Header with close button
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-xl font-bold">"Settings"</h2>
-                        <button
-                            class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200"
-                            on:click=close_modal
-                            aria-label="Close"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-6 w-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+                    <SectionHeader
+                        title="Settings"
+                        class="mb-4"
+                        trailing=view! {
+                            <button
+                                class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200"
+                                on:click=close_modal
+                                aria-label="Close"
                             >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
-                            </svg>
-                        </button>
-                    </div>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        }
+                            .into_any()
+                    />
 
                     // Scrollable content with increased spacing
                     <div
@@ -97,7 +101,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                             set_anthropic_key.set(value);
                                         }
                                         prop:value=anthropic_key
-                                        class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                        class=format!("w-full {}", INPUT_BASE)
                                     />
                                     <p class="mt-3 text-gray-600 italic">
                                         "If no API key is provided, it uses Xiangpeng's personal token -- \
@@ -122,16 +126,16 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                         <label class="block font-medium text-gray-700 mb-1">
                                             "S3 Endpoint"
                                         </label>
-                                        <input
-                                            type="text"
-                                            on:input=move |ev| {
-                                                let value = event_target_value(&ev);
-                                                save_to_storage(S3_ENDPOINT_KEY, &value);
-                                                set_s3_endpoint.set(value);
-                                            }
-                                            prop:value=s3_endpoint
-                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                                        />
+                                    <input
+                                        type="text"
+                                        on:input=move |ev| {
+                                            let value = event_target_value(&ev);
+                                            save_to_storage(S3_ENDPOINT_KEY, &value);
+                                            set_s3_endpoint.set(value);
+                                        }
+                                        prop:value=s3_endpoint
+                                        class=format!("w-full {}", INPUT_BASE)
+                                    />
                                     </div>
                                     <div>
                                         <label class="block font-medium text-gray-700 mb-1">
@@ -145,7 +149,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                                 set_s3_access_key_id.set(value);
                                             }
                                             prop:value=s3_access_key_id
-                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                            class=format!("w-full {}", INPUT_BASE)
                                         />
                                     </div>
                                     <div>
@@ -160,7 +164,7 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                                 set_s3_secret_key.set(value);
                                             }
                                             prop:value=s3_secret_key
-                                            class="w-full px-2 py-1 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                                            class=format!("w-full {}", INPUT_BASE)
                                         />
                                     </div>
                                 </div>
@@ -187,14 +191,11 @@ pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl Int
                                 LiquidCache
                             </a>
                         </div>
-                        <button
-                            on:click=button_close
-                            class="px-5 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200 text-base font-medium"
-                        >
+                        <button on:click=button_close class=BUTTON_PRIMARY>
                             "Done"
                         </button>
                     </div>
-                </div>
+                </Panel>
             </div>
         </Show>
     }
