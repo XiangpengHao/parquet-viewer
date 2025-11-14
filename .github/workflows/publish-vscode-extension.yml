@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
         with:
@@ -78,15 +80,27 @@ jobs:
       - name: Bump Cargo version
         run: |
           sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "${{ steps.calc_version.outputs.VERSION }}"/' Cargo.toml
-      - name: Commit version bump
+      - name: Create PR with version bump
+        id: create_pr
         run: |
+          BRANCH_NAME="release-v${{ steps.calc_version.outputs.VERSION }}"
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          git checkout -b "$BRANCH_NAME"
           git add vscode-extension/package.json Cargo.toml
           git commit -m "chore: bump version to ${{ steps.calc_version.outputs.VERSION }}"
-          git push
+          git push -u origin "$BRANCH_NAME"
+
+          PR_URL=$(gh pr create \
+            --title "Release v${{ steps.calc_version.outputs.VERSION }}" \
+            --body "Automated version bump to ${{ steps.calc_version.outputs.VERSION }}" \
+            --base main \
+            --head "$BRANCH_NAME")
+
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and package with Nix
         run: |
           nix develop --command bash -c "
@@ -107,4 +121,13 @@ jobs:
           cd vscode-extension
           nix develop --command bash -c "npm install ovsx --no-save && npx ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}"
         env:
-          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }} 
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+      - name: Summary
+        run: |
+          echo "### Release Summary :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.calc_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR**: ${{ steps.create_pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Extension has been published to both marketplaces." >> $GITHUB_STEP_SUMMARY
+          echo "Please merge the PR to update version in main branch." >> $GITHUB_STEP_SUMMARY
