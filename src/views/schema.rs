@@ -120,7 +120,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
             aggregated_column_info[i].null_count += col
                 .statistics()
                 .and_then(|statistics| statistics.null_count_opt())
-                .unwrap_or(0) as u64;
+                .unwrap_or(0);
 
             for encoding_it in col.encodings() {
                 aggregated_column_info[i]
@@ -218,64 +218,71 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         .collect();
 
     // Build flattened schema rows for easy sorting
-    let schema_rows: Arc<Vec<SchemaRow>> = Arc::new(arrow_field_nodes
-        .iter()
-        .flat_map(|arrow_node| {
-            let arrow_index = arrow_node.index;
-            let arrow_name = arrow_node.field.name().to_string();
-            let arrow_type = format_arrow_type(arrow_node.field.data_type());
-            let arrow_nullable = if arrow_node.field.is_nullable() { "Y" } else { "N" }.to_string();
+    let schema_rows: Arc<Vec<SchemaRow>> = Arc::new(
+        arrow_field_nodes
+            .iter()
+            .flat_map(|arrow_node| {
+                let arrow_index = arrow_node.index;
+                let arrow_name = arrow_node.field.name().to_string();
+                let arrow_type = format_arrow_type(arrow_node.field.data_type());
+                let arrow_nullable = if arrow_node.field.is_nullable() {
+                    "Y"
+                } else {
+                    "N"
+                }
+                .to_string();
 
-            if arrow_node.parquet_columns.is_empty() {
-                // Arrow field without parquet columns
-                vec![SchemaRow {
-                    arrow_index,
-                    arrow_name,
-                    arrow_type,
-                    arrow_nullable,
-                    parquet_id: None,
-                    parquet_name: None,
-                    parquet_path: None,
-                    parquet_type: None,
-                    logical_size: None,
-                    encoded_size: None,
-                    compressed_size: None,
-                    compression_ratio: None,
-                    logical_compression_ratio: None,
-                    null_count: None,
-                    encodings: None,
-                    compression_summary: None,
-                }]
-            } else {
-                // Create one row per parquet column
-                arrow_node
-                    .parquet_columns
-                    .iter()
-                    .map(|&parquet_idx| {
-                        let pq_col = &parquet_columns[parquet_idx];
-                        SchemaRow {
-                            arrow_index,
-                            arrow_name: arrow_name.clone(),
-                            arrow_type: arrow_type.clone(),
-                            arrow_nullable: arrow_nullable.clone(),
-                            parquet_id: Some(pq_col.id),
-                            parquet_name: Some(pq_col.name.clone()),
-                            parquet_path: Some(pq_col.path.join(".")),
-                            parquet_type: Some(pq_col.physical_type.clone()),
-                            logical_size: pq_col.logical_size,
-                            encoded_size: Some(pq_col.encoded_size),
-                            compressed_size: Some(pq_col.compressed_size),
-                            compression_ratio: pq_col.compression_ratio,
-                            logical_compression_ratio: pq_col.logical_compression_ratio,
-                            null_count: Some(pq_col.null_count),
-                            encodings: Some(pq_col.encodings.clone()),
-                            compression_summary: Some(pq_col.compression_summary.clone()),
-                        }
-                    })
-                    .collect()
-            }
-        })
-        .collect());
+                if arrow_node.parquet_columns.is_empty() {
+                    // Arrow field without parquet columns
+                    vec![SchemaRow {
+                        arrow_index,
+                        arrow_name,
+                        arrow_type,
+                        arrow_nullable,
+                        parquet_id: None,
+                        parquet_name: None,
+                        parquet_path: None,
+                        parquet_type: None,
+                        logical_size: None,
+                        encoded_size: None,
+                        compressed_size: None,
+                        compression_ratio: None,
+                        logical_compression_ratio: None,
+                        null_count: None,
+                        encodings: None,
+                        compression_summary: None,
+                    }]
+                } else {
+                    // Create one row per parquet column
+                    arrow_node
+                        .parquet_columns
+                        .iter()
+                        .map(|&parquet_idx| {
+                            let pq_col = &parquet_columns[parquet_idx];
+                            SchemaRow {
+                                arrow_index,
+                                arrow_name: arrow_name.clone(),
+                                arrow_type: arrow_type.clone(),
+                                arrow_nullable: arrow_nullable.clone(),
+                                parquet_id: Some(pq_col.id),
+                                parquet_name: Some(pq_col.name.clone()),
+                                parquet_path: Some(pq_col.path.join(".")),
+                                parquet_type: Some(pq_col.physical_type.clone()),
+                                logical_size: pq_col.logical_size,
+                                encoded_size: Some(pq_col.encoded_size),
+                                compressed_size: Some(pq_col.compressed_size),
+                                compression_ratio: pq_col.compression_ratio,
+                                logical_compression_ratio: pq_col.logical_compression_ratio,
+                                null_count: Some(pq_col.null_count),
+                                encodings: Some(pq_col.encodings.clone()),
+                                compression_summary: Some(pq_col.compression_summary.clone()),
+                            }
+                        })
+                        .collect()
+                }
+            })
+            .collect(),
+    );
 
     let (col_page_encodings, set_col_page_encodings) = signal(
         (0..parquet_column_count)
@@ -483,7 +490,7 @@ fn SchemaTableRow(
                     </td>
                 }.into_any()
             } else {
-                view! {}.into_any()
+                ().into_any()
             }}
 
             {if let Some(pq_id) = parquet_id {
