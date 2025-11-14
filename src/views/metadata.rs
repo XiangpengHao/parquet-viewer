@@ -68,6 +68,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
         <Panel class="rounded-lg p-3 text-xs">
             <SectionHeader
                 title="Metadata"
+                class="mb-1"
                 trailing=view! {
                     <a
                         href="https://parquet.apache.org/docs/file-format/metadata/"

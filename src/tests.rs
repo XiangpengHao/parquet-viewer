@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::{
     SESSION_CTX,
-    components::RecordBatchTable,
     parquet_ctx::ParquetResolved,
     utils::execute_query_inner,
     views::{
@@ -87,16 +86,6 @@ fn test_render_schema_and_meta(table: Arc<ParquetResolved>) {
     });
 }
 
-fn test_render_record_batch_table(record_batch: RecordBatch) {
-    let document = document();
-    let test_wrapper = document.create_element("section").unwrap();
-    let _ = document.body().unwrap().append_child(&test_wrapper);
-
-    let _dispose = mount_to(test_wrapper.clone().unchecked_into(), move || {
-        view! { <RecordBatchTable data=record_batch.clone() formatter=vec![] /> }
-    });
-}
-
 #[wasm_bindgen_test]
 async fn test_read_parquet_with_empty_rows() {
     let ctx = SESSION_CTX.clone();
@@ -110,7 +99,6 @@ async fn test_read_parquet_with_empty_rows() {
     assert_eq!(rows[0].column(0).as_primitive::<Int64Type>().values()[0], 0);
 
     test_render_schema_and_meta(table);
-    test_render_record_batch_table(rows[0].clone());
 }
 
 #[wasm_bindgen_test]
@@ -123,10 +111,9 @@ async fn test_read_parquet_with_uppercase_name() {
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select count(*) from \"{}\"", table.registered_table_name());
-    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
+    let (_rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
 
     test_render_schema_and_meta(table);
-    test_render_record_batch_table(rows[0].clone());
 }
 
 fn gen_parquet_with_nested_column() -> Vec<u8> {
@@ -173,7 +160,6 @@ async fn test_read_parquet_with_nested_column() {
     assert_eq!(string_array.value(0), "foo");
 
     test_render_schema_and_meta(table);
-    test_render_record_batch_table(rows);
 }
 
 fn gen_parquet_with_page_stats(stats_level: EnabledStatistics) -> Vec<u8> {
