@@ -1,20 +1,38 @@
-use crate::SESSION_CTX;
-use crate::components::{
-    RecordBatchTable, RecordFormatter,
-    ui::{Panel, SectionHeader},
-};
+use crate::components::ui::{Panel, SectionHeader};
 use crate::utils::{execute_query_inner, get_column_chunk_page_info};
-use crate::{ParquetResolved, utils::format_arrow_type};
+use crate::{ParquetResolved, SESSION_CTX, utils::format_arrow_type};
 use arrow::array::AsArray;
-use arrow::datatypes::{Float32Type, Int64Type, UInt64Type};
-use arrow_array::{BooleanArray, Float32Array, RecordBatch, UInt64Array};
-use arrow_array::{StringArray, UInt32Array};
-use arrow_schema::{DataType, Field, Schema};
+use arrow::datatypes::Int64Type;
+use arrow_schema::Field;
 use byte_unit::{Byte, UnitType};
-use leptos::{logging, prelude::*};
+use leptos::prelude::*;
 use parquet::file::metadata::ParquetMetaData;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
+/// Flattened row structure combining Arrow and Parquet data
+#[derive(Clone)]
+struct SchemaRow {
+    // Arrow info
+    arrow_index: usize,
+    arrow_name: String,
+    arrow_type: String,
+    arrow_nullable: String,
+
+    // Parquet info (Option because Arrow fields may not have Parquet columns)
+    parquet_id: Option<usize>,
+    parquet_name: Option<String>,
+    parquet_path: Option<String>,
+    parquet_type: Option<String>,
+    logical_size: Option<u64>,
+    encoded_size: Option<u64>,
+    compressed_size: Option<u64>,
+    compression_ratio: Option<f32>,
+    logical_compression_ratio: Option<f32>,
+    null_count: Option<u32>,
+    encodings: Option<String>,
+    compression_summary: Option<String>,
+}
 
 /// Estimate Arrow in-memory size for a column based on its Parquet physical type
 /// Returns None for variable-length data types that cannot be reliably estimated
@@ -53,374 +71,296 @@ fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) 
     Some(data_size + validity_bitmap_size + metadata_overhead)
 }
 
+#[derive(Clone)]
+struct ParquetColumnDisplay {
+    id: usize,
+    name: String,
+    path: Vec<String>,
+    physical_type: String,
+    logical_size: Option<u64>,
+    encoded_size: u64,
+    compressed_size: u64,
+    compression_ratio: Option<f32>,
+    logical_compression_ratio: Option<f32>,
+    null_count: u32,
+    encodings: String,
+    compression_summary: String,
+}
+
+#[derive(Clone)]
+struct ArrowFieldNode {
+    index: usize,
+    field: Field,
+    parquet_columns: Vec<usize>,
+}
+
+#[derive(Clone, Default)]
+struct ColumnAggregate {
+    compressed_size: u64,
+    encoded_size: u64,
+    null_count: u64,
+    encodings: HashSet<String>,
+    compressions: HashMap<String, u32>,
+}
+
 #[component]
 pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
     let parquet_info = parquet_reader.metadata().clone();
     let schema = parquet_info.schema.clone();
-
     let metadata = parquet_info.metadata.clone();
 
-    let parquet_column_count = metadata
-        .row_groups()
-        .first()
-        .map(|rg| rg.columns().len())
-        .unwrap_or(0);
+    let schema_descriptor = metadata.file_metadata().schema_descr();
+    let parquet_column_count = schema_descriptor.columns().len();
 
-    // aggregated_column_info has followings:
-    // [0]: compressed_size
-    // [1]: uncompressed_size
-    // [2]: null_count from col.statistics
-    // [3]: all encodings
-    // [4]: all compression
-    let mut aggregated_column_info = vec![
-        (
-            0,
-            0,
-            0,
-            HashSet::<String>::new(),
-            HashMap::<String, u32>::new()
-        );
-        parquet_column_count
-    ];
+    let mut aggregated_column_info = vec![ColumnAggregate::default(); parquet_column_count];
     for rg in metadata.row_groups() {
         for (i, col) in rg.columns().iter().enumerate() {
-            // [0]: compressed_size
-            aggregated_column_info[i].0 += col.compressed_size() as u64;
+            aggregated_column_info[i].compressed_size += col.compressed_size() as u64;
+            aggregated_column_info[i].encoded_size += col.uncompressed_size() as u64;
+            aggregated_column_info[i].null_count += col
+                .statistics()
+                .and_then(|statistics| statistics.null_count_opt())
+                .unwrap_or(0) as u64;
 
-            // [1]: uncompressed_size
-            aggregated_column_info[i].1 += col.uncompressed_size() as u64;
-
-            // [2]: null_count from col.statistics
-            aggregated_column_info[i].2 += match col.statistics() {
-                None => 0,
-                Some(statistics) => statistics.null_count_opt().unwrap_or(0),
-            };
-
-            // [3]: all encodings
             for encoding_it in col.encodings() {
                 aggregated_column_info[i]
-                    .3
+                    .encodings
                     .insert(format!("{encoding_it:?}"));
-                // Note that would contain the encodings from definition and repetation level
             }
 
-            // [4]: all compression
             *aggregated_column_info[i]
-                .4
+                .compressions
                 .entry(format!("{:?}", col.compression()))
                 .or_insert(0) += 1;
         }
     }
 
-    let parquet_columns = Memo::new(move |_| {
-        let schema = Schema::new(vec![
-            Field::new("ID", DataType::UInt32, false),
-            Field::new("Name", DataType::Utf8, false), // String
-            Field::new("Type", DataType::Utf8, false), // String
-            Field::new("Logical size (L)*", DataType::UInt64, false),
-            Field::new("Encoded size (E)*", DataType::UInt64, false),
-            Field::new("Compressed size (C)*", DataType::UInt64, false),
-            Field::new("Compression ratio = E/C", DataType::Float32, false),
-            Field::new("Encoded compression ratio = L/C", DataType::Float32, false),
-            Field::new("Null count", DataType::UInt32, false),
-            Field::new("All encodings**", DataType::Utf8, false), // String
-            Field::new("Page encodings***", DataType::Utf8, true), // String
-            Field::new("All compressions", DataType::Utf8, false), // String
-        ]);
-        let id = UInt32Array::from_iter_values(
-            aggregated_column_info
-                .iter()
-                .enumerate()
-                .map(|(i, _col)| i as u32),
-        );
-        let name = StringArray::from_iter_values(aggregated_column_info.iter().enumerate().map(
-            |(i, _col)| {
-                let field_name = metadata.row_group(0).columns()[i].column_descr().name();
-                field_name.to_string()
-            },
-        ));
-        let data_type = StringArray::from_iter_values(
-            aggregated_column_info.iter().enumerate().map(|(i, _col)| {
-                let field_type = metadata.row_group(0).columns()[i].column_type();
-                field_type.to_string()
-            }),
-        );
-        let compressed =
-            UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.0));
-        let uncompressed =
-            UInt64Array::from_iter_values(aggregated_column_info.iter().map(|col| col.1));
+    let parquet_columns: Vec<ParquetColumnDisplay> = schema_descriptor
+        .columns()
+        .iter()
+        .enumerate()
+        .map(|(i, descriptor)| {
+            let path = descriptor.path().parts().to_vec();
+            let logical_size = calculate_arrow_memory_size(&metadata, i);
+            let aggregate = aggregated_column_info.get(i).cloned().unwrap_or_default();
+            let encoded_size = aggregate.encoded_size;
+            let compressed_size = aggregate.compressed_size;
 
-        let mut raw_data_sizes = Vec::new();
-        let mut compression_ratios = Vec::new();
-        let mut raw_compression_ratios = Vec::new();
-        for (i, col) in aggregated_column_info.iter().enumerate() {
-            let compression_ratio = if col.0 > 0 {
-                col.1 as f32 / col.0 as f32
+            let compression_ratio = if compressed_size > 0 {
+                Some(encoded_size as f32 / compressed_size as f32)
             } else {
-                0.0
+                None
             };
-            let (raw_data_size, raw_compression_ratio) =
-                match calculate_arrow_memory_size(&metadata, i) {
-                    Some(raw_size) => {
-                        let ratio = if col.0 > 0 {
-                            raw_size as f32 / col.0 as f32
-                        } else {
-                            0.0
-                        };
-                        (raw_size, ratio)
-                    }
-                    None => {
-                        (0, 0.0) // For variable-length data, set to 0 for now (will be displayed as "-")
-                    }
-                };
-            raw_data_sizes.push(raw_data_size);
-            compression_ratios.push(compression_ratio);
-            raw_compression_ratios.push(raw_compression_ratio);
-        }
-        let raw_data_size = UInt64Array::from_iter_values(raw_data_sizes);
-        let compression_ratio = Float32Array::from_iter_values(compression_ratios);
-        let raw_compression_ratio = Float32Array::from_iter_values(raw_compression_ratios);
 
-        let null_count =
-            UInt32Array::from_iter_values(aggregated_column_info.iter().map(|col| col.2 as u32));
+            let logical_compression_ratio = logical_size.and_then(|size| {
+                if compressed_size > 0 {
+                    Some(size as f32 / compressed_size as f32)
+                } else {
+                    None
+                }
+            });
 
-        let all_encoding_types =
-            StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
-                let mut encodings: Vec<String> = col.3.iter().cloned().collect();
-                encodings.sort(); // Sort for consistent ordering
-                encodings.join(", ")
-            }));
+            let mut encodings: Vec<String> = aggregate.encodings.into_iter().collect();
+            encodings.sort();
+            let encodings = encodings.join(", ");
 
-        let page_encodings =
-            StringArray::from_iter((0..parquet_column_count).map(|_| None::<String>));
-
-        // a hashmap of all compression types
-        let all_compression_types =
-            StringArray::from_iter_values(aggregated_column_info.iter().map(|col| {
-                let total: u32 = col.4.values().sum();
-                assert_ne!(total, 0, "The total number of compressions cannot be zero");
-                col.4
-                    .iter()
-                    .map(|(k, v)| format!("{} [{:.0}%]", k, *v as f32 * 100.0 / total as f32))
+            let total: u32 = aggregate.compressions.values().sum();
+            let compression_summary = if total == 0 {
+                String::new()
+            } else {
+                aggregate
+                    .compressions
+                    .into_iter()
+                    .map(|(k, v)| format!("{k} [{:.0}%]", v as f32 * 100.0 / total as f32))
                     .collect::<Vec<String>>()
                     .join(", ")
-            }));
+            };
 
-        RecordBatch::try_new(
-            Arc::new(schema),
-            vec![
-                Arc::new(id),
-                Arc::new(name),
-                Arc::new(data_type),
-                Arc::new(raw_data_size),
-                Arc::new(uncompressed),
-                Arc::new(compressed),
-                Arc::new(compression_ratio),
-                Arc::new(raw_compression_ratio),
-                Arc::new(null_count),
-                Arc::new(all_encoding_types),
-                Arc::new(page_encodings),
-                Arc::new(all_compression_types),
-            ],
-        )
-        .unwrap()
-    });
+            ParquetColumnDisplay {
+                id: i,
+                name: descriptor.name().to_string(),
+                path,
+                physical_type: format!("{:?}", descriptor.physical_type()),
+                logical_size,
+                encoded_size,
+                compressed_size,
+                compression_ratio,
+                logical_compression_ratio,
+                null_count: aggregate.null_count as u32,
+                encodings,
+                compression_summary,
+            }
+        })
+        .collect();
+
+    let mut columns_by_root: HashMap<String, Vec<usize>> = HashMap::new();
+    for column in &parquet_columns {
+        if let Some(root) = column.path.first() {
+            columns_by_root
+                .entry(root.clone())
+                .or_default()
+                .push(column.id);
+        }
+    }
+
+    let arrow_field_nodes: Vec<ArrowFieldNode> = schema
+        .fields()
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| ArrowFieldNode {
+            index: idx,
+            field: field.as_ref().clone(),
+            parquet_columns: columns_by_root
+                .get(field.name())
+                .cloned()
+                .unwrap_or_default(),
+        })
+        .collect();
+
+    // Build flattened schema rows for easy sorting
+    let schema_rows: Arc<Vec<SchemaRow>> = Arc::new(arrow_field_nodes
+        .iter()
+        .flat_map(|arrow_node| {
+            let arrow_index = arrow_node.index;
+            let arrow_name = arrow_node.field.name().to_string();
+            let arrow_type = format_arrow_type(arrow_node.field.data_type());
+            let arrow_nullable = if arrow_node.field.is_nullable() { "Y" } else { "N" }.to_string();
+
+            if arrow_node.parquet_columns.is_empty() {
+                // Arrow field without parquet columns
+                vec![SchemaRow {
+                    arrow_index,
+                    arrow_name,
+                    arrow_type,
+                    arrow_nullable,
+                    parquet_id: None,
+                    parquet_name: None,
+                    parquet_path: None,
+                    parquet_type: None,
+                    logical_size: None,
+                    encoded_size: None,
+                    compressed_size: None,
+                    compression_ratio: None,
+                    logical_compression_ratio: None,
+                    null_count: None,
+                    encodings: None,
+                    compression_summary: None,
+                }]
+            } else {
+                // Create one row per parquet column
+                arrow_node
+                    .parquet_columns
+                    .iter()
+                    .map(|&parquet_idx| {
+                        let pq_col = &parquet_columns[parquet_idx];
+                        SchemaRow {
+                            arrow_index,
+                            arrow_name: arrow_name.clone(),
+                            arrow_type: arrow_type.clone(),
+                            arrow_nullable: arrow_nullable.clone(),
+                            parquet_id: Some(pq_col.id),
+                            parquet_name: Some(pq_col.name.clone()),
+                            parquet_path: Some(pq_col.path.join(".")),
+                            parquet_type: Some(pq_col.physical_type.clone()),
+                            logical_size: pq_col.logical_size,
+                            encoded_size: Some(pq_col.encoded_size),
+                            compressed_size: Some(pq_col.compressed_size),
+                            compression_ratio: pq_col.compression_ratio,
+                            logical_compression_ratio: pq_col.logical_compression_ratio,
+                            null_count: Some(pq_col.null_count),
+                            encodings: Some(pq_col.encodings.clone()),
+                            compression_summary: Some(pq_col.compression_summary.clone()),
+                        }
+                    })
+                    .collect()
+            }
+        })
+        .collect());
 
     let (col_page_encodings, set_col_page_encodings) = signal(
         (0..parquet_column_count)
             .map(|_| None)
             .collect::<Vec<Option<LocalResource<String>>>>(),
     );
-    let parquet_reader_clone = parquet_reader.clone();
-    let page_encodings_formatter =
-        move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
-            let parquet_reader = parquet_reader_clone.clone();
-            col_page_encodings.with(
-                move |col_page_encodings| match &col_page_encodings[row_idx] {
-                    Some(res) => {
-                        let res = *res;
-                        view! {
-                            {move || {
-                                Suspend::new(async move {
-                                    let encodings = res.await;
-                                    encodings.into_any()
-                                })
-                            }}
-                        }
-                        .into_any()
-                    }
-                    None => view! {
-                        <span
-                            class="text-gray-500 cursor-pointer"
-                            on:click=move |_| {
-                                logging::log!(
-                                    "Click to compute page encodings for column {}",
-                                    row_idx
-                                );
-                                set_col_page_encodings
-                                    .update(|col_page_encodings| {
-                                        col_page_encodings[row_idx] = Some(
-                                            calculate_page_encodings(parquet_reader.clone(), row_idx),
-                                        );
-                                    });
-                            }
-                        >
-                            "Click to compute"
-                        </span>
-                    }
-                    .into_any(),
-                },
-            )
-        };
-
-    // parquet_formatter must match with the defined parquet_columns
-    let parquet_formatter: Vec<Option<RecordFormatter>> = vec![
-        None,                                  // id
-        None,                                  // name
-        None,                                  // data_type
-        Some(Box::new(format_u64_size)),       // in-memory raw data size - show "-" for BYTE_ARRAY
-        Some(Box::new(format_u64_size)),       // uncompressed
-        Some(Box::new(format_u64_size)),       // compressed
-        Some(Box::new(format_f32_comp_ratio)), // compression_ratio
-        Some(Box::new(format_f32_comp_ratio)), // raw_compression_ratio - show "-" for BYTE_ARRAY
-        None,                                  // null_count
-        None,                                  // all_encoding_types
-        Some(Box::new(page_encodings_formatter)),
-        None, // all_compression_types
-    ];
-
-    let arrow_column_count = schema.fields().len();
     let (col_distinct_count, set_col_distinct_count) = signal(
-        (0..arrow_column_count)
+        (0..arrow_field_nodes.len())
             .map(|_| None)
             .collect::<Vec<Option<LocalResource<u32>>>>(),
     );
 
-    let schema_clone = schema.clone();
-    let arrow_schema_table = Memo::new(move |_| {
-        let display_schema = Schema::new(vec![
-            Field::new("ID", DataType::UInt32, false),
-            Field::new("Field name", DataType::Utf8, false),
-            Field::new("Data type", DataType::Utf8, false),
-            Field::new("Nullable", DataType::Boolean, false),
-            Field::new("Distinct count", DataType::UInt32, true),
-        ]);
-        let id = UInt32Array::from_iter_values(
-            schema_clone
-                .fields()
-                .iter()
-                .enumerate()
-                .map(|(i, _col)| i as u32),
-        );
-        let field_name = StringArray::from_iter_values(
-            schema_clone
-                .fields()
-                .iter()
-                .map(|col| col.name().to_string()),
-        );
-        let data_type = StringArray::from_iter_values(
-            schema_clone
-                .fields()
-                .iter()
-                .map(|col| format_arrow_type(col.data_type())),
-        );
-        let nullable = BooleanArray::from_iter(
-            schema_clone
-                .fields()
-                .iter()
-                .map(|col| Some(col.is_nullable())),
-        );
-        let distinct_count = UInt32Array::from_iter(
-            col_distinct_count
-                .get()
-                .iter()
-                .enumerate()
-                .map(|(i, v)| if v.is_some() { Some(i as u32) } else { None }),
-        );
-        RecordBatch::try_new(
-            Arc::new(display_schema),
-            vec![
-                Arc::new(id),
-                Arc::new(field_name),
-                Arc::new(data_type),
-                Arc::new(nullable),
-                Arc::new(distinct_count),
-            ],
-        )
-        .unwrap()
-    });
-
     let table_name = parquet_reader.table_name().to_string();
-    let schema_clone = schema.clone();
-    let distinct_formatter = move |_batch: &RecordBatch, (_col_idx, row_idx): (usize, usize)| {
-        let table_name = table_name.clone();
-        let schema_clone = schema_clone.clone();
-
-        col_distinct_count.with(
-            move |col_distinct_count| match col_distinct_count[row_idx] {
-                Some(cnt) => view! {
-                    {move || {
-                        Suspend::new(async move {
-                            let cnt = cnt.await;
-                            format!("{cnt}").into_any()
-                        })
-                    }}
-                }
-                .into_any(),
-                None => view! {
-                    <span
-                        class="text-gray-500"
-                        on:click=move |_| {
-                            let col_name = schema_clone.field(row_idx).name().to_string();
-                            set_col_distinct_count
-                                .update(|col_distinct_count| {
-                                    col_distinct_count[row_idx] = Some(
-                                        calculate_distinct(&col_name, &table_name),
-                                    );
-                                });
-                        }
-                    >
-                        Click to compute
-                    </span>
-                }
-                .into_any(),
-            },
-        )
-    };
-
-    let schema_formatter: Vec<Option<RecordFormatter>> =
-        vec![None, None, None, None, Some(Box::new(distinct_formatter))];
 
     view! {
-        <Panel class="rounded-lg p-3 flex-1 overflow-auto">
-            <SectionHeader title="Parquet Columns" class="mb-4" />
-            <div class="overflow-x-auto w-full">
-                <RecordBatchTable data=parquet_columns.get() formatter=parquet_formatter />
+        <Panel class="rounded-lg p-3 flex-1 overflow-auto space-y-4">
+            <SectionHeader title="Schema" class="mb-1" />
+            {schema_rows.is_empty()
+                .then(|| {
+                    view! {
+                        <div class="text-sm text-gray-500">
+                            "No Arrow columns found in this file."
+                        </div>
+                    }
+                })}
+            {(!(**schema_rows).is_empty()).then(|| {
+                view! {
+                    <div class="rounded-lg border border-gray-200 bg-white overflow-x-auto">
+                        <table class="min-w-full text-xs">
+                            <thead class="sticky top-0 bg-gray-50 z-10">
+                                <tr class="text-[11px] uppercase tracking-wide text-gray-500 text-left border-b-2 border-gray-300">
+                                    <th class="py-2 px-3 font-medium">"Arrow Column"</th>
+                                    <th class="py-2 px-3 font-medium">"Arrow Type"</th>
+                                    <th class="py-2 px-3 font-medium">"Null?"</th>
+                                    <th class="py-2 px-3 font-medium border-r-2">"Distinct"</th>
+                                    <th class="py-2 px-3 font-medium">"Parquet Column"</th>
+                                    <th class="py-2 px-3 font-medium">"Parquet Type"</th>
+                                    <th class="py-2 px-3 font-medium">"Logical (L)*"</th>
+                                    <th class="py-2 px-3 font-medium">"Encoded (E)*"</th>
+                                    <th class="py-2 px-3 font-medium">"Compressed (C)*"</th>
+                                    <th class="py-2 px-3 font-medium">"E/C"</th>
+                                    <th class="py-2 px-3 font-medium">"L/C"</th>
+                                    <th class="py-2 px-3 font-medium">"Nulls"</th>
+                                    <th class="py-2 px-3 font-medium">"Encodings**"</th>
+                                    <th class="py-2 px-3 font-medium">"Page***"</th>
+                                    <th class="py-2 px-3 font-medium">"Compression"</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <SchemaTableBody
+                                    rows=schema_rows.clone()
+                                    col_distinct_count=col_distinct_count
+                                    set_col_distinct_count=set_col_distinct_count
+                                    table_name=table_name.clone()
+                                    col_page_encodings=col_page_encodings
+                                    set_col_page_encodings=set_col_page_encodings
+                                    parquet_reader=parquet_reader.clone()
+                                />
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            })}
+            <div class="text-xs text-gray-600 space-y-1">
+                <p>
+                    "*: " <strong>"Logical size (L)"</strong>": estimated in-memory size."
+                    " " <strong>"Encoded size (E)"</strong>": size before compression."
+                    " " <strong>"Compressed size (C)"</strong>": size after compression."
+                </p>
+                <p>
+                    "**: " <strong>"All encodings"</strong>
+                    " comes from file metadata (may include repetition/definition level encodings)."
+                </p>
+                <p>
+                    "***: " <strong>"Page encodings"</strong>
+                    " scan page data and ignore repetition/definition level encodings."
+                </p>
             </div>
-            <div class="text-xs text-gray-600 mt-2">
-                <p>
-                "*: " <strong>Logical size</strong>" (before encoding or compression) -> "
-                      <strong>Encoded size</strong>" (after encoding, before compression) -> "
-                      <strong>Compressed size</strong>" (after both encoding and compression)"
-                </p>
-                <p>
-                "**: " <strong>All encodings</strong> " lists all encodings read from file metadata (may include repetition/definition level encodings)."
-                </p>
-                <p>
-                "***: " <strong>Page encodings</strong> " would scan all pages and collect the encodings for page data (not necessarily use the encodings of repetition/definition level)."
-                </p>
-            </div>
-
-            <SectionHeader title="Arrow Schema" class="mt-8 mb-4" />
-            <RecordBatchTable data=arrow_schema_table.get() formatter=schema_formatter />
-
             {(!schema.metadata().is_empty())
                 .then(|| {
                     view! {
-                        <div class="mt-4">
+                        <div class="mt-2">
                             <details>
                                 <summary class="cursor-pointer text-sm font-medium text-gray-700 py-2">
-                                    Metadata
+                                    "Metadata"
                                 </summary>
                                 <div class="pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm">
                                     <pre class="whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60">
@@ -432,6 +372,274 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> impl IntoView {
                     }
                 })}
         </Panel>
+    }
+}
+
+#[component]
+fn SchemaTableBody(
+    rows: Arc<Vec<SchemaRow>>,
+    col_distinct_count: ReadSignal<Vec<Option<LocalResource<u32>>>>,
+    set_col_distinct_count: WriteSignal<Vec<Option<LocalResource<u32>>>>,
+    table_name: String,
+    col_page_encodings: ReadSignal<Vec<Option<LocalResource<String>>>>,
+    set_col_page_encodings: WriteSignal<Vec<Option<LocalResource<String>>>>,
+    parquet_reader: Arc<ParquetResolved>,
+) -> impl IntoView {
+    // Group consecutive rows with same arrow_index
+    let grouped_rows: Vec<(SchemaRow, bool, usize)> = {
+        let mut result = Vec::new();
+        let mut i = 0;
+
+        while i < rows.len() {
+            let current_arrow_index = rows[i].arrow_index;
+            let group_start = i;
+            while i < rows.len() && rows[i].arrow_index == current_arrow_index {
+                i += 1;
+            }
+            let group_size = i - group_start;
+
+            for (offset, row) in rows[group_start..i].iter().enumerate() {
+                let is_first_in_group = offset == 0;
+                result.push((row.clone(), is_first_in_group, group_size));
+            }
+        }
+        result
+    };
+
+    view! {
+        <For
+            each=move || grouped_rows.clone()
+            key=|(row, _, _)| (row.arrow_index, row.parquet_id)
+            children={
+                let table_name = table_name.clone();
+                let parquet_reader = parquet_reader.clone();
+                move |(row, is_first_in_group, group_size)| {
+                    view! {
+                        <SchemaTableRow
+                            row=row
+                            is_first_in_group=is_first_in_group
+                            group_size=group_size
+                            col_distinct_count=col_distinct_count
+                            set_col_distinct_count=set_col_distinct_count
+                            table_name=table_name.clone()
+                            col_page_encodings=col_page_encodings
+                            set_col_page_encodings=set_col_page_encodings
+                            parquet_reader=parquet_reader.clone()
+                        />
+                    }
+                }
+            }
+        />
+    }
+}
+
+#[component]
+fn SchemaTableRow(
+    row: SchemaRow,
+    is_first_in_group: bool,
+    group_size: usize,
+    col_distinct_count: ReadSignal<Vec<Option<LocalResource<u32>>>>,
+    set_col_distinct_count: WriteSignal<Vec<Option<LocalResource<u32>>>>,
+    table_name: String,
+    col_page_encodings: ReadSignal<Vec<Option<LocalResource<String>>>>,
+    set_col_page_encodings: WriteSignal<Vec<Option<LocalResource<String>>>>,
+    parquet_reader: Arc<ParquetResolved>,
+) -> impl IntoView {
+    let arrow_index = row.arrow_index;
+    let arrow_name = row.arrow_name.clone();
+    let arrow_type = row.arrow_type.clone();
+    let arrow_nullable = row.arrow_nullable.clone();
+
+    let parquet_id = row.parquet_id;
+    let parquet_name = row.parquet_name.clone();
+    let parquet_path = row.parquet_path.clone();
+    let parquet_type = row.parquet_type.clone();
+
+    view! {
+        <tr class="align-top hover:bg-gray-50 border-b border-gray-100">
+            {if is_first_in_group {
+                let distinct_view = render_distinct_count(
+                    arrow_index,
+                    arrow_name.clone(),
+                    table_name.clone(),
+                    col_distinct_count,
+                    set_col_distinct_count,
+                );
+                view! {
+                    <td class="py-1.5 px-3" rowspan=group_size>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="font-mono text-[11px] text-gray-500">{format!("#{arrow_index}")}</span>
+                            <span class="font-semibold text-gray-900">{arrow_name}</span>
+                        </div>
+                    </td>
+                    <td class="py-1.5 px-3" rowspan=group_size>
+                        <span class="font-mono text-[11px] text-gray-600">{arrow_type}</span>
+                    </td>
+                    <td class="py-1.5 px-3" rowspan=group_size>
+                        <span class="text-[11px] text-gray-600">{arrow_nullable}</span>
+                    </td>
+                    <td class="py-1.5 px-3 border-r-2" rowspan=group_size>
+                        <span class="text-xs text-gray-600">{distinct_view}</span>
+                    </td>
+                }.into_any()
+            } else {
+                view! {}.into_any()
+            }}
+
+            {if let Some(pq_id) = parquet_id {
+                let pq_name = parquet_name.unwrap_or_default();
+                let pq_path = parquet_path.unwrap_or_default();
+                let pq_type = parquet_type.unwrap_or_default();
+
+                let path_display = if pq_path.is_empty() {
+                    pq_name.clone()
+                } else {
+                    format!("|- {}", pq_path)
+                };
+
+                let encodings_display = row.encodings.as_ref()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.as_str())
+                    .unwrap_or("-");
+
+                let compression_display = row.compression_summary.as_ref()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.as_str())
+                    .unwrap_or("-");
+
+                let page_encodings = render_page_encodings(
+                    pq_id,
+                    parquet_reader.clone(),
+                    col_page_encodings,
+                    set_col_page_encodings,
+                );
+
+                view! {
+                    <td class="py-1.5 px-3 font-medium text-gray-900">
+                        <div class="flex flex-col leading-tight">
+                            <span>{format!("#{} {}", pq_id, pq_name)}</span>
+                            <span class="font-mono text-[11px] text-gray-500">{path_display}</span>
+                        </div>
+                    </td>
+                    <td class="py-1.5 px-3 font-mono text-[11px] text-gray-600">{pq_type}</td>
+                    <td class="py-1.5 px-3">{format_data_size(row.logical_size)}</td>
+                    <td class="py-1.5 px-3">{format_data_size(row.encoded_size)}</td>
+                    <td class="py-1.5 px-3">{format_data_size(row.compressed_size)}</td>
+                    <td class="py-1.5 px-3">{format_ratio(row.compression_ratio)}</td>
+                    <td class="py-1.5 px-3">{format_ratio(row.logical_compression_ratio)}</td>
+                    <td class="py-1.5 px-3">{row.null_count.unwrap_or(0)}</td>
+                    <td class="py-1.5 px-3">{encodings_display}</td>
+                    <td class="py-1.5 px-3">{page_encodings}</td>
+                    <td class="py-1.5 px-3">{compression_display}</td>
+                }.into_any()
+            } else {
+                view! {
+                    <td colspan="11" class="py-1.5 px-3 text-gray-500 text-xs italic">
+                        "No Parquet columns matched this Arrow field."
+                    </td>
+                }.into_any()
+            }}
+        </tr>
+    }
+}
+
+fn render_distinct_count(
+    field_index: usize,
+    field_name: String,
+    table_name: String,
+    col_distinct_count: ReadSignal<Vec<Option<LocalResource<u32>>>>,
+    set_col_distinct_count: WriteSignal<Vec<Option<LocalResource<u32>>>>,
+) -> AnyView {
+    col_distinct_count.with(
+        move |col_distinct_count| match &col_distinct_count[field_index] {
+            Some(cnt) => {
+                let cnt = *cnt;
+                view! {
+                    {move || {
+                        Suspend::new(async move {
+                            let cnt = cnt.await;
+                            format!("{cnt}").into_any()
+                        })
+                    }}
+                }
+                .into_any()
+            }
+            None => view! {
+                <button
+                    class="text-blue-500 hover:underline focus:outline-none"
+                    on:click=move |_| {
+                        let column_name = field_name.clone();
+                        let table = table_name.clone();
+                        set_col_distinct_count.update(|col_distinct_count| {
+                            col_distinct_count[field_index] =
+                                Some(calculate_distinct(&column_name, &table));
+                        });
+                    }
+                >
+                    "show"
+                </button>
+            }
+            .into_any(),
+        },
+    )
+}
+
+fn render_page_encodings(
+    column_idx: usize,
+    parquet_reader: Arc<ParquetResolved>,
+    col_page_encodings: ReadSignal<Vec<Option<LocalResource<String>>>>,
+    set_col_page_encodings: WriteSignal<Vec<Option<LocalResource<String>>>>,
+) -> AnyView {
+    let parquet_reader_clone = parquet_reader.clone();
+    col_page_encodings.with(
+        move |col_page_encodings| match &col_page_encodings[column_idx] {
+            Some(res) => {
+                let res = *res;
+                view! {
+                    {move || {
+                        Suspend::new(async move {
+                            let encodings = res.await;
+                            encodings.into_any()
+                        })
+                    }}
+                }
+                .into_any()
+            }
+            None => view! {
+                <button
+                    class="text-blue-500 hover:underline focus:outline-none"
+                    on:click=move |_| {
+                        let reader = parquet_reader_clone.clone();
+                        set_col_page_encodings.update(|col_page_encodings| {
+                            col_page_encodings[column_idx] =
+                                Some(calculate_page_encodings(reader.clone(), column_idx));
+                        });
+                    }
+                >
+                    "show"
+                </button>
+            }
+            .into_any(),
+        },
+    )
+}
+
+fn format_data_size(size: Option<u64>) -> String {
+    match size {
+        Some(value) => format!(
+            "{:.2}",
+            Byte::from_u64(value).get_appropriate_unit(UnitType::Binary)
+        ),
+        None => "-".to_string(),
+    }
+}
+
+fn format_ratio(value: Option<f32>) -> String {
+    match value {
+        Some(ratio) if ratio < 10.0 => format!("{ratio:.2}x"),
+        Some(ratio) if ratio < 100.0 => format!("{ratio:.1}x"),
+        Some(ratio) => format!("{ratio:.0}x"),
+        None => "-".to_string(),
     }
 }
 
@@ -490,7 +698,7 @@ fn calculate_page_encodings(
     })
 }
 
-fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResource<u32> {
+fn calculate_distinct(column_name: &str, table_name: &str) -> LocalResource<u32> {
     let distinct_query = format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{table_name}\"",);
     LocalResource::new(move || {
         let query = distinct_query.clone();
@@ -502,44 +710,4 @@ fn calculate_distinct(column_name: &String, table_name: &String) -> LocalResourc
             distinct_value as u32
         }
     })
-}
-
-fn format_u64_size(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
-    let col = val.column(col_idx).as_primitive::<UInt64Type>();
-    let size = col.value(row_idx);
-
-    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
-    if size == 0 {
-        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
-        let type_str = type_col.value(row_idx);
-        if type_str == "BYTE_ARRAY" {
-            return "-".into_any();
-        }
-    }
-    format!(
-        "{:.2}",
-        Byte::from_u64(size).get_appropriate_unit(UnitType::Binary)
-    )
-    .into_any()
-}
-
-fn format_f32_comp_ratio(val: &RecordBatch, (col_idx, row_idx): (usize, usize)) -> AnyView {
-    let col = val.column(col_idx).as_primitive::<Float32Type>();
-    let ratio = col.value(row_idx);
-
-    // Check if this should show "-" for variable-length types (BYTE_ARRAY)
-    if ratio == 0.0 {
-        let type_col = val.column(2).as_string::<i32>(); // Type column is at index 2
-        let type_str = type_col.value(row_idx);
-        if type_str == "BYTE_ARRAY" {
-            return "-".into_any();
-        }
-    }
-    // Format ratio with appropriate precision
-    match ratio {
-        r if r < 10.0 => format!("{r:.2}x"),
-        r if r < 100.0 => format!("{r:.1}x"),
-        _ => format!("{ratio:.0}x"),
-    }
-    .into_any()
 }
