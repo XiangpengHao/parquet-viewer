@@ -1,0 +1,32 @@
+name: Free Disk Space
+description: Remove preinstalled runner components to free space for Nix/Rust builds.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        echo "=============================================================================="
+        echo "Freeing up disk space on CI system"
+        echo "=============================================================================="
+
+        df -h
+        echo
+
+        echo "Listing 50 largest packages"
+        dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 50 || true
+        echo
+
+        echo "Removing large packages"
+        sudo apt-get remove -y '^ghc-.*' || true
+        sudo apt-get remove -y '^dotnet-.*' || true
+        sudo apt-get remove -y '^llvm-.*' || true
+        sudo apt-get remove -y 'php.*' || true
+        sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable powershell mono-devel || true
+        sudo apt-get autoremove -y || true
+        sudo apt-get clean || true
+        echo
+
+        echo "Removing large directories"
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        df -h

@@ -17,6 +17,10 @@ jobs:
       success: ${{ steps.result.outputs.success }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/free-disk-space
       
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
