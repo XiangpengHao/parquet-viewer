@@ -28,12 +28,12 @@
         };
          # Fetch daisyUI bundle files
         daisyui-bundle = pkgs.fetchurl {
-          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.13/daisyui.mjs";
-          sha256 = "sha256-dH6epo+aSV+eeh3uQbxd7MkWlG+6hCaGaknQ4Bnljj4=";
+          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui.mjs";
+          sha256 = "sha256-ZhCaZQYZiADXoO3UwaAqv3cxiYu87LEiZuonefopRUw=";
         };
         daisyui-theme-bundle = pkgs.fetchurl {
-          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.13/daisyui-theme.mjs";
-          sha256 = "sha256-iiUODarjHRxAD+tyOPh95xhHJELC40oczt+dsDo86yE=";
+          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui-theme.mjs";
+          sha256 = "sha256-PPO2fLQ7eB+ROYnpmK5q2LHIoWUE+EcxYmvjC+gzgSw=";
         };
       in {
         packages.default = craneLib.buildPackage {
