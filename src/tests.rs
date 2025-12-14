@@ -3,16 +3,13 @@ use std::sync::Arc;
 use crate::{
     SESSION_CTX,
     utils::execute_query_inner,
-    views::{
-        parquet_reader::{ParquetUnresolved, read_from_url},
-    },
+    views::parquet_reader::{ParquetUnresolved, read_from_url},
 };
 use arrow::{array::AsArray, datatypes::Int64Type, util::pretty::pretty_format_batches};
 use arrow_array::{Int64Array, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, Fields, Schema};
 use bytes::Bytes;
 use datafusion::execution::object_store::ObjectStoreUrl;
-use log;
 use object_store::{ObjectStore, PutPayload, memory::InMemory, path::Path};
 use parquet::{
     arrow::ArrowWriter,
@@ -132,7 +129,7 @@ async fn test_read_parquet_with_nested_column() {
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select a.b, a.c from \"{}\"", table.registered_table_name());
     let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
-    log::info!("{}", pretty_format_batches(&rows).unwrap());
+    tracing::info!("{}", pretty_format_batches(&rows).unwrap());
     assert_eq!(rows.len(), 1);
     let rows = rows[0].clone();
     assert_eq!(rows.num_rows(), 3);

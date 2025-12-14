@@ -5,7 +5,6 @@ use datafusion::physical_plan::{
     display::DisplayableExecutionPlan,
 };
 use dioxus::prelude::*;
-use log;
 
 #[derive(Debug, Clone)]
 struct PlanTreeNode {
@@ -137,7 +136,7 @@ pub fn PhysicalPlan(physical_plan: Arc<dyn ExecutionPlan>) -> Element {
     let displayable_plan = DisplayableExecutionPlan::with_metrics(physical_plan.as_ref());
     accept(physical_plan.as_ref(), &mut builder).unwrap();
     let root = builder.current_path.pop().unwrap();
-    log::info!("{}", displayable_plan.indent(true).to_string());
+    tracing::info!("{}", displayable_plan.indent(true).to_string());
 
     rsx! {
         div { class: "relative",

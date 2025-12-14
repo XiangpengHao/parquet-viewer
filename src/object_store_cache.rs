@@ -7,7 +7,6 @@ use std::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::{lock::Mutex, stream::BoxStream};
-use log;
 use object_store::{
     GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta, ObjectStore,
     PutMultipartOptions, PutOptions, PutPayload, PutResult, path::Path,
@@ -79,7 +78,7 @@ impl ObjectStore for ObjectStoreCache {
         let mut cache = self.cache.lock().await;
         let bytes = match cache.entry(key) {
             Entry::Occupied(o) => {
-                log::info!(
+                tracing::info!(
                     "Request hit cache, path {}, range: {:?}",
                     location,
                     o.key().1

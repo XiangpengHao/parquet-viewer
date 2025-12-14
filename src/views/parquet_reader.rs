@@ -2,7 +2,6 @@ use anyhow::Result;
 use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
 use dioxus::prelude::*;
-use log;
 use object_store::ObjectStore;
 use object_store::path::Path;
 use object_store_opendal::OpendalStore;
@@ -67,7 +66,7 @@ impl ParquetUnresolved {
         object_store_url: ObjectStoreUrl,
         object_store: Arc<dyn ObjectStore>,
     ) -> Result<Self> {
-        log::info!(
+        tracing::info!(
             "Creating ParquetUnresolved: {:?}, {:?}, {:?}",
             file_name_with_extension,
             path_relative_to_object_store,
@@ -137,13 +136,13 @@ impl ParquetUnresolved {
             .object_store(&self.object_store_url)
             .is_err()
         {
-            log::info!(
+            tracing::info!(
                 "Object store {} not found, registering",
                 self.object_store_url
             );
             ctx.register_object_store(self.object_store_url.as_ref(), self.object_store.clone());
         } else {
-            log::info!(
+            tracing::info!(
                 "Object store {} found, using existing store",
                 self.object_store_url
             );
@@ -163,7 +162,7 @@ impl ParquetUnresolved {
         )
         .await?;
 
-        log::info!(
+        tracing::info!(
             "parquet table: {} has the registered unique name {}",
             self.table_name.as_str(),
             registered_table_name
@@ -198,7 +197,7 @@ pub(crate) fn read_from_vscode(
     spawn_local({
         let url = url.clone();
         let file_name = file_name.clone();
-        log::info!("Reading from VS Code: {}, {}", url, file_name);
+        tracing::info!("Reading from VS Code: {}, {}", url, file_name);
         async move {
             let result = async {
                 let url = Url::parse(&url)?;
@@ -230,9 +229,7 @@ pub(crate) fn read_from_vscode(
 }
 
 #[component]
-pub fn ParquetReader(
-    read_call_back: EventHandler<Result<ParquetUnresolved>>,
-) -> Element {
+pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     fn query_param(key: &str) -> Option<String> {
         let window = web_sys::window()?;
         let search = window.location().search().ok()?;
@@ -266,7 +263,9 @@ pub fn ParquetReader(
         if active_tab() == tab {
             format!("{base} border-green-500 text-green-600")
         } else {
-            format!("{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+            format!(
+                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            )
         }
     };
 
@@ -275,31 +274,61 @@ pub fn ParquetReader(
             div { class: "border-b border-gray-200 mb-4",
                 nav { class: "-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
                     div { class: "flex flex-wrap items-center gap-4 md:gap-8",
-                        button { class: "{tab_button_class(\"file\")}", onclick: move |_| active_tab.set("file".to_string()), "From file" }
-                        button { class: "{tab_button_class(\"url\")}", onclick: move |_| active_tab.set("url".to_string()), "From URL" }
-                        button { class: "{tab_button_class(\"s3\")}", onclick: move |_| active_tab.set("s3".to_string()), "From S3" }
+                        button {
+                            class: "{tab_button_class(\"file\")}",
+                            onclick: move |_| active_tab.set("file".to_string()),
+                            "From file"
+                        }
+                        button {
+                            class: "{tab_button_class(\"url\")}",
+                            onclick: move |_| active_tab.set("url".to_string()),
+                            "From URL"
+                        }
+                        button {
+                            class: "{tab_button_class(\"s3\")}",
+                            onclick: move |_| active_tab.set("s3".to_string()),
+                            "From S3"
+                        }
                     }
                     div { class: "text-xs text-gray-400",
-                        a { href: "https://xiangpeng.systems/fund/", target: "_blank", class: "text-blue-400 hover:text-blue-600", "Funded" }
+                        a {
+                            href: "https://xiangpeng.systems/fund/",
+                            target: "_blank",
+                            class: "text-blue-400 hover:text-blue-600",
+                            "Funded"
+                        }
                         " by "
-                        a { href: "https://www.influxdata.com", target: "_blank", class: "text-blue-400 hover:text-blue-600", "InfluxData" }
+                        a {
+                            href: "https://www.influxdata.com",
+                            target: "_blank",
+                            class: "text-blue-400 hover:text-blue-600",
+                            "InfluxData"
+                        }
                     }
                 }
             }
-            {match active_tab().as_str() {
-                "file" => rsx! { FileReader { read_call_back } },
-                "url" => rsx! { UrlReader { read_call_back } },
-                "s3" => rsx! { S3Reader { read_call_back } },
-                _ => rsx! { FileReader { read_call_back } },
-            }}
+            {
+                match active_tab().as_str() {
+                    "file" => rsx! {
+                        FileReader { read_call_back }
+                    },
+                    "url" => rsx! {
+                        UrlReader { read_call_back }
+                    },
+                    "s3" => rsx! {
+                        S3Reader { read_call_back }
+                    },
+                    _ => rsx! {
+                        FileReader { read_call_back }
+                    },
+                }
+            }
         }
     }
 }
 
 #[component]
-fn FileReader(
-    read_call_back: EventHandler<Result<ParquetUnresolved>>,
-) -> Element {
+fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let file_input_id = use_signal(|| format!("file-input-{}", uuid::Uuid::new_v4()));
 
     rsx! {
@@ -314,32 +343,38 @@ fn FileReader(
                         let Some(file_data) = files.into_iter().next() else {
                             return;
                         };
-                        let Some(file) = file_data.inner().downcast_ref::<web_sys::File>().cloned()
-                        else {
+
+                        let Some(file) = file_data.inner().downcast_ref::<web_sys::File>().cloned() else {
                             return;
                         };
-
                         let table_name = file.name();
                         spawn_local(async move {
                             let result = async {
                                 let path_relative_to_object_store = Path::parse(&table_name)?;
                                 let uuid = uuid::Uuid::new_v4();
                                 let object_store = Arc::new(WebFileObjectStore::new(file));
-                                let object_store_url = ObjectStoreUrl::parse(format!("webfile://{uuid}"))?;
+                                let object_store_url = ObjectStoreUrl::parse(
+                                    format!("webfile://{uuid}"),
+                                )?;
                                 ParquetUnresolved::try_new(
                                     table_name.clone(),
                                     path_relative_to_object_store,
                                     object_store_url,
                                     object_store,
                                 )
-                            }.await;
+                            }
+                                .await;
                             read_call_back.call(result);
                         });
-                    }
+                    },
                 }
             }
             div {
-                label { r#for: "{file_input_id()}", class: "cursor-pointer text-gray-600", "Drop Parquet file or click to browse" }
+                label {
+                    r#for: "{file_input_id()}",
+                    class: "cursor-pointer text-gray-600",
+                    "Drop Parquet file or click to browse"
+                }
             }
         }
     }
@@ -388,9 +423,7 @@ pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
 }
 
 #[component]
-pub fn UrlReader(
-    read_call_back: EventHandler<Result<ParquetUnresolved>>,
-) -> Element {
+pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let mut url = use_signal(|| DEFAULT_URL.to_string());
 
     rsx! {
@@ -453,9 +486,7 @@ fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<
 }
 
 #[component]
-fn S3Reader(
-    read_call_back: EventHandler<Result<ParquetUnresolved>>,
-) -> Element {
+fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let mut s3_bucket = use_signal(|| get_stored_value(S3_BUCKET_KEY).unwrap_or_default());
     let mut s3_region =
         use_signal(|| get_stored_value(S3_REGION_KEY).unwrap_or("us-east-1".to_string()));
@@ -471,7 +502,9 @@ fn S3Reader(
                 },
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
                     div {
-                        label { class: "block text-sm font-medium text-gray-700 mb-1", "Bucket" }
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "Bucket"
+                        }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
@@ -484,7 +517,9 @@ fn S3Reader(
                         }
                     }
                     div {
-                        label { class: "block text-sm font-medium text-gray-700 mb-1", "Region" }
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "Region"
+                        }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
@@ -497,7 +532,9 @@ fn S3Reader(
                         }
                     }
                     div { class: "sm:col-span-2",
-                        label { class: "block text-sm font-medium text-gray-700 mb-1", "File Path" }
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "File Path"
+                        }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
@@ -511,7 +548,11 @@ fn S3Reader(
                     }
                 }
                 div { class: "flex justify-end",
-                    button { r#type: "submit", class: "{BUTTON_OUTLINE} w-full sm:w-auto text-center", "Read S3" }
+                    button {
+                        r#type: "submit",
+                        class: "{BUTTON_OUTLINE} w-full sm:w-auto text-center",
+                        "Read S3"
+                    }
                 }
             }
         }
