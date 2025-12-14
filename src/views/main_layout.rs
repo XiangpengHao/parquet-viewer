@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use dioxus::prelude::*;
-use dioxus_primitives::toast::{use_toast, ToastOptions};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen_futures::spawn_local;
@@ -32,10 +31,10 @@ struct QueryResultEntry {
 
 #[component]
 pub(crate) fn MainLayout() -> Element {
-    let toast_api = use_toast();
+    let error_message = use_signal(|| None::<String>);
     let parquet_resolved = use_signal(|| None::<Arc<ParquetResolved>>);
     let query_input = use_signal(|| DEFAULT_QUERY.to_string());
-    let query_results = use_signal(|| Vec::<QueryResultEntry>::new());
+    let query_results = use_signal(Vec::<QueryResultEntry>::new);
 
     let on_hide = {
         move |id: usize| {
@@ -73,10 +72,10 @@ pub(crate) fn MainLayout() -> Element {
     let on_parquet_read = {
         move |parquet_info: Result<ParquetUnresolved>| match parquet_info {
             Ok(parquet_info) => {
+                let mut error_message = error_message;
                 let mut parquet_table = parquet_resolved;
                 let mut query_results = query_results;
                 let mut query_input = query_input;
-                let toast_api = toast_api;
                 spawn_local({
                     async move {
                         match parquet_info.try_into_resolved(SESSION_CTX.as_ref()).await {
@@ -86,31 +85,22 @@ pub(crate) fn MainLayout() -> Element {
                                 query_results.set(vec![]);
                                 query_input.set(DEFAULT_QUERY.to_string());
 
-                                let mut next = Vec::new();
-                                next.push(QueryResultEntry {
+                                let next = vec![QueryResultEntry {
                                     id: 0,
                                     query: DEFAULT_QUERY.to_string(),
                                     display: true,
                                     table,
-                                });
+                                }];
                                 query_results.set(next);
                             }
-                            Err(e) => {
-                                toast_api.error(
-                                    "Failed to read parquet".to_string(),
-                                    ToastOptions::new()
-                                        .description(format!("{e:#}").chars().take(140).collect::<String>()),
-                                );
-                            }
+                            Err(e) => error_message.set(Some(format!("{e:#?}"))),
                         }
                     }
                 });
             }
             Err(e) => {
-                toast_api.error(
-                    "Failed to read parquet".to_string(),
-                    ToastOptions::new().description(format!("{e:#}").chars().take(140).collect::<String>()),
-                );
+                let mut error_message = error_message;
+                error_message.set(Some(format!("{e:#?}")))
             }
         }
     };
@@ -118,34 +108,32 @@ pub(crate) fn MainLayout() -> Element {
     let vscode = vscode_env();
     let is_in_vscode = vscode.is_some();
     let mut vscode_initialized = use_signal(|| false);
-    if let Some(vscode) = vscode {
-        if !vscode_initialized() {
-            vscode_initialized.set(true);
-            send_message_to_vscode("ready", &vscode);
+    if let Some(vscode) = vscode
+        && !vscode_initialized()
+    {
+        vscode_initialized.set(true);
+        send_message_to_vscode("ready", &vscode);
 
-            let on_parquet_read = on_parquet_read;
-            let handler: Closure<dyn FnMut(web_sys::MessageEvent)> =
-                Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
-                    let data = event.data();
-                    if !data.is_object() {
-                        return;
-                    }
-                    let obj = js_sys::Object::from(data);
-                    if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into())
-                        && let Some(type_str) = type_val.as_string()
-                    {
-                        if type_str.as_str() == "parquetServerReady" {
-                            readers::read_from_vscode(obj, move |res| on_parquet_read(res));
-                        }
-                    }
-                }));
+        let handler: Closure<dyn FnMut(web_sys::MessageEvent)> =
+            Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+                let data = event.data();
+                if !data.is_object() {
+                    return;
+                }
+                let obj = js_sys::Object::from(data);
+                if let Ok(type_val) = js_sys::Reflect::get(&obj, &"type".into())
+                    && let Some(type_str) = type_val.as_string()
+                    && type_str.as_str() == "parquetServerReady"
+                {
+                    readers::read_from_vscode(obj, on_parquet_read);
+                }
+            }));
 
-            if let Some(window) = web_sys::window() {
-                let _ = window
-                    .add_event_listener_with_callback("message", handler.as_ref().unchecked_ref());
-            }
-            handler.forget();
+        if let Some(window) = web_sys::window() {
+            let _ = window
+                .add_event_listener_with_callback("message", handler.as_ref().unchecked_ref());
         }
+        handler.forget();
     }
 
     rsx! {
@@ -182,6 +170,12 @@ pub(crate) fn MainLayout() -> Element {
             div { class: "space-y-3",
                 if !is_in_vscode {
                     ParquetReader { read_call_back: on_parquet_read }
+                }
+
+                if let Some(msg) = error_message() {
+                    div { class: "alert alert-error my-4",
+                        pre { class: "whitespace-pre-wrap break-words", "{msg}" }
+                    }
                 }
 
                 if let Some(table) = parquet_resolved() {

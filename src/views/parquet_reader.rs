@@ -1,7 +1,9 @@
 use anyhow::Result;
 use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
+use dioxus::html::HasFileData;
 use dioxus::prelude::*;
+use dioxus_primitives::toast::{ToastOptions, use_toast};
 use object_store::ObjectStore;
 use object_store::path::Path;
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
@@ -218,7 +220,7 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
 
     rsx! {
         Panel { class: Some("rounded-lg p-2".to_string()),
-            div { class: "border-b border-gray-200 mb-4",
+            div { class: "border-b border-gray-200 mb-2",
                 nav { class: "-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
                     div { class: "flex flex-wrap items-center gap-4 md:gap-8",
                         button {
@@ -262,50 +264,157 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
 #[component]
 fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let file_input_id = use_signal(|| format!("file-input-{}", uuid::Uuid::new_v4()));
+    let toast_api = use_toast();
+    let mut drag_depth = use_signal(|| 0i32);
+    let is_dragging = move || drag_depth() > 0;
+    let mut selected_file_name = use_signal(|| None::<String>);
+
+    let read_web_file = use_callback(move |file: web_sys::File| {
+        let table_name = file.name();
+        if !table_name.to_ascii_lowercase().ends_with(".parquet") {
+            toast_api.error(
+                "Unsupported file type".to_string(),
+                ToastOptions::new().description("Please select a `.parquet` file.".to_string()),
+            );
+            return;
+        }
+
+        selected_file_name.set(Some(table_name.clone()));
+
+        let result = (|| {
+            let path_relative_to_object_store = Path::parse(&table_name)?;
+            let uuid = uuid::Uuid::new_v4();
+            let object_store = Arc::new(WebFileObjectStore::new(file));
+            let object_store_url = ObjectStoreUrl::parse(format!("webfile://{uuid}"))?;
+            ParquetUnresolved::try_new(
+                table_name.clone(),
+                path_relative_to_object_store,
+                object_store_url,
+                object_store,
+            )
+        })();
+
+        read_call_back.call(result);
+    });
+
+    let handle_file_data = use_callback(move |file_data: dioxus::html::FileData| {
+        let Some(file) = file_data.inner().downcast_ref::<web_sys::File>().cloned() else {
+            toast_api.error(
+                "Failed to load file".to_string(),
+                ToastOptions::new()
+                    .description("Browser did not provide a readable file handle.".to_string()),
+            );
+            return;
+        };
+        read_web_file.call(file);
+    });
 
     rsx! {
-        div { class: "border-2 border-dashed border-gray-300 rounded-lg p-6 text-center space-y-4",
-            div {
-                input {
-                    id: "{file_input_id()}",
-                    r#type: "file",
-                    accept: ".parquet",
-                    onchange: move |ev| {
-                        let files = ev.files();
-                        let Some(file_data) = files.into_iter().next() else {
-                            return;
-                        };
+        div {
+            class: format!(
+                "rounded-lg border-2 border-dashed p-4 transition-colors {}",
+                if is_dragging() {
+                    "border-green-500 bg-green-50"
+                } else {
+                    "border-gray-300 bg-white"
+                },
+            ),
+            ondragenter: move |ev| {
+                ev.prevent_default();
+                drag_depth.set(drag_depth() + 1);
+            },
+            ondragover: move |ev| {
+                ev.prevent_default();
+                ev.data_transfer().set_drop_effect("copy");
+            },
+            ondragleave: move |ev| {
+                ev.prevent_default();
+                drag_depth.set((drag_depth() - 1).max(0));
+            },
+            ondrop: move |ev| {
+                ev.prevent_default();
+                drag_depth.set(0);
 
-                        let Some(file) = file_data.inner().downcast_ref::<web_sys::File>().cloned() else {
-                            return;
-                        };
-                        let table_name = file.name();
-                        spawn(async move {
-                            let result = async {
-                                let path_relative_to_object_store = Path::parse(&table_name)?;
-                                let uuid = uuid::Uuid::new_v4();
-                                let object_store = Arc::new(WebFileObjectStore::new(file));
-                                let object_store_url = ObjectStoreUrl::parse(
-                                    format!("webfile://{uuid}"),
-                                )?;
-                                ParquetUnresolved::try_new(
-                                    table_name.clone(),
-                                    path_relative_to_object_store,
-                                    object_store_url,
-                                    object_store,
-                                )
-                            }
-                                .await;
-                            read_call_back.call(result);
-                        });
-                    },
+                let files = ev.files();
+                let file_count = files.len();
+                if let Some(file_data) = files.into_iter().next() {
+                    if file_count > 1 {
+                        toast_api
+
+                            .warning(
+                                "Multiple files dropped".to_string(),
+                                ToastOptions::new()
+                                    .description("Using the first file only.".to_string()),
+                            );
+                    }
+                    handle_file_data.call(file_data);
+                    return;
                 }
+                if let Some(text) = ev
+                    .data_transfer()
+                    .get_data("text/uri-list")
+                    .or_else(|| ev.data_transfer().get_as_text())
+                {
+                    let candidate = text
+                        .lines()
+                        .map(str::trim)
+                        .find(|line| !line.is_empty() && !line.starts_with('#'));
+                    if let Some(url) = candidate {
+                        let looks_like_parquet_url = url.contains(".parquet");
+                        if looks_like_parquet_url {
+                            read_call_back.call(readers::read_from_url(url));
+                        } else {
+                            toast_api
+                                .error(
+                                    "Dropped text is not a Parquet URL".to_string(),
+                                    ToastOptions::new()
+                                        .description(
+                                            "Drop a `.parquet` file, or a URL ending in `.parquet`."
+                                                .to_string(),
+                                        ),
+                                );
+                        }
+                        return;
+                    }
+                }
+                toast_api
+                    .error(
+                        "Nothing to import".to_string(),
+                        ToastOptions::new()
+                            .description("Drop a `.parquet` file here.".to_string()),
+                    );
+            },
+
+            input {
+                id: "{file_input_id()}",
+                r#type: "file",
+                accept: ".parquet",
+                class: "hidden",
+                onchange: move |ev| {
+                    let files = ev.files();
+                    let Some(file_data) = files.into_iter().next() else {
+                        return;
+                    };
+                    handle_file_data.call(file_data);
+                },
             }
-            div {
+
+            div { class: "flex flex-col items-center gap-1 text-center",
+                div { class: "space-y-0.5",
+                    p { class: "text-sm font-medium text-gray-900", "Drop a Parquet file here" }
+                }
+
                 label {
                     r#for: "{file_input_id()}",
-                    class: "cursor-pointer text-gray-600",
-                    "Drop Parquet file or click to browse"
+                    class: "btn btn-outline btn-sm",
+                    "Choose file"
+                }
+
+                if let Some(name) = selected_file_name() {
+                    p { class: "text-xs text-gray-500 mt-1",
+                        "Selected: "
+                        span { class: "font-mono", "{name}" }
+                    }
                 }
             }
         }
@@ -349,7 +458,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
     rsx! {
         div {
             form {
-                class: "space-y-4 w-full",
+                class: "space-y-3 w-full",
                 onsubmit: move |ev| {
                     ev.prevent_default();
                     read_call_back

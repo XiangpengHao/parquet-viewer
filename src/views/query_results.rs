@@ -101,10 +101,10 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Export to CSV",
                             onclick: move |_| {
-                                if let Some(state) = query_execution.read().as_ref() {
-                                    if let Some(Ok(res)) = state.execution_result.as_ref() {
-                                        export_to_csv_inner(res.record_batches.as_ref());
-                                    }
+                                if let Some(state) = query_execution.read().as_ref()
+                                    && let Some(Ok(res)) = state.execution_result.as_ref()
+                                {
+                                    export_to_csv_inner(res.record_batches.as_ref());
                                 }
                             },
                             "CSV"
@@ -113,10 +113,10 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Export to Parquet",
                             onclick: move |_| {
-                                if let Some(state) = query_execution.read().as_ref() {
-                                    if let Some(Ok(res)) = state.execution_result.as_ref() {
-                                        export_to_parquet_inner(res.record_batches.as_ref());
-                                    }
+                                if let Some(state) = query_execution.read().as_ref()
+                                    && let Some(Ok(res)) = state.execution_result.as_ref()
+                                {
+                                    export_to_parquet_inner(res.record_batches.as_ref());
                                 }
                             },
                             "Parquet"
@@ -125,13 +125,12 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Copy SQL",
                             onclick: move |_| {
-                                if let Some(state) = query_execution.read().as_ref() {
-                                    if let Some(sql) = &state.generated_sql {
-                                        if let Some(window) = web_sys::window() {
-                                            let clipboard = window.navigator().clipboard();
-                                            let _ = clipboard.write_text(sql);
-                                        }
-                                    }
+                                if let Some(state) = query_execution.read().as_ref()
+                                    && let Some(sql) = &state.generated_sql
+                                    && let Some(window) = web_sys::window()
+                                {
+                                    let clipboard = window.navigator().clipboard();
+                                    let _ = clipboard.write_text(sql);
                                 }
                             },
                             "Copy"
@@ -178,7 +177,8 @@ pub fn QueryResultView(
                                 div { class: "mb-4", {physical_plan_view(result.physical_plan.clone())} }
                             }
 
-
+                
+                
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
                                 table { class: "min-w-full bg-white table-fixed",
                                     thead { class: "sticky top-0 z-10 bg-gray-50",

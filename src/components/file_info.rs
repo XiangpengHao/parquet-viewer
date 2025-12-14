@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
+use crate::parquet_ctx::MetadataSummary;
 use crate::utils::format_rows;
 use byte_unit::{Byte, UnitType};
-use crate::parquet_ctx::MetadataSummary;
 
 #[component]
 pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {

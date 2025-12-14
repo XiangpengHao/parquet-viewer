@@ -10,7 +10,6 @@ pub fn QueryInput(
 ) -> Element {
     let on_submit_enter = {
         let value = value.clone();
-        let on_user_submit_query = on_user_submit_query.clone();
         move || on_user_submit_query.call(value.clone())
     };
     let on_submit_click = {
@@ -33,7 +32,11 @@ pub fn QueryInput(
                     },
                 }
                 div { class: "flex items-center gap-1",
-                    button { class: "{BUTTON_PRIMARY}", onclick: move |_| on_submit_click(), "Run Query" }
+                    button {
+                        class: "{BUTTON_PRIMARY}",
+                        onclick: move |_| on_submit_click(),
+                        "Run Query"
+                    }
                     div { class: "relative group",
                         svg {
                             xmlns: "http://www.w3.org/2000/svg",
@@ -45,7 +48,7 @@ pub fn QueryInput(
                                 stroke_linecap: "round",
                                 stroke_linejoin: "round",
                                 stroke_width: "2",
-                                d: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                d: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
                             }
                         }
                         div { class: "pointer-events-none absolute bottom-full right-0 mb-2 w-64 rounded bg-gray-800 p-2 text-xs text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100",
