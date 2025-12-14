@@ -9,10 +9,10 @@ use wasm_bindgen_futures::spawn_local;
 use web_sys::js_sys;
 
 use crate::utils::{send_message_to_vscode, vscode_env};
+use components::QueryInput;
 use parquet_ctx::ParquetResolved;
 use views::metadata::MetadataView;
 use views::parquet_reader::{ParquetReader, ParquetUnresolved, read_from_vscode};
-use views::query_input::QueryInput;
 use views::query_results::QueryResultView;
 use views::schema::SchemaSection;
 use views::settings::Settings;
@@ -45,12 +45,11 @@ struct QueryEntry {
 }
 
 #[component]
-fn MainViewer() -> Element {
+fn MainLayout() -> Element {
     let error_message = use_signal(|| None::<String>);
     let parquet_table = use_signal(|| None::<Arc<ParquetResolved>>);
     let query_input = use_signal(|| DEFAULT_QUERY.to_string());
     let query_results = use_signal(|| Vec::<QueryEntry>::new());
-    let show_settings = use_signal(|| false);
 
     let on_hide = {
         move |id: usize| {
@@ -159,6 +158,31 @@ fn MainViewer() -> Element {
         div { class: "container mx-auto px-4 py-4 text-xs",
             h1 { class: "text-2xl font-bold mb-2 flex items-center justify-between",
                 span { "Parquet Viewer" }
+                Link {
+                    to: Route::SettingsRoute {},
+                    class: "btn btn-ghost btn-sm",
+                    title: "Settings",
+                    aria_label: "Settings",
+                    svg {
+                        xmlns: "http://www.w3.org/2000/svg",
+                        class: "h-5 w-5",
+                        fill: "none",
+                        view_box: "0 0 24 24",
+                        stroke: "currentColor",
+                        path {
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            stroke_width: "2",
+                            d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+                        }
+                        path {
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            stroke_width: "2",
+                            d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                        }
+                    }
+                }
             }
 
             div { class: "space-y-3",
@@ -218,13 +242,7 @@ fn MainViewer() -> Element {
                 }
             }
 
-            Settings {
-                show: show_settings(),
-                on_close: move |_| {
-                    let mut show_settings = show_settings;
-                    show_settings.set(false);
-                },
-            }
+            Outlet::<Route> {}
         }
     }
 }
@@ -244,10 +262,29 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-    // The route attribute defines the URL pattern that a specific route matches. If that pattern matches the URL,
-    // the component for that route will be rendered. The component name that is rendered defaults to the variant name.
+    #[layout(MainLayout)]
     #[route("/")]
-    MainViewer {},
+    Index {},
+    #[route("/settings")]
+    SettingsRoute {},
+}
+
+#[component]
+fn Index() -> Element {
+    rsx! {}
+}
+
+#[component]
+fn SettingsRoute() -> Element {
+    let nav = use_navigator();
+    rsx! {
+        Settings {
+            show: true,
+            on_close: move || {
+                nav.push(Route::Index {});
+            },
+        }
+    }
 }
 
 #[component]
