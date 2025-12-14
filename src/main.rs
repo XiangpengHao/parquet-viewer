@@ -167,10 +167,8 @@ fn MainViewer() -> Element {
                 }
 
                 if let Some(msg) = error_message() {
-                    div { class: "bg-red-50 border-l-4 border-red-500 p-4 my-4",
-                        pre { class: "text-red-700 whitespace-pre-wrap break-words",
-                            "{msg}"
-                        }
+                    div { class: "alert alert-error my-4",
+                        pre { class: "whitespace-pre-wrap break-words", "{msg}" }
                     }
                 }
 
@@ -260,6 +258,12 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
+        // Cloudflare Web Analytics
+        document::Script {
+            src: "https://static.cloudflareinsights.com/beacon.min.js",
+            defer: true,
+            "data-cf-beacon": r#"{{"token": "cdf9b270eac24614a52f26d4b465b8ae"}}"#,
+        }
 
         // The router component renders the route enum we defined above. It will handle synchronization of the URL and render
         // the layouts and components for the active route.

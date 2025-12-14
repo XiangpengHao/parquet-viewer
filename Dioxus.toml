@@ -9,10 +9,16 @@ title = "Parquet Viewer - View and Query Parquet Files Online"
 [web.resource]
 
 # Additional CSS style files
-style = []
+style = [
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css",
+	"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap",
+]
 
 # Additional JavaScript files
-script = []
+script = [
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js",
+]
 
 [web.resource.dev]
 

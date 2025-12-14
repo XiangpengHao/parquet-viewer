@@ -10,7 +10,7 @@ use wasm_bindgen_futures::spawn_local;
 use crate::components::ui::Panel;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
 use crate::views::plan_visualizer::PhysicalPlan;
-use crate::{utils::execute_query_inner, ParquetResolved, SESSION_CTX};
+use crate::{ParquetResolved, SESSION_CTX, utils::execute_query_inner};
 
 #[derive(Clone)]
 pub(crate) struct ExecutionResult {
@@ -25,12 +25,12 @@ pub fn QueryResultView(
     parquet_table: Arc<ParquetResolved>,
     on_hide: EventHandler<usize>,
 ) -> Element {
-    let mut show_plan = use_signal(|| false);
-    let mut visible_rows = use_signal(|| 20usize);
+    let show_plan = use_signal(|| false);
+    let visible_rows = use_signal(|| 20usize);
 
-    let mut progress = use_signal(|| "Generating SQL...".to_string());
-    let mut generated_sql = use_signal(|| None::<String>);
-    let mut execution_result = use_signal(|| None::<Result<ExecutionResult, String>>);
+    let progress = use_signal(|| "Generating SQL...".to_string());
+    let generated_sql = use_signal(|| None::<String>);
+    let execution_result = use_signal(|| None::<Result<ExecutionResult, String>>);
     let mut started = use_signal(|| false);
 
     if !started() {
@@ -137,55 +137,66 @@ pub fn QueryResultView(
                 }
             }
 
-            {match execution_result().as_ref() {
-                None => rsx! { pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress()}" } },
-                Some(Err(e)) => rsx! { pre { class: "text-red-700 text-xs whitespace-pre-wrap", "{e}" } },
-                Some(Ok(result)) => {
-                    let merged_record_batch = concat_batches(
-                        &result.record_batches[0].schema(),
-                        result.record_batches.iter().collect::<Vec<_>>(),
-                    ).expect("Failed to merge record batches");
-                    let schema = merged_record_batch.schema();
-                    let total_rows = merged_record_batch.num_rows();
-                    let show_rows = visible_rows().min(total_rows);
+            {
 
-                    rsx! {
-                        if show_plan() {
-                            div { class: "mb-4",
-                                {PhysicalPlan(result.physical_plan.clone())}
+                match execution_result().as_ref() {
+                    None => rsx! {
+                        pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress()}" }
+                    },
+                    Some(Err(e)) => rsx! {
+                        pre { class: "text-red-700 text-xs whitespace-pre-wrap", "{e}" }
+                    },
+                    Some(Ok(result)) => {
+                        let merged_record_batch = concat_batches(
+                                &result.record_batches[0].schema(),
+                                result.record_batches.iter().collect::<Vec<_>>(),
+                            )
+                            .expect("Failed to merge record batches");
+                        let schema = merged_record_batch.schema();
+                        let total_rows = merged_record_batch.num_rows();
+                        let show_rows = visible_rows().min(total_rows);
+                        rsx! {
+                            if show_plan() {
+                                div { class: "mb-4", {PhysicalPlan(result.physical_plan.clone())} }
                             }
-                        }
 
-                        div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
-                            table { class: "min-w-full bg-white table-fixed",
-                                thead { class: "sticky top-0 z-10 bg-gray-50",
-                                    tr {
-                                        for field in schema.fields().iter() {
-                                            th { class: "px-1 py-1 text-left min-w-[200px] leading-tight",
-                                                div { class: "truncate", title: "{field.name()}", "{field.name()}" }
-                                                div { class: "text-xs text-gray-400 truncate", title: "{format_arrow_type(field.data_type())}", "{format_arrow_type(field.data_type())}" }
+                
+
+                            div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
+                                table { class: "min-w-full bg-white table-fixed",
+                                    thead { class: "sticky top-0 z-10 bg-gray-50",
+                                        tr {
+                                            for field in schema.fields().iter() {
+                                                th { class: "px-1 py-1 text-left min-w-[200px] leading-tight",
+                                                    div { class: "truncate", title: "{field.name()}", "{field.name()}" }
+                                                    div {
+                                                        class: "text-xs text-gray-400 truncate",
+                                                        title: "{format_arrow_type(field.data_type())}",
+                                                        "{format_arrow_type(field.data_type())}"
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-                                }
-                                tbody {
-                                    for row_idx in 0..show_rows {
-                                        tr { class: "hover:bg-gray-50",
-                                            for col_idx in 0..merged_record_batch.num_columns() {
-                                                {
-                                                    let column = merged_record_batch.column(col_idx);
-                                                    let cell_value = array_value_to_string(column.as_ref(), row_idx)
-                                                        .unwrap_or_else(|_| "NULL".to_string());
-                                                    let preview = cell_value.chars().take(200).collect::<String>();
-                                                    rsx! {
-                                                        td { class: "px-1 py-1 leading-tight text-gray-700 break-words",
-                                                            if cell_value.len() > 200 {
-                                                                details {
-                                                                    summary { class: "cursor-pointer select-none", "{preview}..." }
-                                                                    pre { class: "whitespace-pre-wrap", "{cell_value}" }
+                                    tbody {
+                                        for row_idx in 0..show_rows {
+                                            tr { class: "hover:bg-gray-50",
+                                                for col_idx in 0..merged_record_batch.num_columns() {
+                                                    {
+                                                        let column = merged_record_batch.column(col_idx);
+                                                        let cell_value = array_value_to_string(column.as_ref(), row_idx)
+                                                            .unwrap_or_else(|_| "NULL".to_string());
+                                                        let preview = cell_value.chars().take(200).collect::<String>();
+                                                        rsx! {
+                                                            td { class: "px-1 py-1 leading-tight text-gray-700 break-words",
+                                                                if cell_value.len() > 200 {
+                                                                    details {
+                                                                        summary { class: "cursor-pointer select-none", "{preview}..." }
+                                                                        pre { class: "whitespace-pre-wrap", "{cell_value}" }
+                                                                    }
+                                                                } else {
+                                                                    "{cell_value}"
                                                                 }
-                                                            } else {
-                                                                "{cell_value}"
                                                             }
                                                         }
                                                     }
@@ -195,23 +206,23 @@ pub fn QueryResultView(
                                     }
                                 }
                             }
-                        }
-
-                        if show_rows < total_rows {
-                            div { class: "mt-2 flex justify-center",
-                                button {
-                                    class: "px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs",
-                                    onclick: move |_| {
-                                        let mut visible_rows = visible_rows;
-                                        visible_rows.set(visible_rows() + 20);
-                                    },
-                                    "Load more"
+                
+                            if show_rows < total_rows {
+                                div { class: "mt-2 flex justify-center",
+                                    button {
+                                        class: "px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs",
+                                        onclick: move |_| {
+                                            let mut visible_rows = visible_rows;
+                                            visible_rows.set(visible_rows() + 20);
+                                        },
+                                        "Load more"
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }}
+            }
         }
     }
 }

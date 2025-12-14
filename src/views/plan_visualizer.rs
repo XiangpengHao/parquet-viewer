@@ -155,9 +155,7 @@ pub fn PhysicalPlan(physical_plan: Arc<dyn ExecutionPlan>) -> Element {
                 }
             }
 
-            div { class: "p-8 overflow-auto",
-                {PlanNodeView(root)}
-            }
+            div { class: "p-8 overflow-auto", {PlanNodeView(root)} }
         }
     }
 }

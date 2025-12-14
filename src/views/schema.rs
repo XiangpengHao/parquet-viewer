@@ -118,9 +118,8 @@ fn format_ratio(value: Option<f32>) -> String {
 }
 
 async fn calculate_distinct(column_name: &str, registered_table_name: &str) -> u32 {
-    let distinct_query = format!(
-        "SELECT COUNT(DISTINCT \"{column_name}\") from \"{registered_table_name}\""
-    );
+    let distinct_query =
+        format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{registered_table_name}\"");
     let (results, _) = execute_query_inner(&distinct_query, &SESSION_CTX)
         .await
         .unwrap();
@@ -129,7 +128,10 @@ async fn calculate_distinct(column_name: &str, registered_table_name: &str) -> u
     distinct_value as u32
 }
 
-async fn calculate_page_encodings(parquet_reader: Arc<ParquetResolved>, column_id: usize) -> String {
+async fn calculate_page_encodings(
+    parquet_reader: Arc<ParquetResolved>,
+    column_id: usize,
+) -> String {
     let mut column_reader = parquet_reader.reader().clone();
     let metadata = parquet_reader.metadata().metadata.clone();
 
@@ -137,7 +139,13 @@ async fn calculate_page_encodings(parquet_reader: Arc<ParquetResolved>, column_i
     let mut total_pages = 0u32;
 
     for (row_group_id, _rg) in metadata.row_groups().iter().enumerate() {
-        let pages = match get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id).await
+        let pages = match get_column_chunk_page_info(
+            &mut column_reader,
+            &metadata,
+            row_group_id,
+            column_id,
+        )
+        .await
         {
             Ok(pages) => pages,
             Err(_) => continue,
@@ -262,7 +270,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
     let mut columns_by_root: HashMap<String, Vec<usize>> = HashMap::new();
     for column in &parquet_columns {
         if let Some(root) = column.path.first() {
-            columns_by_root.entry(root.clone()).or_default().push(column.id);
+            columns_by_root
+                .entry(root.clone())
+                .or_default()
+                .push(column.id);
         }
     }
 
@@ -362,10 +373,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
         result
     };
 
-    let mut distinct_counts = use_signal(|| vec![None::<u32>; arrow_field_nodes.len()]);
-    let mut distinct_loading = use_signal(|| vec![false; arrow_field_nodes.len()]);
-    let mut page_encodings = use_signal(|| vec![None::<String>; parquet_column_count]);
-    let mut page_loading = use_signal(|| vec![false; parquet_column_count]);
+    let distinct_counts = use_signal(|| vec![None::<u32>; arrow_field_nodes.len()]);
+    let distinct_loading = use_signal(|| vec![false; arrow_field_nodes.len()]);
+    let page_encodings = use_signal(|| vec![None::<String>; parquet_column_count]);
+    let page_loading = use_signal(|| vec![false; parquet_column_count]);
 
     let on_show_distinct: Rc<dyn Fn(usize, String)> = Rc::new({
         let registered_table_name = registered_table_name.clone();
@@ -432,7 +443,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
 
     rsx! {
         Panel { class: Some("rounded-lg p-3 flex-1 overflow-auto space-y-4".to_string()),
-            SectionHeader { title: "Schema".to_string(), subtitle: None, class: Some("mb-1".to_string()), trailing: None }
+            SectionHeader {
+                title: "Schema".to_string(),
+                subtitle: None,
+                class: Some("mb-1".to_string()),
+                trailing: None,
+            }
 
             if schema_rows.is_empty() {
                 div { class: "text-sm text-gray-500", "No Arrow columns found in this file." }
@@ -459,27 +475,47 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                             }
                         }
                         tbody {
-                            for (row, is_first_in_group, group_size) in grouped_rows.into_iter() {
+                            for (row , is_first_in_group , group_size) in grouped_rows.into_iter() {
                                 tr { class: "align-top hover:bg-gray-50 border-b border-gray-100",
                                     if is_first_in_group {
-                                        td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                        td {
+                                            class: "py-1.5 px-3",
+                                            rowspan: "{group_size}",
                                             div { class: "flex flex-col gap-0.5",
-                                                span { class: "font-mono text-[11px] text-gray-500", "#{row.arrow_index}" }
-                                                span { class: "font-semibold text-gray-900", "{row.arrow_name}" }
+                                                span { class: "font-mono text-[11px] text-gray-500",
+                                                    "#{row.arrow_index}"
+                                                }
+                                                span { class: "font-semibold text-gray-900",
+                                                    "{row.arrow_name}"
+                                                }
                                             }
                                         }
-                                        td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                            div { class: "font-mono text-gray-800 break-all", "{row.arrow_type}" }
+                                        td {
+                                            class: "py-1.5 px-3",
+                                            rowspan: "{group_size}",
+                                            div { class: "font-mono text-gray-800 break-all",
+                                                "{row.arrow_type}"
+                                            }
                                         }
-                                        td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                            span { class: "font-semibold text-gray-700", "{row.arrow_nullable}" }
+                                        td {
+                                            class: "py-1.5 px-3",
+                                            rowspan: "{group_size}",
+                                            span { class: "font-semibold text-gray-700",
+                                                "{row.arrow_nullable}"
+                                            }
                                         }
-                                        td { class: "py-1.5 px-3 border-r-2", rowspan: "{group_size}",
+                                        td {
+                                            class: "py-1.5 px-3 border-r-2",
+                                            rowspan: "{group_size}",
                                             match distinct_counts_now[row.arrow_index] {
-                                                Some(cnt) => rsx! { span { class: "font-mono text-gray-800", "{cnt}" } },
+                                                Some(cnt) => rsx! {
+                                                    span { class: "font-mono text-gray-800", "{cnt}" }
+                                                },
                                                 None => {
                                                     if distinct_loading_now[row.arrow_index] {
-                                                        rsx! { span { class: "text-gray-400", "..." } }
+                                                        rsx! {
+                                                            span { class: "text-gray-400", "..." }
+                                                        }
                                                     } else {
                                                         let field_index = row.arrow_index;
                                                         let field_name = row.arrow_name.clone();
@@ -500,31 +536,57 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                     td { class: "py-1.5 px-3",
                                         if let Some(name) = row.parquet_name.as_ref() {
                                             div { class: "flex flex-col gap-0.5",
-                                                span { class: "font-mono text-[11px] text-gray-500", "#{row.parquet_id.unwrap_or_default()}" }
-                                                span { class: "font-semibold text-gray-900", "{name}" }
+                                                span { class: "font-mono text-[11px] text-gray-500",
+                                                    "#{row.parquet_id.unwrap_or_default()}"
+                                                }
+                                                span { class: "font-semibold text-gray-900",
+                                                    "{name}"
+                                                }
                                                 if let Some(path) = row.parquet_path.as_ref() {
-                                                    span { class: "font-mono text-[10px] text-gray-400 break-all", "{path}" }
+                                                    span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                        "{path}"
+                                                    }
                                                 }
                                             }
                                         } else {
                                             span { class: "text-gray-400", "-" }
                                         }
                                     }
-                                    td { class: "py-1.5 px-3", "{row.parquet_type.clone().unwrap_or_else(|| \"-\".to_string())}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{format_data_size(row.logical_size)}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{format_data_size(row.encoded_size)}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{format_data_size(row.compressed_size)}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{format_ratio(row.compression_ratio)}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{format_ratio(row.logical_compression_ratio)}" }
-                                    td { class: "py-1.5 px-3 font-mono", "{row.null_count.map(|v| v.to_string()).unwrap_or_else(|| \"-\".to_string())}" }
-                                    td { class: "py-1.5 px-3", "{row.encodings.clone().unwrap_or_else(|| \"-\".to_string())}" }
+                                    td { class: "py-1.5 px-3",
+                                        "{row.parquet_type.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{format_data_size(row.logical_size)}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{format_data_size(row.encoded_size)}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{format_data_size(row.compressed_size)}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{format_ratio(row.compression_ratio)}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{format_ratio(row.logical_compression_ratio)}"
+                                    }
+                                    td { class: "py-1.5 px-3 font-mono",
+                                        "{row.null_count.map(|v| v.to_string()).unwrap_or_else(|| \"-\".to_string())}"
+                                    }
+                                    td { class: "py-1.5 px-3",
+                                        "{row.encodings.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                    }
                                     td { class: "py-1.5 px-3",
                                         if let Some(column_id) = row.parquet_id {
                                             match page_encodings_now[column_id].as_ref() {
-                                                Some(enc) => rsx! { span { "{enc}" } },
+                                                Some(enc) => rsx! {
+                                                    span { "{enc}" }
+                                                },
                                                 None => {
                                                     if page_loading_now[column_id] {
-                                                        rsx! { span { class: "text-gray-400", "..." } }
+                                                        rsx! {
+                                                            span { class: "text-gray-400", "..." }
+                                                        }
                                                     } else {
                                                         let on_show_page_encodings = on_show_page_encodings.clone();
                                                         rsx! {
@@ -541,7 +603,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             span { class: "text-gray-400", "-" }
                                         }
                                     }
-                                    td { class: "py-1.5 px-3", "{row.compression_summary.clone().unwrap_or_else(|| \"-\".to_string())}" }
+                                    td { class: "py-1.5 px-3",
+                                        "{row.compression_summary.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                    }
                                 }
                             }
                         }
@@ -574,7 +638,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
             if !schema.metadata().is_empty() {
                 div { class: "mt-2",
                     details {
-                        summary { class: "cursor-pointer text-sm font-medium text-gray-700 py-2", "Metadata" }
+                        summary { class: "cursor-pointer text-sm font-medium text-gray-700 py-2",
+                            "Metadata"
+                        }
                         div { class: "pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm",
                             pre { class: "whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60",
                                 {format!("{:#?}", schema.metadata())}
