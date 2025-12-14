@@ -67,7 +67,7 @@ impl ExecutionPlanVisitor for TreeBuilder {
     }
 }
 
-fn PlanNodeView(node: PlanTreeNode) -> Element {
+fn plan_node_view(node: PlanTreeNode) -> Element {
     let has_children = !node.children.is_empty();
     let multi_children = node.children.len() > 1;
 
@@ -118,7 +118,7 @@ fn PlanNodeView(node: PlanTreeNode) -> Element {
 
                         div { class: "flex gap-8",
                             for child in node.children.into_iter() {
-                                {PlanNodeView(child)}
+                                {plan_node_view(child)}
                             }
                         }
                     }
@@ -128,7 +128,7 @@ fn PlanNodeView(node: PlanTreeNode) -> Element {
     }
 }
 
-pub fn PhysicalPlan(physical_plan: Arc<dyn ExecutionPlan>) -> Element {
+pub fn physical_plan_view(physical_plan: Arc<dyn ExecutionPlan>) -> Element {
     let mut builder = TreeBuilder {
         next_id: 0,
         current_path: vec![],
@@ -154,7 +154,7 @@ pub fn PhysicalPlan(physical_plan: Arc<dyn ExecutionPlan>) -> Element {
                 }
             }
 
-            div { class: "p-8 overflow-auto", {PlanNodeView(root)} }
+            div { class: "p-8 overflow-auto", {plan_node_view(root)} }
         }
     }
 }

@@ -10,7 +10,6 @@ use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
 use url::Url;
 use url::form_urlencoded;
-use wasm_bindgen_futures::spawn_local;
 use web_sys::js_sys;
 
 use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
@@ -194,7 +193,7 @@ pub(crate) fn read_from_vscode(
     let file_name = js_sys::Reflect::get(&obj, &"filename".into()).unwrap();
     let file_name = file_name.as_string().unwrap();
 
-    spawn_local({
+    spawn({
         let url = url.clone();
         let file_name = file_name.clone();
         tracing::info!("Reading from VS Code: {}, {}", url, file_name);
@@ -348,7 +347,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
                             return;
                         };
                         let table_name = file.name();
-                        spawn_local(async move {
+                        spawn(async move {
                             let result = async {
                                 let path_relative_to_object_store = Path::parse(&table_name)?;
                                 let uuid = uuid::Uuid::new_v4();

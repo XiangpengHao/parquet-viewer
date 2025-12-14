@@ -5,17 +5,23 @@ use arrow::record_batch::RecordBatch;
 use arrow_cast::display::array_value_to_string;
 use datafusion::physical_plan::ExecutionPlan;
 use dioxus::prelude::*;
-use wasm_bindgen_futures::spawn_local;
 
 use crate::components::ui::Panel;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
-use crate::views::plan_visualizer::PhysicalPlan;
+use crate::views::plan_visualizer::physical_plan_view;
 use crate::{ParquetResolved, SESSION_CTX, utils::execute_query_inner};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct ExecutionResult {
     pub(crate) record_batches: Arc<Vec<RecordBatch>>,
     pub(crate) physical_plan: Arc<dyn ExecutionPlan>,
+}
+
+#[derive(Clone, Debug)]
+struct QueryExecutionState {
+    progress: String,
+    generated_sql: Option<String>,
+    execution_result: Option<Result<ExecutionResult, String>>,
 }
 
 #[component]
@@ -28,36 +34,29 @@ pub fn QueryResultView(
     let show_plan = use_signal(|| false);
     let visible_rows = use_signal(|| 20usize);
 
-    let progress = use_signal(|| "Generating SQL...".to_string());
-    let generated_sql = use_signal(|| None::<String>);
-    let execution_result = use_signal(|| None::<Result<ExecutionResult, String>>);
-    let mut started = use_signal(|| false);
+    // Clone the query string for display purposes
+    let query_display = query.clone();
 
-    if !started() {
-        started.set(true);
+    // Use use_resource for reactive async data fetching
+    let query_execution = use_resource(move || {
         let query = query.clone();
         let parquet_table = parquet_table.clone();
-        spawn_local(async move {
+        async move {
             let sql = match crate::nl_to_sql::user_input_to_sql(&query, &parquet_table)
                 .await
                 .map_err(|e| e.to_string())
             {
                 Ok(sql) => sql,
                 Err(e) => {
-                    let mut execution_result = execution_result;
-                    execution_result.set(Some(Err(format!("Error generating SQL: {e}"))));
-                    return;
+                    return QueryExecutionState {
+                        progress: "Error generating SQL".to_string(),
+                        generated_sql: None,
+                        execution_result: Some(Err(format!("Error generating SQL: {e}"))),
+                    };
                 }
             };
 
-            {
-                let mut generated_sql = generated_sql;
-                generated_sql.set(Some(sql.clone()));
-            }
-            {
-                let mut progress = progress;
-                progress.set(format!("Executing SQL...\n\n{sql}"));
-            }
+            let progress_with_sql = format!("Executing SQL...\n\n{sql}");
 
             let result = execute_query_inner(&sql, &SESSION_CTX)
                 .await
@@ -67,18 +66,31 @@ pub fn QueryResultView(
                     physical_plan: plan,
                 });
 
-            let mut execution_result = execution_result;
-            execution_result.set(Some(result));
-        });
-    }
+            QueryExecutionState {
+                progress: progress_with_sql,
+                generated_sql: Some(sql),
+                execution_result: Some(result),
+            }
+        }
+    });
+
+    let state = query_execution.read();
+    let (progress, generated_sql, execution_result) = match state.as_ref() {
+        Some(s) => (
+            s.progress.as_str(),
+            s.generated_sql.as_ref(),
+            s.execution_result.as_ref(),
+        ),
+        None => ("Generating SQL...", None, None),
+    };
 
     rsx! {
         Panel { class: Some("p-3".to_string()),
             div { class: "flex flex-col gap-2 mb-3",
                 div { class: "flex items-start justify-between gap-4",
                     div {
-                        div { class: "font-semibold text-gray-900 break-words", "{query}" }
-                        if let Some(sql) = generated_sql().as_ref() {
+                        div { class: "font-semibold text-gray-900 break-words", "{query_display}" }
+                        if let Some(sql) = generated_sql {
                             pre { class: "mt-2 text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-48",
                                 "{sql}"
                             }
@@ -89,8 +101,10 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Export to CSV",
                             onclick: move |_| {
-                                if let Some(Ok(res)) = execution_result().as_ref() {
-                                    export_to_csv_inner(res.record_batches.as_ref());
+                                if let Some(state) = query_execution.read().as_ref() {
+                                    if let Some(Ok(res)) = state.execution_result.as_ref() {
+                                        export_to_csv_inner(res.record_batches.as_ref());
+                                    }
                                 }
                             },
                             "CSV"
@@ -99,8 +113,10 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Export to Parquet",
                             onclick: move |_| {
-                                if let Some(Ok(res)) = execution_result().as_ref() {
-                                    export_to_parquet_inner(res.record_batches.as_ref());
+                                if let Some(state) = query_execution.read().as_ref() {
+                                    if let Some(Ok(res)) = state.execution_result.as_ref() {
+                                        export_to_parquet_inner(res.record_batches.as_ref());
+                                    }
                                 }
                             },
                             "Parquet"
@@ -109,10 +125,12 @@ pub fn QueryResultView(
                             class: "p-1 text-gray-500 hover:text-gray-700",
                             title: "Copy SQL",
                             onclick: move |_| {
-                                if let Some(sql) = generated_sql() {
-                                    if let Some(window) = web_sys::window() {
-                                        let clipboard = window.navigator().clipboard();
-                                        let _ = clipboard.write_text(&sql);
+                                if let Some(state) = query_execution.read().as_ref() {
+                                    if let Some(sql) = &state.generated_sql {
+                                        if let Some(window) = web_sys::window() {
+                                            let clipboard = window.navigator().clipboard();
+                                            let _ = clipboard.write_text(sql);
+                                        }
                                     }
                                 }
                             },
@@ -139,9 +157,9 @@ pub fn QueryResultView(
 
             {
 
-                match execution_result().as_ref() {
+                match execution_result {
                     None => rsx! {
-                        pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress()}" }
+                        pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress}" }
                     },
                     Some(Err(e)) => rsx! {
                         pre { class: "text-red-700 text-xs whitespace-pre-wrap", "{e}" }
@@ -157,10 +175,9 @@ pub fn QueryResultView(
                         let show_rows = visible_rows().min(total_rows);
                         rsx! {
                             if show_plan() {
-                                div { class: "mb-4", {PhysicalPlan(result.physical_plan.clone())} }
+                                div { class: "mb-4", {physical_plan_view(result.physical_plan.clone())} }
                             }
 
-                
 
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
                                 table { class: "min-w-full bg-white table-fixed",
@@ -206,7 +223,6 @@ pub fn QueryResultView(
                                     }
                                 }
                             }
-                
                             if show_rows < total_rows {
                                 div { class: "mt-2 flex justify-center",
                                     button {

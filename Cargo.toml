@@ -60,6 +60,11 @@ strip = true
 opt-level = "s"
 panic = "abort"
 
+[profile.debug-strip]
+inherits = "dev"
+strip = true
+panic = "abort"
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3.53"
 

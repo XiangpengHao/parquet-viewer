@@ -8,7 +8,6 @@ use arrow_schema::Field;
 use byte_unit::{Byte, UnitType};
 use dioxus::prelude::*;
 use parquet::file::metadata::ParquetMetaData;
-use wasm_bindgen_futures::spawn_local;
 
 use crate::components::ui::{Panel, SectionHeader};
 use crate::utils::{execute_query_inner, format_arrow_type, get_column_chunk_page_info};
@@ -382,7 +381,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
         let registered_table_name = registered_table_name.clone();
         move |field_index: usize, field_name: String| {
             let registered_table_name = registered_table_name.clone();
-            spawn_local(async move {
+            spawn(async move {
                 let mut distinct_counts = distinct_counts;
                 let mut distinct_loading = distinct_loading;
                 let mut loading = distinct_loading();
@@ -411,7 +410,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
         let parquet_reader = parquet_reader.clone();
         move |column_id: usize| {
             let parquet_reader = parquet_reader.clone();
-            spawn_local(async move {
+            spawn(async move {
                 let mut page_encodings = page_encodings;
                 let mut page_loading = page_loading;
                 let mut loading = page_loading();
