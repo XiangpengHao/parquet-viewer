@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::sync::Arc;
 
+use anyhow::{anyhow, Result};
 use arrow::array::AsArray;
 use arrow::datatypes::Int64Type;
-use arrow_schema::Field;
 use byte_unit::{Byte, UnitType};
 use dioxus::prelude::*;
 use parquet::file::metadata::ParquetMetaData;
@@ -19,19 +18,7 @@ struct SchemaRow {
     arrow_name: String,
     arrow_type: String,
     arrow_nullable: String,
-
-    parquet_id: Option<usize>,
-    parquet_name: Option<String>,
-    parquet_path: Option<String>,
-    parquet_type: Option<String>,
-    logical_size: Option<u64>,
-    encoded_size: Option<u64>,
-    compressed_size: Option<u64>,
-    compression_ratio: Option<f32>,
-    logical_compression_ratio: Option<f32>,
-    null_count: Option<u32>,
-    encodings: Option<String>,
-    compression_summary: Option<String>,
+    parquet_columns: Vec<ParquetColumnDisplay>,
 }
 
 fn calculate_arrow_memory_size(metadata: &ParquetMetaData, column_index: usize) -> Option<u64> {
@@ -81,13 +68,6 @@ struct ParquetColumnDisplay {
     compression_summary: String,
 }
 
-#[derive(Clone)]
-struct ArrowFieldNode {
-    index: usize,
-    field: Field,
-    parquet_columns: Vec<usize>,
-}
-
 #[derive(Clone, Default)]
 struct ColumnAggregate {
     compressed_size: u64,
@@ -116,21 +96,25 @@ fn format_ratio(value: Option<f32>) -> String {
     }
 }
 
-async fn calculate_distinct(column_name: &str, registered_table_name: &str) -> u32 {
+async fn calculate_distinct(column_name: &str, registered_table_name: &str) -> Result<u32> {
     let distinct_query =
         format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{registered_table_name}\"");
     let (results, _) = execute_query_inner(&distinct_query, &SESSION_CTX)
-        .await
-        .unwrap();
-    let first_batch = results.first().unwrap();
+        .await?;
+    let first_batch = results
+        .first()
+        .ok_or_else(|| anyhow!("No record batch returned for distinct count"))?;
+    if first_batch.num_rows() == 0 {
+        return Ok(0);
+    }
     let distinct_value = first_batch.column(0).as_primitive::<Int64Type>().value(0);
-    distinct_value as u32
+    Ok(distinct_value as u32)
 }
 
 async fn calculate_page_encodings(
     parquet_reader: Arc<ParquetResolved>,
     column_id: usize,
-) -> String {
+) -> Result<String> {
     let mut column_reader = parquet_reader.reader().clone();
     let metadata = parquet_reader.metadata().metadata.clone();
 
@@ -157,13 +141,13 @@ async fn calculate_page_encodings(
     }
 
     if total_pages == 0 {
-        return "No pages found".to_string();
+        return Ok("No pages found".to_string());
     }
 
     let mut sorted_encodings: Vec<_> = encoding_counts.into_iter().collect();
     sorted_encodings.sort_by_key(|(encoding, _)| *encoding);
 
-    sorted_encodings
+    Ok(sorted_encodings
         .iter()
         .map(|(encoding, count)| {
             format!(
@@ -172,7 +156,78 @@ async fn calculate_page_encodings(
             )
         })
         .collect::<Vec<_>>()
-        .join(", ")
+        .join(", "))
+}
+
+#[component]
+fn DistinctCell(field_name: String, registered_table_name: String) -> Element {
+    let mut action = use_action(move || {
+        let field_name = field_name.clone();
+        let registered_table_name = registered_table_name.clone();
+        async move { calculate_distinct(&field_name, &registered_table_name).await }
+    });
+
+    if action.pending() {
+        return rsx! { span { class: "text-gray-400", "..." } };
+    }
+
+    match action.value() {
+        Some(Ok(cnt)) => rsx! {
+            span { class: "font-mono text-gray-800", "{cnt.read()}" }
+        },
+        Some(Err(_e)) => rsx! {
+            button {
+                class: "text-red-500 hover:underline focus:outline-none",
+                onclick: move |_| {
+                    action.call();
+                },
+                "retry"
+            }
+        },
+        None => rsx! {
+            button {
+                class: "text-blue-500 hover:underline focus:outline-none",
+                onclick: move |_| {
+                    action.call();
+                },
+                "show"
+            }
+        },
+    }
+}
+
+#[component]
+fn PageEncodingsCell(parquet_reader: Arc<ParquetResolved>, column_id: usize) -> Element {
+    let mut action = use_action(move || {
+        let parquet_reader = parquet_reader.clone();
+        async move { calculate_page_encodings(parquet_reader, column_id).await }
+    });
+
+    if action.pending() {
+        return rsx! { span { class: "text-gray-400", "..." } };
+    }
+
+    match action.value() {
+        Some(Ok(enc)) => rsx! { span { "{enc.read()}" } },
+        Some(Err(_e)) => rsx! {
+            button {
+                class: "text-red-500 hover:underline focus:outline-none",
+                onclick: move |_| {
+                    action.call();
+                },
+                "retry"
+            }
+        },
+        None => rsx! {
+            button {
+                class: "text-blue-500 hover:underline focus:outline-none",
+                onclick: move |_| {
+                    action.call();
+                },
+                "show"
+            }
+        },
+    }
 }
 
 #[component]
@@ -276,169 +331,48 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
         }
     }
 
-    let arrow_field_nodes: Vec<ArrowFieldNode> = schema
+    let schema_rows: Vec<SchemaRow> = schema
         .fields()
         .iter()
         .enumerate()
-        .map(|(idx, field)| ArrowFieldNode {
-            index: idx,
-            field: field.as_ref().clone(),
-            parquet_columns: columns_by_root
+        .map(|(arrow_index, field)| {
+            let field = field.as_ref();
+            let parquet_columns_for_field: Vec<ParquetColumnDisplay> = columns_by_root
                 .get(field.name())
-                .cloned()
-                .unwrap_or_default(),
+                .into_iter()
+                .flatten()
+                .filter_map(|&parquet_idx| parquet_columns.get(parquet_idx).cloned())
+                .collect();
+
+            SchemaRow {
+                arrow_index,
+                arrow_name: field.name().to_string(),
+                arrow_type: format_arrow_type(field.data_type()),
+                arrow_nullable: if field.is_nullable() {
+                    "Y".to_string()
+                } else {
+                    "N".to_string()
+                },
+                parquet_columns: parquet_columns_for_field,
+            }
         })
         .collect();
 
-    let schema_rows: Vec<SchemaRow> = arrow_field_nodes
+    let render_rows: Vec<(SchemaRow, Option<ParquetColumnDisplay>, bool, usize)> = schema_rows
         .iter()
-        .flat_map(|arrow_node| {
-            let arrow_index = arrow_node.index;
-            let arrow_name = arrow_node.field.name().to_string();
-            let arrow_type = format_arrow_type(arrow_node.field.data_type());
-            let arrow_nullable = if arrow_node.field.is_nullable() {
-                "Y"
+        .flat_map(|row| {
+            let group_size = row.parquet_columns.len().max(1);
+            if row.parquet_columns.is_empty() {
+                vec![(row.clone(), None, true, group_size)]
             } else {
-                "N"
-            }
-            .to_string();
-
-            if arrow_node.parquet_columns.is_empty() {
-                vec![SchemaRow {
-                    arrow_index,
-                    arrow_name,
-                    arrow_type,
-                    arrow_nullable,
-                    parquet_id: None,
-                    parquet_name: None,
-                    parquet_path: None,
-                    parquet_type: None,
-                    logical_size: None,
-                    encoded_size: None,
-                    compressed_size: None,
-                    compression_ratio: None,
-                    logical_compression_ratio: None,
-                    null_count: None,
-                    encodings: None,
-                    compression_summary: None,
-                }]
-            } else {
-                arrow_node
-                    .parquet_columns
+                row.parquet_columns
                     .iter()
-                    .map(|&parquet_idx| {
-                        let pq_col = &parquet_columns[parquet_idx];
-                        SchemaRow {
-                            arrow_index,
-                            arrow_name: arrow_name.clone(),
-                            arrow_type: arrow_type.clone(),
-                            arrow_nullable: arrow_nullable.clone(),
-                            parquet_id: Some(pq_col.id),
-                            parquet_name: Some(pq_col.name.clone()),
-                            parquet_path: Some(pq_col.path.join(".")),
-                            parquet_type: Some(pq_col.physical_type.clone()),
-                            logical_size: pq_col.logical_size,
-                            encoded_size: Some(pq_col.encoded_size),
-                            compressed_size: Some(pq_col.compressed_size),
-                            compression_ratio: pq_col.compression_ratio,
-                            logical_compression_ratio: pq_col.logical_compression_ratio,
-                            null_count: Some(pq_col.null_count),
-                            encodings: Some(pq_col.encodings.clone()),
-                            compression_summary: Some(pq_col.compression_summary.clone()),
-                        }
-                    })
-                    .collect()
+                    .enumerate()
+                    .map(|(offset, pq)| (row.clone(), Some(pq.clone()), offset == 0, group_size))
+                    .collect::<Vec<_>>()
             }
         })
         .collect();
-
-    let grouped_rows: Vec<(SchemaRow, bool, usize)> = {
-        let mut result = Vec::new();
-        let mut i = 0;
-
-        while i < schema_rows.len() {
-            let current_arrow_index = schema_rows[i].arrow_index;
-            let group_start = i;
-            while i < schema_rows.len() && schema_rows[i].arrow_index == current_arrow_index {
-                i += 1;
-            }
-            let group_size = i - group_start;
-
-            for (offset, row) in schema_rows[group_start..i].iter().enumerate() {
-                let is_first_in_group = offset == 0;
-                result.push((row.clone(), is_first_in_group, group_size));
-            }
-        }
-        result
-    };
-
-    let distinct_counts = use_signal(|| vec![None::<u32>; arrow_field_nodes.len()]);
-    let distinct_loading = use_signal(|| vec![false; arrow_field_nodes.len()]);
-    let page_encodings = use_signal(|| vec![None::<String>; parquet_column_count]);
-    let page_loading = use_signal(|| vec![false; parquet_column_count]);
-
-    let on_show_distinct: Rc<dyn Fn(usize, String)> = Rc::new({
-        let registered_table_name = registered_table_name.clone();
-        move |field_index: usize, field_name: String| {
-            let registered_table_name = registered_table_name.clone();
-            spawn(async move {
-                let mut distinct_counts = distinct_counts;
-                let mut distinct_loading = distinct_loading;
-                let mut loading = distinct_loading();
-                if loading.get(field_index).copied().unwrap_or(false)
-                    || distinct_counts()[field_index].is_some()
-                {
-                    return;
-                }
-                loading[field_index] = true;
-                distinct_loading.set(loading);
-
-                let cnt = calculate_distinct(&field_name, &registered_table_name).await;
-
-                let mut counts = distinct_counts();
-                counts[field_index] = Some(cnt);
-                distinct_counts.set(counts);
-
-                let mut loading = distinct_loading();
-                loading[field_index] = false;
-                distinct_loading.set(loading);
-            });
-        }
-    });
-
-    let on_show_page_encodings: Rc<dyn Fn(usize)> = Rc::new({
-        let parquet_reader = parquet_reader.clone();
-        move |column_id: usize| {
-            let parquet_reader = parquet_reader.clone();
-            spawn(async move {
-                let mut page_encodings = page_encodings;
-                let mut page_loading = page_loading;
-                let mut loading = page_loading();
-                if loading.get(column_id).copied().unwrap_or(false)
-                    || page_encodings()[column_id].is_some()
-                {
-                    return;
-                }
-                loading[column_id] = true;
-                page_loading.set(loading);
-
-                let encodings = calculate_page_encodings(parquet_reader, column_id).await;
-
-                let mut values = page_encodings();
-                values[column_id] = Some(encodings);
-                page_encodings.set(values);
-
-                let mut loading = page_loading();
-                loading[column_id] = false;
-                page_loading.set(loading);
-            });
-        }
-    });
-
-    let distinct_counts_now = distinct_counts();
-    let distinct_loading_now = distinct_loading();
-    let page_encodings_now = page_encodings();
-    let page_loading_now = page_loading();
 
     rsx! {
         Panel { class: Some("rounded-lg p-3 flex-1 overflow-auto space-y-4".to_string()),
@@ -459,7 +393,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                 th { class: "py-2 px-3 font-medium", "Arrow Column" }
                                 th { class: "py-2 px-3 font-medium", "Arrow Type" }
                                 th { class: "py-2 px-3 font-medium", "Null?" }
-                                th { class: "py-2 px-3 font-medium border-r-2", "Distinct" }
+                                th { class: "py-2 px-3 font-medium border-r-2 border-gray-300",
+                                    "Distinct"
+                                }
                                 th { class: "py-2 px-3 font-medium", "Parquet Column" }
                                 th { class: "py-2 px-3 font-medium", "Parquet Type" }
                                 th { class: "py-2 px-3 font-medium", "Logical (L)*" }
@@ -474,8 +410,10 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                             }
                         }
                         tbody {
-                            for (row , is_first_in_group , group_size) in grouped_rows.into_iter() {
-                                tr { class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                            for (row , pq_col , is_first_in_group , group_size) in render_rows.into_iter() {
+                                tr {
+                                    key: "{row.arrow_index}-{pq_col.as_ref().map(|c| c.id).unwrap_or(usize::MAX)}",
+                                    class: "align-top hover:bg-gray-50 border-b border-gray-100",
                                     if is_first_in_group {
                                         td {
                                             class: "py-1.5 px-3",
@@ -504,47 +442,26 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             }
                                         }
                                         td {
-                                            class: "py-1.5 px-3 border-r-2",
+                                            class: "py-1.5 px-3 border-r-2 border-gray-300",
                                             rowspan: "{group_size}",
-                                            match distinct_counts_now[row.arrow_index] {
-                                                Some(cnt) => rsx! {
-                                                    span { class: "font-mono text-gray-800", "{cnt}" }
-                                                },
-                                                None => {
-                                                    if distinct_loading_now[row.arrow_index] {
-                                                        rsx! {
-                                                            span { class: "text-gray-400", "..." }
-                                                        }
-                                                    } else {
-                                                        let field_index = row.arrow_index;
-                                                        let field_name = row.arrow_name.clone();
-                                                        let on_show_distinct = on_show_distinct.clone();
-                                                        rsx! {
-                                                            button {
-                                                                class: "text-blue-500 hover:underline focus:outline-none",
-                                                                onclick: move |_| (on_show_distinct)(field_index, field_name.clone()),
-                                                                "show"
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                            DistinctCell {
+                                                field_name: row.arrow_name.clone(),
+                                                registered_table_name: registered_table_name.clone(),
                                             }
                                         }
                                     }
 
                                     td { class: "py-1.5 px-3",
-                                        if let Some(name) = row.parquet_name.as_ref() {
+                                        if let Some(pq_col) = pq_col.as_ref() {
                                             div { class: "flex flex-col gap-0.5",
                                                 span { class: "font-mono text-[11px] text-gray-500",
-                                                    "#{row.parquet_id.unwrap_or_default()}"
+                                                    "#{pq_col.id}"
                                                 }
                                                 span { class: "font-semibold text-gray-900",
-                                                    "{name}"
+                                                    "{pq_col.name}"
                                                 }
-                                                if let Some(path) = row.parquet_path.as_ref() {
-                                                    span { class: "font-mono text-[10px] text-gray-400 break-all",
-                                                        "{path}"
-                                                    }
+                                                span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                    "{pq_col.path.join(\".\")}"
                                                 }
                                             }
                                         } else {
@@ -552,58 +469,41 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                         }
                                     }
                                     td { class: "py-1.5 px-3",
-                                        "{row.parquet_type.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                        "{pq_col.as_ref().map(|c| c.physical_type.clone()).unwrap_or_else(|| \"-\".to_string())}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(row.logical_size)}"
+                                        "{format_data_size(pq_col.as_ref().and_then(|c| c.logical_size))}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(row.encoded_size)}"
+                                        "{format_data_size(pq_col.as_ref().map(|c| c.encoded_size))}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(row.compressed_size)}"
+                                        "{format_data_size(pq_col.as_ref().map(|c| c.compressed_size))}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{format_ratio(row.compression_ratio)}"
+                                        "{format_ratio(pq_col.as_ref().and_then(|c| c.compression_ratio))}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{format_ratio(row.logical_compression_ratio)}"
+                                        "{format_ratio(pq_col.as_ref().and_then(|c| c.logical_compression_ratio))}"
                                     }
                                     td { class: "py-1.5 px-3 font-mono",
-                                        "{row.null_count.map(|v| v.to_string()).unwrap_or_else(|| \"-\".to_string())}"
+                                        "{pq_col.as_ref().map(|c| c.null_count.to_string()).unwrap_or_else(|| \"-\".to_string())}"
                                     }
                                     td { class: "py-1.5 px-3",
-                                        "{row.encodings.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                        "{pq_col.as_ref().map(|c| c.encodings.clone()).unwrap_or_else(|| \"-\".to_string())}"
                                     }
                                     td { class: "py-1.5 px-3",
-                                        if let Some(column_id) = row.parquet_id {
-                                            match page_encodings_now[column_id].as_ref() {
-                                                Some(enc) => rsx! {
-                                                    span { "{enc}" }
-                                                },
-                                                None => {
-                                                    if page_loading_now[column_id] {
-                                                        rsx! {
-                                                            span { class: "text-gray-400", "..." }
-                                                        }
-                                                    } else {
-                                                        let on_show_page_encodings = on_show_page_encodings.clone();
-                                                        rsx! {
-                                                            button {
-                                                                class: "text-blue-500 hover:underline focus:outline-none",
-                                                                onclick: move |_| (on_show_page_encodings)(column_id),
-                                                                "show"
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                        if let Some(pq_col) = pq_col.as_ref() {
+                                            PageEncodingsCell {
+                                                parquet_reader: parquet_reader.clone(),
+                                                column_id: pq_col.id,
                                             }
                                         } else {
                                             span { class: "text-gray-400", "-" }
                                         }
                                     }
                                     td { class: "py-1.5 px-3",
-                                        "{row.compression_summary.clone().unwrap_or_else(|| \"-\".to_string())}"
+                                        "{pq_col.as_ref().map(|c| c.compression_summary.clone()).unwrap_or_else(|| \"-\".to_string())}"
                                     }
                                 }
                             }
