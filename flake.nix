@@ -28,11 +28,11 @@
         };
          # Fetch daisyUI bundle files
         daisyui-bundle = pkgs.fetchurl {
-          url = "https://github.com/saadeghi/daisyui/releases/v5.5.13/download/daisyui.mjs";
+          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.13/daisyui.mjs";
           sha256 = "sha256-dH6epo+aSV+eeh3uQbxd7MkWlG+6hCaGaknQ4Bnljj4=";
         };
         daisyui-theme-bundle = pkgs.fetchurl {
-          url = "https://github.com/saadeghi/daisyui/releases/v5.5.13/download/daisyui-theme.mjs";
+          url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.13/daisyui-theme.mjs";
           sha256 = "sha256-iiUODarjHRxAD+tyOPh95xhHJELC40oczt+dsDo86yE=";
         };
       in {
