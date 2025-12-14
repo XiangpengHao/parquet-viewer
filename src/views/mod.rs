@@ -1,4 +1,5 @@
 pub mod metadata;
+pub mod main_layout;
 pub mod parquet_reader;
 mod plan_visualizer;
 pub mod query_results;

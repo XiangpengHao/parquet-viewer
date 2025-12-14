@@ -4,8 +4,9 @@ use gloo_net::http::Request;
 use serde_json::json;
 
 use crate::{
-    DEFAULT_QUERY, parquet_ctx::ParquetResolved, utils::get_stored_value,
-    views::settings::ANTHROPIC_API_KEY,
+    parquet_ctx::ParquetResolved,
+    utils::get_stored_value,
+    views::{main_layout::DEFAULT_QUERY, settings::ANTHROPIC_API_KEY},
 };
 
 fn nl_cache(key: &str, file_name: &str) -> Option<String> {

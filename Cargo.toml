@@ -54,6 +54,7 @@ gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.1.6"
 tracing = "0.1.43"
+dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 
 [profile.release]
 strip = true

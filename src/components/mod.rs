@@ -9,3 +9,4 @@ pub use page_info::PageInfo;
 pub use statistics::StatisticsDisplay;
 
 pub use query_input::QueryInput;
+pub mod toast;

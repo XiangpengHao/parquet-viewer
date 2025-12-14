@@ -1778,7 +1778,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "generational-box",
- "lazy-js-bundle",
+ "lazy-js-bundle 0.7.2",
  "serde",
  "serde_json",
  "tracing",
@@ -1928,7 +1928,7 @@ dependencies = [
  "futures-util",
  "generational-box",
  "keyboard-types",
- "lazy-js-bundle",
+ "lazy-js-bundle 0.7.2",
  "rustversion",
  "tracing",
 ]
@@ -1952,7 +1952,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5437a89d3ef7edfebc0f10acb065f1709cb7ffb678e3a4bb1416706d71f7c67"
 dependencies = [
  "js-sys",
- "lazy-js-bundle",
+ "lazy-js-bundle 0.7.2",
  "rustc-hash 2.1.1",
  "sledgehammer_bindgen",
  "sledgehammer_utils",
@@ -1971,6 +1971,19 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-wasm",
+]
+
+[[package]]
+name = "dioxus-primitives"
+version = "0.0.1"
+source = "git+https://github.com/DioxusLabs/components#7e5862e574aeceb3a3a021d042c165a839f1860b"
+dependencies = [
+ "dioxus",
+ "dioxus-sdk-time",
+ "lazy-js-bundle 0.6.2",
+ "num-integer",
+ "time",
+ "tracing",
 ]
 
 [[package]]
@@ -2019,6 +2032,18 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.111",
+]
+
+[[package]]
+name = "dioxus-sdk-time"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80c25ae93a3f72e734873b97fbd09d9b1b6adff97205fb0ffd8543e3564fb78e"
+dependencies = [
+ "dioxus",
+ "futures",
+ "gloo-timers",
+ "tokio",
 ]
 
 [[package]]
@@ -2081,7 +2106,7 @@ dependencies = [
  "generational-box",
  "gloo-timers",
  "js-sys",
- "lazy-js-bundle",
+ "lazy-js-bundle 0.7.2",
  "rustc-hash 2.1.1",
  "send_wrapper",
  "serde",
@@ -2913,6 +2938,12 @@ dependencies = [
 
 [[package]]
 name = "lazy-js-bundle"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49596223b9d9d4947a14a25c142a6e7d8ab3f27eb3ade269d238bb8b5c267e2"
+
+[[package]]
+name = "lazy-js-bundle"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21972afec4627b7ba0de60b5269585b5ac2f56d559b0696f57eee6daf8a51b68"
@@ -3542,6 +3573,7 @@ dependencies = [
  "console_error_panic_hook",
  "datafusion",
  "dioxus",
+ "dioxus-primitives",
  "futures",
  "getrandom 0.3.4",
  "gloo-net",
