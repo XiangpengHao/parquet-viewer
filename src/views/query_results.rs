@@ -177,8 +177,8 @@ pub fn QueryResultView(
                                 div { class: "mb-4", {physical_plan_view(result.physical_plan.clone())} }
                             }
 
-                
-                
+
+
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
                                 table { class: "min-w-full bg-white table-fixed",
                                     thead { class: "sticky top-0 z-10 bg-gray-50",
