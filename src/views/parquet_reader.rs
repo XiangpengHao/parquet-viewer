@@ -289,21 +289,6 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
                             "From S3"
                         }
                     }
-                    div { class: "text-xs text-gray-400",
-                        a {
-                            href: "https://xiangpeng.systems/fund/",
-                            target: "_blank",
-                            class: "text-blue-400 hover:text-blue-600",
-                            "Funded"
-                        }
-                        " by "
-                        a {
-                            href: "https://www.influxdata.com",
-                            target: "_blank",
-                            class: "text-blue-400 hover:text-blue-600",
-                            "InfluxData"
-                        }
-                    }
                 }
             }
             {

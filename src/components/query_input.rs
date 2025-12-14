@@ -1,8 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::{
-    components::ui::{BUTTON_PRIMARY, INPUT_BASE},
-};
+use crate::components::ui::{BUTTON_PRIMARY, INPUT_BASE};
 
 #[component]
 pub fn QueryInput(

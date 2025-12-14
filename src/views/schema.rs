@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::AsArray;
 use arrow::datatypes::Int64Type;
 use byte_unit::{Byte, UnitType};
@@ -99,8 +99,7 @@ fn format_ratio(value: Option<f32>) -> String {
 async fn calculate_distinct(column_name: &str, registered_table_name: &str) -> Result<u32> {
     let distinct_query =
         format!("SELECT COUNT(DISTINCT \"{column_name}\") from \"{registered_table_name}\"");
-    let (results, _) = execute_query_inner(&distinct_query, &SESSION_CTX)
-        .await?;
+    let (results, _) = execute_query_inner(&distinct_query, &SESSION_CTX).await?;
     let first_batch = results
         .first()
         .ok_or_else(|| anyhow!("No record batch returned for distinct count"))?;
@@ -168,7 +167,9 @@ fn DistinctCell(field_name: String, registered_table_name: String) -> Element {
     });
 
     if action.pending() {
-        return rsx! { span { class: "text-gray-400", "..." } };
+        return rsx! {
+            span { class: "text-gray-400", "..." }
+        };
     }
 
     match action.value() {
@@ -204,11 +205,15 @@ fn PageEncodingsCell(parquet_reader: Arc<ParquetResolved>, column_id: usize) -> 
     });
 
     if action.pending() {
-        return rsx! { span { class: "text-gray-400", "..." } };
+        return rsx! {
+            span { class: "text-gray-400", "..." }
+        };
     }
 
     match action.value() {
-        Some(Ok(enc)) => rsx! { span { "{enc.read()}" } },
+        Some(Ok(enc)) => rsx! {
+            span { "{enc.read()}" }
+        },
         Some(Err(_e)) => rsx! {
             button {
                 class: "text-red-500 hover:underline focus:outline-none",
@@ -358,22 +363,6 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
         })
         .collect();
 
-    let render_rows: Vec<(SchemaRow, Option<ParquetColumnDisplay>, bool, usize)> = schema_rows
-        .iter()
-        .flat_map(|row| {
-            let group_size = row.parquet_columns.len().max(1);
-            if row.parquet_columns.is_empty() {
-                vec![(row.clone(), None, true, group_size)]
-            } else {
-                row.parquet_columns
-                    .iter()
-                    .enumerate()
-                    .map(|(offset, pq)| (row.clone(), Some(pq.clone()), offset == 0, group_size))
-                    .collect::<Vec<_>>()
-            }
-        })
-        .collect();
-
     rsx! {
         Panel { class: Some("rounded-lg p-3 flex-1 overflow-auto space-y-4".to_string()),
             SectionHeader {
@@ -382,128 +371,161 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                 class: Some("mb-1".to_string()),
                 trailing: None,
             }
-
-            if schema_rows.is_empty() {
-                div { class: "text-sm text-gray-500", "No Arrow columns found in this file." }
-            } else {
-                div { class: "rounded-lg border border-gray-200 bg-white overflow-x-auto",
-                    table { class: "min-w-full text-xs",
-                        thead { class: "sticky top-0 bg-gray-50 z-10",
-                            tr { class: "text-[11px] uppercase tracking-wide text-gray-500 text-left border-b-2 border-gray-300",
-                                th { class: "py-2 px-3 font-medium", "Arrow Column" }
-                                th { class: "py-2 px-3 font-medium", "Arrow Type" }
-                                th { class: "py-2 px-3 font-medium", "Null?" }
-                                th { class: "py-2 px-3 font-medium border-r-2 border-gray-300",
-                                    "Distinct"
-                                }
-                                th { class: "py-2 px-3 font-medium", "Parquet Column" }
-                                th { class: "py-2 px-3 font-medium", "Parquet Type" }
-                                th { class: "py-2 px-3 font-medium", "Logical (L)*" }
-                                th { class: "py-2 px-3 font-medium", "Encoded (E)*" }
-                                th { class: "py-2 px-3 font-medium", "Compressed (C)*" }
-                                th { class: "py-2 px-3 font-medium", "E/C" }
-                                th { class: "py-2 px-3 font-medium", "L/C" }
-                                th { class: "py-2 px-3 font-medium", "Nulls" }
-                                th { class: "py-2 px-3 font-medium", "Encodings**" }
-                                th { class: "py-2 px-3 font-medium", "Page***" }
-                                th { class: "py-2 px-3 font-medium", "Compression" }
+            div { class: "rounded-lg border border-gray-200 bg-white overflow-x-auto",
+                table { class: "min-w-full text-xs",
+                    thead { class: "sticky top-0 bg-gray-50 z-10",
+                        tr { class: "text-[11px] uppercase tracking-wide text-gray-500 text-left border-b-2 border-gray-300",
+                            th { class: "py-2 px-3 font-medium", "Arrow Column" }
+                            th { class: "py-2 px-3 font-medium", "Arrow Type" }
+                            th { class: "py-2 px-3 font-medium", "Null?" }
+                            th { class: "py-2 px-3 font-medium border-r-2 border-gray-300",
+                                "Distinct"
                             }
+                            th { class: "py-2 px-3 font-medium", "Parquet Column" }
+                            th { class: "py-2 px-3 font-medium", "Parquet Type" }
+                            th { class: "py-2 px-3 font-medium", "Logical (L)*" }
+                            th { class: "py-2 px-3 font-medium", "Encoded (E)*" }
+                            th { class: "py-2 px-3 font-medium", "Compressed (C)*" }
+                            th { class: "py-2 px-3 font-medium", "E/C" }
+                            th { class: "py-2 px-3 font-medium", "L/C" }
+                            th { class: "py-2 px-3 font-medium", "Nulls" }
+                            th { class: "py-2 px-3 font-medium", "Encodings**" }
+                            th { class: "py-2 px-3 font-medium", "Page***" }
+                            th { class: "py-2 px-3 font-medium", "Compression" }
                         }
-                        tbody {
-                            for (row , pq_col , is_first_in_group , group_size) in render_rows.into_iter() {
-                                tr {
-                                    key: "{row.arrow_index}-{pq_col.as_ref().map(|c| c.id).unwrap_or(usize::MAX)}",
-                                    class: "align-top hover:bg-gray-50 border-b border-gray-100",
-                                    if is_first_in_group {
-                                        td {
-                                            class: "py-1.5 px-3",
-                                            rowspan: "{group_size}",
-                                            div { class: "flex flex-col gap-0.5",
-                                                span { class: "font-mono text-[11px] text-gray-500",
-                                                    "#{row.arrow_index}"
-                                                }
-                                                span { class: "font-semibold text-gray-900",
-                                                    "{row.arrow_name}"
-                                                }
-                                            }
-                                        }
-                                        td {
-                                            class: "py-1.5 px-3",
-                                            rowspan: "{group_size}",
-                                            div { class: "font-mono text-gray-800 break-all",
-                                                "{row.arrow_type}"
-                                            }
-                                        }
-                                        td {
-                                            class: "py-1.5 px-3",
-                                            rowspan: "{group_size}",
-                                            span { class: "font-semibold text-gray-700",
-                                                "{row.arrow_nullable}"
-                                            }
-                                        }
-                                        td {
-                                            class: "py-1.5 px-3 border-r-2 border-gray-300",
-                                            rowspan: "{group_size}",
-                                            DistinctCell {
-                                                field_name: row.arrow_name.clone(),
-                                                registered_table_name: registered_table_name.clone(),
-                                            }
-                                        }
-                                    }
+                    }
+                    tbody {
+                        for row in schema_rows.iter() {
+                            {
+                                let group_size = row.parquet_columns.len().max(1);
+                                if row.parquet_columns.is_empty() {
+                                    rsx! {
+                                        tr {
+                                            key: "{row.arrow_index}-none",
+                                            class: "align-top hover:bg-gray-50 border-b border-gray-100",
 
-                                    td { class: "py-1.5 px-3",
-                                        if let Some(pq_col) = pq_col.as_ref() {
-                                            div { class: "flex flex-col gap-0.5",
-                                                span { class: "font-mono text-[11px] text-gray-500",
-                                                    "#{pq_col.id}"
-                                                }
-                                                span { class: "font-semibold text-gray-900",
-                                                    "{pq_col.name}"
-                                                }
-                                                span { class: "font-mono text-[10px] text-gray-400 break-all",
-                                                    "{pq_col.path.join(\".\")}"
+
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+
+                                                div { class: "flex flex-col gap-0.5",
+                                                    span { class: "font-mono text-[11px] text-gray-500", "#{row.arrow_index}" }
+                                                    span { class: "font-semibold text-gray-900", "{row.arrow_name}" }
                                                 }
                                             }
-                                        } else {
-                                            span { class: "text-gray-400", "-" }
-                                        }
-                                    }
-                                    td { class: "py-1.5 px-3",
-                                        "{pq_col.as_ref().map(|c| c.physical_type.clone()).unwrap_or_else(|| \"-\".to_string())}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(pq_col.as_ref().and_then(|c| c.logical_size))}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(pq_col.as_ref().map(|c| c.encoded_size))}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{format_data_size(pq_col.as_ref().map(|c| c.compressed_size))}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{format_ratio(pq_col.as_ref().and_then(|c| c.compression_ratio))}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{format_ratio(pq_col.as_ref().and_then(|c| c.logical_compression_ratio))}"
-                                    }
-                                    td { class: "py-1.5 px-3 font-mono",
-                                        "{pq_col.as_ref().map(|c| c.null_count.to_string()).unwrap_or_else(|| \"-\".to_string())}"
-                                    }
-                                    td { class: "py-1.5 px-3",
-                                        "{pq_col.as_ref().map(|c| c.encodings.clone()).unwrap_or_else(|| \"-\".to_string())}"
-                                    }
-                                    td { class: "py-1.5 px-3",
-                                        if let Some(pq_col) = pq_col.as_ref() {
-                                            PageEncodingsCell {
-                                                parquet_reader: parquet_reader.clone(),
-                                                column_id: pq_col.id,
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                                div { class: "font-mono text-gray-800 break-all", "{row.arrow_type}" }
                                             }
-                                        } else {
-                                            span { class: "text-gray-400", "-" }
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                                span { class: "font-semibold text-gray-700", "{row.arrow_nullable}" }
+                                            }
+                                            td {
+                                                class: "py-1.5 px-3 border-r-2 border-gray-300",
+                                                rowspan: "{group_size}",
+                                                DistinctCell {
+                                                    field_name: row.arrow_name.clone(),
+                                                    registered_table_name: registered_table_name.clone(),
+                                                }
+                                            }
+
+
+                                            td { class: "py-1.5 px-3",
+
+                                                span { class: "text-gray-400", "-" }
+                                            }
+                                            td { class: "py-1.5 px-3", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3 font-mono", "-" }
+                                            td { class: "py-1.5 px-3", "-" }
+                                            td { class: "py-1.5 px-3",
+                                                span { class: "text-gray-400", "-" }
+                                            }
+                                            td { class: "py-1.5 px-3", "-" }
                                         }
                                     }
-                                    td { class: "py-1.5 px-3",
-                                        "{pq_col.as_ref().map(|c| c.compression_summary.clone()).unwrap_or_else(|| \"-\".to_string())}"
+                                } else {
+                                    let first_pq_col = &row.parquet_columns[0];
+                                    rsx! {
+                                        tr {
+                                            key: "{row.arrow_index}-{first_pq_col.id}",
+                                            class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                                div { class: "flex flex-col gap-0.5",
+                                                    span { class: "font-mono text-[11px] text-gray-500", "#{row.arrow_index}" }
+                                                    span { class: "font-semibold text-gray-900", "{row.arrow_name}" }
+                                                }
+                                            }
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                                div { class: "font-mono text-gray-800 break-all", "{row.arrow_type}" }
+                                            }
+                                            td { class: "py-1.5 px-3", rowspan: "{group_size}",
+                                                span { class: "font-semibold text-gray-700", "{row.arrow_nullable}" }
+                                            }
+                                            td {
+                                                class: "py-1.5 px-3 border-r-2 border-gray-300",
+                                                rowspan: "{group_size}",
+                                                DistinctCell {
+                                                    field_name: row.arrow_name.clone(),
+                                                    registered_table_name: registered_table_name.clone(),
+                                                }
+                                            }
+
+                                            td { class: "py-1.5 px-3",
+                                                div { class: "flex flex-col gap-0.5",
+                                                    span { class: "font-mono text-[11px] text-gray-500", "#{first_pq_col.id}" }
+                                                    span { class: "font-semibold text-gray-900", "{first_pq_col.name}" }
+                                                    span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                        "{first_pq_col.path.join(\".\")}"
+                                                    }
+                                                }
+                                            }
+                                            td { class: "py-1.5 px-3", "{first_pq_col.physical_type}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{format_data_size(first_pq_col.logical_size)}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{format_data_size(Some(first_pq_col.encoded_size))}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{format_data_size(Some(first_pq_col.compressed_size))}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{format_ratio(first_pq_col.compression_ratio)}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{format_ratio(first_pq_col.logical_compression_ratio)}" }
+                                            td { class: "py-1.5 px-3 font-mono", "{first_pq_col.null_count}" }
+                                            td { class: "py-1.5 px-3", "{first_pq_col.encodings}" }
+                                            td { class: "py-1.5 px-3",
+                                                PageEncodingsCell {
+                                                    parquet_reader: parquet_reader.clone(),
+                                                    column_id: first_pq_col.id,
+                                                }
+                                            }
+                                            td { class: "py-1.5 px-3", "{first_pq_col.compression_summary}" }
+                                        }
+
+                                        for pq_col in row.parquet_columns.iter().skip(1) {
+                                            tr {
+                                                key: "{row.arrow_index}-{pq_col.id}",
+                                                class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                                                td { class: "py-1.5 px-3",
+                                                    div { class: "flex flex-col gap-0.5",
+                                                        span { class: "font-mono text-[11px] text-gray-500", "#{pq_col.id}" }
+                                                        span { class: "font-semibold text-gray-900", "{pq_col.name}" }
+                                                        span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                            "{pq_col.path.join(\".\")}"
+                                                        }
+                                                    }
+                                                }
+                                                td { class: "py-1.5 px-3", "{pq_col.physical_type}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{format_data_size(pq_col.logical_size)}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{format_data_size(Some(pq_col.encoded_size))}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{format_data_size(Some(pq_col.compressed_size))}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{format_ratio(pq_col.compression_ratio)}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{format_ratio(pq_col.logical_compression_ratio)}" }
+                                                td { class: "py-1.5 px-3 font-mono", "{pq_col.null_count}" }
+                                                td { class: "py-1.5 px-3", "{pq_col.encodings}" }
+                                                td { class: "py-1.5 px-3",
+                                                    PageEncodingsCell { parquet_reader: parquet_reader.clone(), column_id: pq_col.id }
+                                                }
+                                                td { class: "py-1.5 px-3", "{pq_col.compression_summary}" }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -511,7 +533,6 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                     }
                 }
             }
-
             div { class: "text-xs text-gray-600 space-y-1",
                 p {
                     "*: "

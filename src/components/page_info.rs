@@ -15,16 +15,26 @@ fn index_display(index: Index) -> Element {
         Index::INT32(native_index) => index_table(native_index.indexes, |v: &i32| v.to_string()),
         Index::INT64(native_index) => index_table(native_index.indexes, |v: &i64| v.to_string()),
         Index::INT96(native_index) => {
-            index_table(native_index.indexes, |v: &parquet::data_type::Int96| format!("{v:?}"))
+            index_table(native_index.indexes, |v: &parquet::data_type::Int96| {
+                format!("{v:?}")
+            })
         }
-        Index::FLOAT(native_index) => index_table(native_index.indexes, |v: &f32| format!("{v:.6}")),
-        Index::DOUBLE(native_index) => index_table(native_index.indexes, |v: &f64| format!("{v:.6}")),
-        Index::BYTE_ARRAY(native_index) => index_table(native_index.indexes, |v: &parquet::data_type::ByteArray| {
-            String::from_utf8_lossy(v.data()).to_string()
-        }),
+        Index::FLOAT(native_index) => {
+            index_table(native_index.indexes, |v: &f32| format!("{v:.6}"))
+        }
+        Index::DOUBLE(native_index) => {
+            index_table(native_index.indexes, |v: &f64| format!("{v:.6}"))
+        }
+        Index::BYTE_ARRAY(native_index) => {
+            index_table(native_index.indexes, |v: &parquet::data_type::ByteArray| {
+                String::from_utf8_lossy(v.data()).to_string()
+            })
+        }
         Index::FIXED_LEN_BYTE_ARRAY(native_index) => index_table(
             native_index.indexes,
-            |v: &parquet::data_type::FixedLenByteArray| String::from_utf8_lossy(v.data()).to_string(),
+            |v: &parquet::data_type::FixedLenByteArray| {
+                String::from_utf8_lossy(v.data()).to_string()
+            },
         ),
     }
 }

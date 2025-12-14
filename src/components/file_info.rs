@@ -32,11 +32,13 @@ pub fn FileLevelInfo(metadata_display: crate::parquet_ctx::MetadataDisplay) -> E
     );
     let metadata_memory_size = format!(
         "{:.2}",
-        Byte::from_u64(metadata_display.metadata_memory_size).get_appropriate_unit(UnitType::Binary)
+        Byte::from_u64(metadata_display.metadata_memory_size)
+            .get_appropriate_unit(UnitType::Binary)
     );
     let bloom_filter_size = format!(
         "{:.2}",
-        Byte::from_u64(metadata_display.total_bloom_filter_size).get_appropriate_unit(UnitType::Binary)
+        Byte::from_u64(metadata_display.total_bloom_filter_size)
+            .get_appropriate_unit(UnitType::Binary)
     );
     let uncompressed_size = format!(
         "{:.2}",

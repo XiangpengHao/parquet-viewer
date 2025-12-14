@@ -38,7 +38,10 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                     trailing: Some(rsx! {
                         button {
                             class: "text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200",
-                            onclick: move |ev| { ev.stop_propagation(); on_close.call(()); },
+                            onclick: move |ev| {
+                                ev.stop_propagation();
+                                on_close.call(());
+                            },
                             aria_label: "Close",
                             svg {
                                 xmlns: "http://www.w3.org/2000/svg",
@@ -54,17 +57,24 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                 }
                             }
                         }
-                    })
+                    }),
                 }
 
-                div { class: "space-y-8 overflow-y-auto flex-1", style: "max-height: calc(90vh - 160px)",
+                div {
+                    class: "space-y-8 overflow-y-auto flex-1",
+                    style: "max-height: calc(90vh - 160px)",
                     div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
                         div { class: "bg-gray-50 p-4 rounded-lg",
                             h3 { class: "text-lg font-medium mb-5", "Natural Language to SQL" }
                             div { class: "mb-5",
                                 label { class: "block font-medium text-gray-700 mb-2",
                                     "Claude API Key"
-                                    a { href: "https://console.anthropic.com/account/keys", target: "_blank", class: "text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200", "(get key)" }
+                                    a {
+                                        href: "https://console.anthropic.com/account/keys",
+                                        target: "_blank",
+                                        class: "text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200",
+                                        "(get key)"
+                                    }
                                 }
                                 input {
                                     r#type: "password",
@@ -78,7 +88,12 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                 }
                                 p { class: "mt-3 text-gray-600 italic",
                                     "If no API key is provided, it uses Xiangpeng's personal token -- use reasonably and "
-                                    a { href: "https://github.com/XiangpengHao", class: "text-blue-500 hover:underline", target: "_blank", "consider donating" }
+                                    a {
+                                        href: "https://github.com/XiangpengHao",
+                                        class: "text-blue-500 hover:underline",
+                                        target: "_blank",
+                                        "consider donating"
+                                    }
                                     "; no data is collected, but CloudFlare may temporarily log the prompt and schema."
                                 }
                             }
@@ -88,7 +103,9 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                             h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
                             div { class: "space-y-3",
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1", "S3 Endpoint" }
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "S3 Endpoint"
+                                    }
                                     input {
                                         r#type: "text",
                                         class: "w-full {INPUT_BASE}",
@@ -101,7 +118,9 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1", "Access Key ID" }
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "Access Key ID"
+                                    }
                                     input {
                                         r#type: "text",
                                         class: "w-full {INPUT_BASE}",
@@ -114,7 +133,9 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1", "Secret Access Key" }
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "Secret Access Key"
+                                    }
                                     input {
                                         r#type: "password",
                                         class: "w-full {INPUT_BASE}",
@@ -134,11 +155,28 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                 div { class: "mt-3 pt-2 border-t border-gray-200 flex justify-between items-center",
                     div { class: "text-gray-600 text-left",
                         "Built by "
-                        a { href: "https://xiangpeng.systems", class: "text-blue-500", target: "_blank", "Xiangpeng Hao" }
+                        a {
+                            href: "https://xiangpeng.systems",
+                            class: "text-blue-500",
+                            target: "_blank",
+                            "Xiangpeng Hao"
+                        }
                         " as a part of "
-                        a { href: "https://github.com/XiangpengHao/liquid-cache", class: "text-blue-500", target: "_blank", "LiquidCache" }
+                        a {
+                            href: "https://github.com/XiangpengHao/liquid-cache",
+                            class: "text-blue-500",
+                            target: "_blank",
+                            "LiquidCache"
+                        }
                     }
-                    button { class: "{BUTTON_PRIMARY}", onclick: move |ev| { ev.stop_propagation(); on_close.call(()); }, "Done" }
+                    button {
+                        class: "{BUTTON_PRIMARY}",
+                        onclick: move |ev| {
+                            ev.stop_propagation();
+                            on_close.call(());
+                        },
+                        "Done"
+                    }
                 }
             }
         }
