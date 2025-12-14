@@ -52,6 +52,7 @@ jobs:
           nix develop --command bash -c "
             trunk build --release
           "
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
@@ -60,6 +61,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
+      
       - name: Deploy to GitHub Pages 🚀
         id: deploy
         uses: actions/deploy-pages@v4

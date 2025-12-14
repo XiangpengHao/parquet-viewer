@@ -42,6 +42,7 @@ jobs:
             cargo clippy -- -D warnings && \
             wasm-pack test --headless --firefox
           "
+      
       - name: Set result output
         id: result
         run: echo "success=true" >> $GITHUB_OUTPUT 
