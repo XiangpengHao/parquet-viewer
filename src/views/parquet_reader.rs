@@ -4,25 +4,16 @@ use datafusion::prelude::SessionContext;
 use dioxus::prelude::*;
 use object_store::ObjectStore;
 use object_store::path::Path;
-use object_store_opendal::OpendalStore;
-use opendal::{Operator, services::Http, services::S3};
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
-use url::Url;
 use url::form_urlencoded;
-use web_sys::js_sys;
 
-use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
+use crate::components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel};
+use crate::parquet_ctx::{MetadataSummary, ParquetResolved};
+use crate::storage::WebFileObjectStore;
+use crate::storage::readers;
 use crate::utils::{get_stored_value, save_to_storage};
-use crate::views::web_file_store::WebFileObjectStore;
-use crate::{
-    components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel},
-    object_store_cache::ObjectStoreCache,
-};
 
-const S3_ENDPOINT_KEY: &str = "s3_endpoint";
-const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
-const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 const S3_BUCKET_KEY: &str = "s3_bucket";
 const S3_REGION_KEY: &str = "s3_region";
 const S3_FILE_PATH_KEY: &str = "s3_file_path";
@@ -174,7 +165,7 @@ impl ParquetUnresolved {
             registered_table_name.clone(),
             self.path_relative_to_object_store,
             self.object_store_url,
-            MetadataDisplay::from_metadata(
+            MetadataSummary::from_metadata(
                 metadata,
                 metadata_memory_size as u64,
                 actual_file_size,
@@ -182,49 +173,6 @@ impl ParquetUnresolved {
             )?,
         ))
     }
-}
-
-pub(crate) fn read_from_vscode(
-    obj: js_sys::Object,
-    call_back: impl Fn(Result<ParquetUnresolved>) + 'static,
-) {
-    let url = js_sys::Reflect::get(&obj, &"url".into()).unwrap();
-    let url = url.as_string().unwrap();
-    let file_name = js_sys::Reflect::get(&obj, &"filename".into()).unwrap();
-    let file_name = file_name.as_string().unwrap();
-
-    spawn({
-        let url = url.clone();
-        let file_name = file_name.clone();
-        tracing::info!("Reading from VS Code: {}, {}", url, file_name);
-        async move {
-            let result = async {
-                let url = Url::parse(&url)?;
-                let endpoint = format!(
-                    "{}://{}{}",
-                    url.scheme(),
-                    url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
-                    url.port().map_or("".to_string(), |p| format!(":{p}"))
-                );
-                let path = url.path().to_string();
-
-                let builder = Http::default().endpoint(&endpoint);
-                let op = Operator::new(builder)?;
-                let op = op.finish();
-                let object_store = Arc::new(OpendalStore::new(op));
-                let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-                ParquetUnresolved::try_new(
-                    file_name.clone(),
-                    Path::parse(path)?,
-                    object_store_url,
-                    object_store,
-                )
-            }
-            .await;
-
-            call_back(result);
-        }
-    });
 }
 
 #[component]
@@ -253,7 +201,7 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
     if !loaded_url() {
         loaded_url.set(true);
         if let Some(url) = query_param("url") {
-            read_call_back.call(read_from_url(&url));
+            read_call_back.call(readers::read_from_url(&url));
         }
     }
 
@@ -364,48 +312,6 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
     }
 }
 
-/// Reads a parquet file from a URL and returns a ParquetInfo object.
-/// This function parses the URL, creates an HTTP object store, and returns
-/// the necessary information to read the parquet file.
-pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
-    let url = Url::parse(url_str)?;
-    let endpoint = format!(
-        "{}://{}{}",
-        url.scheme(),
-        url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
-        url.port().map_or("".to_string(), |p| format!(":{p}"))
-    );
-    let path = url.path().to_string();
-
-    let table_name = path
-        .split('/')
-        .next_back()
-        .unwrap_or("uploaded.parquet")
-        .to_string();
-
-    let builder = {
-        let mut http_builder = Http::default().endpoint(&endpoint);
-        let username = url.username();
-        if !username.is_empty() {
-            http_builder = http_builder.username(username);
-        }
-        if let Some(password) = url.password() {
-            http_builder = http_builder.password(password);
-        }
-        http_builder
-    };
-    let op = Operator::new(builder)?;
-    let op = op.finish();
-    let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
-    let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-    ParquetUnresolved::try_new(
-        table_name.clone(),
-        Path::parse(path)?,
-        object_store_url,
-        object_store,
-    )
-}
-
 #[component]
 pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let mut url = use_signal(|| DEFAULT_URL.to_string());
@@ -416,7 +322,7 @@ pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Ele
                 class: "w-full",
                 onsubmit: move |ev| {
                     ev.prevent_default();
-                    read_call_back.call(read_from_url(&url()));
+                    read_call_back.call(readers::read_from_url(&url()));
                 },
                 div { class: "flex flex-col gap-2 sm:flex-row sm:items-center",
                     input {
@@ -433,42 +339,6 @@ pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Ele
     }
 }
 
-fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<ParquetUnresolved> {
-    let endpoint =
-        get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string());
-    let access_key_id = get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default();
-    let secret_key = get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default();
-
-    // Validate inputs
-    if endpoint.is_empty() || s3_bucket.is_empty() || s3_file_path.is_empty() {
-        return Err(anyhow::anyhow!("All fields except region are required",));
-    }
-    let file_name = s3_file_path
-        .split('/')
-        .next_back()
-        .unwrap_or("uploaded.parquet")
-        .to_string();
-
-    let cfg = S3::default()
-        .endpoint(&endpoint)
-        .access_key_id(&access_key_id)
-        .secret_access_key(&secret_key)
-        .bucket(s3_bucket)
-        .region(s3_region);
-
-    let path = format!("s3://{s3_bucket}");
-
-    let op = Operator::new(cfg)?.finish();
-    let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
-    let object_store_url = ObjectStoreUrl::parse(&path)?;
-    ParquetUnresolved::try_new(
-        file_name.clone(),
-        Path::parse(s3_file_path)?,
-        object_store_url,
-        object_store.clone(),
-    )
-}
-
 #[component]
 fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
     let mut s3_bucket = use_signal(|| get_stored_value(S3_BUCKET_KEY).unwrap_or_default());
@@ -482,7 +352,8 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                 class: "space-y-4 w-full",
                 onsubmit: move |ev| {
                     ev.prevent_default();
-                    read_call_back.call(read_from_s3(&s3_bucket(), &s3_region(), &s3_file_path()));
+                    read_call_back
+                        .call(readers::read_from_s3(&s3_bucket(), &s3_region(), &s3_file_path()));
                 },
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
                     div {
@@ -540,46 +411,5 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_from_url_non_parquet() {
-        let url = "not-a-url";
-        let result = read_from_url(url);
-        assert!(result.is_err(), "Should fail for an invalid URL");
-
-        let url = "https://example.com/file.csv";
-        let result = read_from_url(url);
-
-        assert!(result.is_err(), "Should fail for non-parquet files");
-
-        let url = "file:///path/to/file.parquet";
-        let result = read_from_url(url);
-
-        assert!(result.is_err(), "Should fail for URLs without a host");
-    }
-
-    #[test]
-    fn test_read_from_url_valid_parquet_url() {
-        // This test uses a known public Parquet file
-        let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
-        let result = read_from_url(url);
-
-        let result = result.expect("Should successfully parse a valid parquet URL");
-
-        assert_eq!(result.table_name.as_str(), "aws-edge-locations",);
-        assert_eq!(
-            result.path_relative_to_object_store.to_string(),
-            "tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet",
-        );
-        assert_eq!(
-            result.object_store_url.to_string(),
-            "https://raw.githubusercontent.com/",
-        );
     }
 }

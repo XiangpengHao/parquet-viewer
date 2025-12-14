@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    SESSION_CTX,
-    utils::execute_query_inner,
-    views::parquet_reader::{ParquetUnresolved, read_from_url},
+    SESSION_CTX, storage::readers, utils::execute_query_inner,
+    views::parquet_reader::ParquetUnresolved,
 };
 use arrow::{array::AsArray, datatypes::Int64Type, util::pretty::pretty_format_batches};
 use arrow_array::{Int64Array, RecordBatch, StringArray, StructArray};
@@ -24,7 +23,7 @@ async fn test_read_parquet() {
     // This test uses a known public Parquet file
     let ctx = SESSION_CTX.clone();
     let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
-    let result = read_from_url(url).unwrap();
+    let result = readers::read_from_url(url).unwrap();
     let table = result
         .try_into_resolved(&ctx)
         .await

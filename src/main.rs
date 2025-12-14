@@ -11,16 +11,17 @@ use web_sys::js_sys;
 use crate::utils::{send_message_to_vscode, vscode_env};
 use components::QueryInput;
 use parquet_ctx::ParquetResolved;
+use storage::readers;
 use views::metadata::MetadataView;
-use views::parquet_reader::{ParquetReader, ParquetUnresolved, read_from_vscode};
+use views::parquet_reader::{ParquetReader, ParquetUnresolved};
 use views::query_results::QueryResultView;
 use views::schema::SchemaSection;
 use views::settings::Settings;
 
 mod components;
 mod nl_to_sql;
-mod object_store_cache;
 mod parquet_ctx;
+mod storage;
 #[cfg(test)]
 mod tests;
 mod utils;
@@ -141,7 +142,7 @@ fn MainLayout() -> Element {
                         && let Some(type_str) = type_val.as_string()
                     {
                         if type_str.as_str() == "parquetServerReady" {
-                            read_from_vscode(obj, move |res| on_parquet_read(res));
+                            readers::read_from_vscode(obj, move |res| on_parquet_read(res));
                         }
                     }
                 }));

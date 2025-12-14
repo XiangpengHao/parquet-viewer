@@ -11,7 +11,7 @@ use parquet::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MetadataDisplay {
+pub struct MetadataSummary {
     pub file_size: u64,
     pub compressed_row_group_size: u64,
     pub uncompressed_size: u64,
@@ -30,7 +30,7 @@ pub struct MetadataDisplay {
     pub footer_size: u64,
 }
 
-impl MetadataDisplay {
+impl MetadataSummary {
     pub fn from_metadata(
         metadata: Arc<ParquetMetaData>,
         metadata_memory_size: u64,
@@ -111,7 +111,7 @@ impl MetadataDisplay {
     }
 }
 
-impl std::fmt::Display for MetadataDisplay {
+impl std::fmt::Display for MetadataSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -155,7 +155,7 @@ pub struct ParquetResolved {
     registered_table_name: String, // The unique name for registration in DataFusion
     path: Path,
     object_store_url: ObjectStoreUrl,
-    metadata: MetadataDisplay,
+    metadata: MetadataSummary,
 }
 
 impl PartialEq for ParquetResolved {
@@ -173,7 +173,7 @@ impl ParquetResolved {
         registered_table_name: String,
         path: Path,
         object_store_url: ObjectStoreUrl,
-        display_info: MetadataDisplay,
+        display_info: MetadataSummary,
     ) -> Self {
         Self {
             reader,
@@ -193,7 +193,7 @@ impl ParquetResolved {
         &self.registered_table_name
     }
 
-    pub fn metadata(&self) -> &MetadataDisplay {
+    pub fn metadata(&self) -> &MetadataSummary {
         &self.metadata
     }
 

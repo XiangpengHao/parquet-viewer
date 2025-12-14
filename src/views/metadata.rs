@@ -82,7 +82,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
             }
             div { class: "grid gap-6 lg:grid-cols-2",
                 div {
-                    FileLevelInfo { metadata_display: metadata_display.clone() }
+                    FileLevelInfo { metadata_summary: metadata_display.clone() }
                     if row_group_count > 0 {
                         div { class: "mt-2 flex flex-col gap-4 md:flex-row md:justify-between",
                             div {
