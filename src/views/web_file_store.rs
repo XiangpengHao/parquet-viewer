@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::DateTime;
 use futures::stream::BoxStream;
-use leptos::logging;
+use log;
 use object_store::{
     Error as ObjectStoreError, GetOptions, GetRange, GetResult, GetResultPayload, ListResult,
     MultipartUpload, ObjectMeta, ObjectStore, PutMultipartOptions, PutOptions, PutPayload,
@@ -168,7 +168,7 @@ impl WebFileReader {
 
     /// Get a slice of the file
     pub async fn get_range(&self, range: Range<u64>) -> Result<Bytes, String> {
-        logging::log!(
+        log::info!(
             "get_range: [f64] Fetching range {}...{} from file",
             range.start as f64,
             range.end as f64

@@ -8,7 +8,7 @@ use datafusion::{
     physical_plan::{ExecutionPlan, collect},
     prelude::SessionContext,
 };
-use leptos::logging;
+use log;
 use parquet::{
     arrow::{ArrowWriter, async_reader::AsyncFileReader},
     errors::ParquetError,
@@ -78,7 +78,7 @@ pub(crate) async fn execute_query_inner(
     let (state, plan) = plan.into_parts();
     let plan = state.optimize(&plan)?;
 
-    logging::log!("{}", &plan.display_indent());
+    log::info!("{}", &plan.display_indent());
 
     let physical_plan = state.create_physical_plan(&plan).await?;
 
@@ -103,7 +103,7 @@ pub(crate) fn send_message_to_vscode(message_type: &str, vscode: &JsValue) {
 
         let _ = js_sys::Reflect::apply(post_message_fn, vscode, &js_sys::Array::of1(&message));
 
-        logging::log!("Sent message to VS Code: {}", message_type);
+        log::info!("Sent message to VS Code: {}", message_type);
     }
 }
 

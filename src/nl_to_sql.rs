@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arrow_schema::SchemaRef;
 use gloo_net::http::Request;
-use leptos::logging;
+use log;
 use serde_json::json;
 
 use crate::{
@@ -50,10 +50,10 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     let prompt = format!(
         "Generate a SQL query to answer the following question: {input}. You should generate PostgreSQL SQL dialect, all field names and table names should be double quoted, and the output SQL should be executable, be careful about the available columns. The table name is: \"{file_name}\" (without quotes), the schema of the table is: {schema_str}.  ",
     );
-    logging::log!("{}", prompt);
+    log::info!("{}", prompt);
 
     let sql = generate_sql_via_claude(&prompt, &api_key).await?;
-    logging::log!("{}", sql);
+    log::info!("{}", sql);
     Ok(sql)
 }
 
@@ -69,10 +69,10 @@ async fn generate_sql_via_claude(prompt: &str, api_key: &Option<String>) -> Resu
     if let Some(api_key) = api_key
         && !api_key.trim().is_empty()
     {
-        logging::log!("Using Claude API");
+        log::info!("Using Claude API");
         send_request_to_claude(prompt, api_key).await
     } else {
-        logging::log!("No API key provided, using fallback endpoint");
+        log::info!("No API key provided, using fallback endpoint");
         send_request_to_cloudflare(prompt).await
     }
 }
