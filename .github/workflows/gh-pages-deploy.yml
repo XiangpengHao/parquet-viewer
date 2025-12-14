@@ -9,7 +9,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  actions: write  # Required for cache purging
 
 # Ensure only one deployment at a time
 concurrency:
@@ -30,23 +29,20 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+      
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          extra-conf: |
-            keep-env-derivations = true
-            keep-outputs = true
-      - name: Set up Nix cache
-        uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-pages-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 2G
-          purge: true
-          purge-prefixes: nix-pages-${{ runner.os }}-
-          purge-created: 604800  # 7 days
-          purge-last-accessed: 604800  # 7 days
-          purge-primary-key: never
+          shared-key: "pages"
+          cache-on-failure: false
+          cmd-format: "nix develop -c {0}"
+      
       - name: Build with Nix and Trunk
         run: |
           nix develop --command bash -c "
@@ -57,6 +53,7 @@ jobs:
         uses: actions/configure-pages@v4
         with:
           enablement: true
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
