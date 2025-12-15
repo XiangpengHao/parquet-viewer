@@ -1,0 +1,27 @@
+[application]
+
+[web.app]
+
+# HTML title tag content
+title = "Parquet Viewer - View and Query Parquet Files Online"
+
+# include `assets` in web platform
+[web.resource]
+
+# Additional CSS style files
+style = [
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css",
+	"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap",
+]
+
+# Additional JavaScript files
+script = [
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js",
+	"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js",
+]
+
+[web.resource.dev]
+
+# Javascript code file
+# serve: [dev-server] only
+script = []

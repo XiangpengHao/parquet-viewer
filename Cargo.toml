@@ -14,7 +14,7 @@ datafusion = { version = "50.0.0", default-features = false, features = [
 	"datetime_expressions",
 	"parquet",
 ] }
-leptos = { version = "0.8", features = ["csr", "nightly"] }
+dioxus = { version = "0.7.2", features = ["router"] }
 parquet = { version = "56.1.0", features = [
 	"arrow",
 	"snap",
@@ -25,6 +25,7 @@ parquet = { version = "56.1.0", features = [
 ], default-features = false }
 serde_json = "1.0.145"
 wasm-bindgen-futures = "0.4.53"
+wasm-bindgen = "0.2.105"
 web-sys = { version = "0.3.80", features = [
 	"HtmlInputElement",
 	"FileList",
@@ -43,21 +44,32 @@ opendal = { version = "0.54.0", default-features = false, features = [
 	"services-http",
 ] }
 object_store_opendal = { version = "0.54.0", features = ["send_wrapper"] }
-leptos_router = { version = "0.8.6", features = ["nightly"] }
 object_store = "0.12.3"
 async-trait = "0.1.89"
 url = "2.5.7"
 anyhow = "1.0"
 uuid = { version = "1.18.1", features = ["v4", "js"] }
-tokio = { version = "1.47.1", features = ["rt"] }
+tokio = { version = "1.48", features = ["rt"] }
 gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.1.6"
+tracing = "0.1.43"
+dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 
 [profile.release]
 strip = true
 opt-level = "s"
 panic = "abort"
 
+[profile.debug-strip]
+inherits = "dev"
+strip = true
+panic = "abort"
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3.53"
+
+[features]
+default = ["web"]
+# The feature that are only required for the web = ["dioxus/web"] build target should be optional and only enabled in the web = ["dioxus/web"] feature
+web = ["dioxus/web"]

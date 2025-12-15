@@ -1,28 +1,21 @@
 use anyhow::Result;
 use datafusion::execution::object_store::ObjectStoreUrl;
 use datafusion::prelude::SessionContext;
-use leptos::{logging, prelude::*};
-use leptos_router::hooks::{query_signal, use_query_map};
+use dioxus::html::HasFileData;
+use dioxus::prelude::*;
+use dioxus_primitives::toast::{ToastOptions, use_toast};
 use object_store::ObjectStore;
 use object_store::path::Path;
-use object_store_opendal::OpendalStore;
-use opendal::{Operator, services::Http, services::S3};
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
-use url::Url;
-use web_sys::js_sys;
+use url::form_urlencoded;
 
-use crate::parquet_ctx::{MetadataDisplay, ParquetResolved};
+use crate::components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel};
+use crate::parquet_ctx::{MetadataSummary, ParquetResolved};
+use crate::storage::WebFileObjectStore;
+use crate::storage::readers;
 use crate::utils::{get_stored_value, save_to_storage};
-use crate::views::web_file_store::WebFileObjectStore;
-use crate::{
-    components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel},
-    object_store_cache::ObjectStoreCache,
-};
 
-const S3_ENDPOINT_KEY: &str = "s3_endpoint";
-const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
-const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 const S3_BUCKET_KEY: &str = "s3_bucket";
 const S3_REGION_KEY: &str = "s3_region";
 const S3_FILE_PATH_KEY: &str = "s3_file_path";
@@ -65,7 +58,7 @@ impl ParquetUnresolved {
         object_store_url: ObjectStoreUrl,
         object_store: Arc<dyn ObjectStore>,
     ) -> Result<Self> {
-        logging::log!(
+        tracing::info!(
             "Creating ParquetUnresolved: {:?}, {:?}, {:?}",
             file_name_with_extension,
             path_relative_to_object_store,
@@ -135,13 +128,13 @@ impl ParquetUnresolved {
             .object_store(&self.object_store_url)
             .is_err()
         {
-            logging::log!(
+            tracing::info!(
                 "Object store {} not found, registering",
                 self.object_store_url
             );
             ctx.register_object_store(self.object_store_url.as_ref(), self.object_store.clone());
         } else {
-            logging::log!(
+            tracing::info!(
                 "Object store {} found, using existing store",
                 self.object_store_url
             );
@@ -161,7 +154,7 @@ impl ParquetUnresolved {
         )
         .await?;
 
-        logging::log!(
+        tracing::info!(
             "parquet table: {} has the registered unique name {}",
             self.table_name.as_str(),
             registered_table_name
@@ -174,7 +167,7 @@ impl ParquetUnresolved {
             registered_table_name.clone(),
             self.path_relative_to_object_store,
             self.object_store_url,
-            MetadataDisplay::from_metadata(
+            MetadataSummary::from_metadata(
                 metadata,
                 metadata_memory_size as u64,
                 actual_file_size,
@@ -184,448 +177,348 @@ impl ParquetUnresolved {
     }
 }
 
-pub(crate) fn read_from_vscode(
-    obj: js_sys::Object,
-    call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
-) {
-    let url = js_sys::Reflect::get(&obj, &"url".into()).unwrap();
-    let url = url.as_string().unwrap();
-    let file_name = js_sys::Reflect::get(&obj, &"filename".into()).unwrap();
-    let file_name = file_name.as_string().unwrap();
-
-    leptos::task::spawn_local({
-        let url = url.clone();
-        let file_name = file_name.clone();
-        logging::log!("Reading from VS Code: {}, {}", url, file_name);
-        async move {
-            let result = async {
-                let url = Url::parse(&url)?;
-                let endpoint = format!(
-                    "{}://{}{}",
-                    url.scheme(),
-                    url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
-                    url.port().map_or("".to_string(), |p| format!(":{p}"))
-                );
-                let path = url.path().to_string();
-
-                let builder = Http::default().endpoint(&endpoint);
-                let op = Operator::new(builder)?;
-                let op = op.finish();
-                let object_store = Arc::new(OpendalStore::new(op));
-                let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-                ParquetUnresolved::try_new(
-                    file_name.clone(),
-                    Path::parse(path)?,
-                    object_store_url,
-                    object_store,
-                )
+#[component]
+pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
+    fn query_param(key: &str) -> Option<String> {
+        let window = web_sys::window()?;
+        let search = window.location().search().ok()?;
+        let search = search.strip_prefix('?').unwrap_or(&search);
+        for (k, v) in form_urlencoded::parse(search.as_bytes()) {
+            if k == key {
+                return Some(v.into_owned());
             }
-            .await;
+        }
+        None
+    }
 
-            call_back(result);
+    let mut active_tab = use_signal(|| {
+        if query_param("url").is_some() {
+            "url".to_string()
+        } else {
+            "file".to_string()
         }
     });
-}
 
-#[component]
-pub fn ParquetReader(
-    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy + Sync,
-) -> impl IntoView {
-    let default_tab = {
-        let query = use_query_map();
-        let url = query.get().get("url");
-        if url.is_some() { "url" } else { "file" }
-    };
-    let (active_tab, set_active_tab) = signal(default_tab.to_string());
-
-    let set_active_tab_fn = move |tab: &str| {
-        if active_tab.get() != tab {
-            set_active_tab.set(tab.to_string());
+    let mut loaded_url = use_signal(|| false);
+    if !loaded_url() {
+        loaded_url.set(true);
+        if let Some(url) = query_param("url") {
+            read_call_back.call(readers::read_from_url(&url));
         }
-    };
-
-    if let Some(url) = use_query_map().get().get("url") {
-        let parquet_info = read_from_url(&url);
-        read_call_back(parquet_info);
     }
 
-    view! {
-        <Panel class="rounded-lg p-2">
-            <div class="border-b border-gray-200 mb-4">
-                <nav class="-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div class="flex flex-wrap items-center gap-4 md:gap-8">
-                        <button
-                            class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium";
-                                if active_tab.get() == "file" {
-                                    return format!("{base} border-green-500 text-green-600");
-                                }
-                                format!(
-                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                )
-                            }
-                            on:click=move |_| set_active_tab_fn("file")
-                        >
-                            "From file"
-                        </button>
-                        <button
-                            class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium";
-                                if active_tab.get() == "url" {
-                                    return format!("{base} border-green-500 text-green-600");
-                                }
-                                format!(
-                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                )
-                            }
-                            on:click=move |_| set_active_tab_fn("url")
-                        >
-                            "From URL"
-                        </button>
-                        <button
-                            class=move || {
-                                let base = "py-2 px-1 border-b-2 font-medium";
-                                if active_tab.get() == "s3" {
-                                    return format!("{base} border-green-500 text-green-600");
-                                }
-                                format!(
-                                    "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
-                                )
-                            }
-                            on:click=move |_| set_active_tab_fn("s3")
-                        >
-                            "From S3"
-                        </button>
-                    </div>
-                    <div class="text-xs text-gray-400">
-                        <a
-                            href="https://xiangpeng.systems/fund/"
-                            target="_blank"
-                            class="text-blue-400 hover:text-blue-600"
-                        >
-                            "Funded"
-                        </a>
-                        " by "
-                        <a
-                            href="https://www.influxdata.com"
-                            target="_blank"
-                            class="text-blue-400 hover:text-blue-600"
-                        >
-                            "InfluxData"
-                        </a>
-                    </div>
-                </nav>
-            </div>
-            {
-                view! {
-                    <Show when=move || active_tab.get() == "file">
-                        <FileReader read_call_back=read_call_back />
-                    </Show>
-                    <Show when=move || active_tab.get() == "url">
-                        <UrlReader read_call_back=read_call_back />
-                    </Show>
-                    <Show when=move || active_tab.get() == "s3">
-                        <S3Reader read_call_back=read_call_back />
-                    </Show>
-                }
-            }
-        </Panel>
-    }
-}
-
-#[component]
-fn FileReader(
-    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
-) -> impl IntoView {
-    let on_file_select = move |ev: web_sys::Event| {
-        let input: web_sys::HtmlInputElement = event_target(&ev);
-        let files = input.files().unwrap();
-        let file = files.get(0).unwrap();
-        let table_name = file.name();
-
-        leptos::task::spawn_local(async move {
-            let result = async {
-                let path_relative_to_object_store = Path::parse(&table_name)?;
-                let uuid = uuid::Uuid::new_v4();
-                let object_store = Arc::new(WebFileObjectStore::new(file));
-                let object_store_url = ObjectStoreUrl::parse(format!("webfile://{uuid}"))?;
-
-                ParquetUnresolved::try_new(
-                    table_name.clone(),
-                    path_relative_to_object_store,
-                    object_store_url,
-                    object_store,
-                )
-            }
-            .await;
-
-            read_call_back(result);
-        });
-    };
-
-    view! {
-        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center space-y-4">
-            <div>
-                <input type="file" accept=".parquet" on:change=on_file_select id="file-input" />
-            </div>
-            <div>
-                <label for="file-input" class="cursor-pointer text-gray-600">
-                    "Drop Parquet file or click to browse"
-                </label>
-            </div>
-        </div>
-    }
-}
-
-/// Reads a parquet file from a URL and returns a ParquetInfo object.
-/// This function parses the URL, creates an HTTP object store, and returns
-/// the necessary information to read the parquet file.
-pub fn read_from_url(url_str: &str) -> Result<ParquetUnresolved> {
-    let url = Url::parse(url_str)?;
-    let endpoint = format!(
-        "{}://{}{}",
-        url.scheme(),
-        url.host_str().ok_or(anyhow::anyhow!("Empty host"))?,
-        url.port().map_or("".to_string(), |p| format!(":{p}"))
-    );
-    let path = url.path().to_string();
-
-    let table_name = path
-        .split('/')
-        .next_back()
-        .unwrap_or("uploaded.parquet")
-        .to_string();
-
-    let builder = {
-        let mut http_builder = Http::default().endpoint(&endpoint);
-        let username = url.username();
-        if !username.is_empty() {
-            http_builder = http_builder.username(username);
-        }
-        if let Some(password) = url.password() {
-            http_builder = http_builder.password(password);
-        }
-        http_builder
-    };
-    let op = Operator::new(builder)?;
-    let op = op.finish();
-    let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
-    let object_store_url = ObjectStoreUrl::parse(&endpoint)?;
-    ParquetUnresolved::try_new(
-        table_name.clone(),
-        Path::parse(path)?,
-        object_store_url,
-        object_store,
-    )
-}
-
-#[component]
-pub fn UrlReader(
-    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
-) -> impl IntoView {
-    let (url_query, set_url_query) = query_signal::<String>("url");
-    let default_url = {
-        if let Some(url) = url_query.get() {
-            url
+    let tab_button_class = |tab: &str| {
+        let base = "py-2 px-1 border-b-2 font-medium";
+        if active_tab() == tab {
+            format!("{base} border-green-500 text-green-600")
         } else {
-            DEFAULT_URL.to_string()
+            format!(
+                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            )
         }
     };
 
-    let (url, set_url) = signal(default_url);
-
-    let on_url_submit = move || {
-        let url_str = url.get();
-        set_url_query.set(Some(url_str.clone()));
-
-        let parquet_info = read_from_url(&url_str);
-        read_call_back(parquet_info);
-    };
-
-    view! {
-        <div class="h-full flex items-center">
-            <form
-                on:submit=move |ev| {
-                    ev.prevent_default();
-                    on_url_submit();
-                }
-                class="w-full"
-            >
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <input
-                        type="url"
-                        placeholder="Enter Parquet file URL"
-                        on:input=move |ev| {
-                            set_url.set(event_target_value(&ev));
+    rsx! {
+        Panel { class: Some("rounded-lg p-2".to_string()),
+            div { class: "border-b border-gray-200 mb-2",
+                nav { class: "-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+                    div { class: "flex flex-wrap items-center gap-4 md:gap-8",
+                        button {
+                            class: "{tab_button_class(\"file\")}",
+                            onclick: move |_| active_tab.set("file".to_string()),
+                            "From file"
                         }
-                        prop:value=url
-                        class=format!("flex-1 {}", INPUT_BASE)
-                    />
-                    <button type="submit" class=BUTTON_GHOST>
-                        "Read URL"
-                    </button>
-                </div>
-            </form>
-        </div>
+                        button {
+                            class: "{tab_button_class(\"url\")}",
+                            onclick: move |_| active_tab.set("url".to_string()),
+                            "From URL"
+                        }
+                        button {
+                            class: "{tab_button_class(\"s3\")}",
+                            onclick: move |_| active_tab.set("s3".to_string()),
+                            "From S3"
+                        }
+                    }
+                }
+            }
+            {
+                match active_tab().as_str() {
+                    "file" => rsx! {
+                        FileReader { read_call_back }
+                    },
+                    "url" => rsx! {
+                        UrlReader { read_call_back }
+                    },
+                    "s3" => rsx! {
+                        S3Reader { read_call_back }
+                    },
+                    _ => rsx! {
+                        FileReader { read_call_back }
+                    },
+                }
+            }
+        }
     }
-}
-
-fn read_from_s3(s3_bucket: &str, s3_region: &str, s3_file_path: &str) -> Result<ParquetUnresolved> {
-    let endpoint =
-        get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string());
-    let access_key_id = get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default();
-    let secret_key = get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default();
-
-    // Validate inputs
-    if endpoint.is_empty() || s3_bucket.is_empty() || s3_file_path.is_empty() {
-        return Err(anyhow::anyhow!("All fields except region are required",));
-    }
-    let file_name = s3_file_path
-        .split('/')
-        .next_back()
-        .unwrap_or("uploaded.parquet")
-        .to_string();
-
-    let cfg = S3::default()
-        .endpoint(&endpoint)
-        .access_key_id(&access_key_id)
-        .secret_access_key(&secret_key)
-        .bucket(s3_bucket)
-        .region(s3_region);
-
-    let path = format!("s3://{s3_bucket}");
-
-    let op = Operator::new(cfg)?.finish();
-    let object_store = Arc::new(ObjectStoreCache::new(OpendalStore::new(op)));
-    let object_store_url = ObjectStoreUrl::parse(&path)?;
-    ParquetUnresolved::try_new(
-        file_name.clone(),
-        Path::parse(s3_file_path)?,
-        object_store_url,
-        object_store.clone(),
-    )
 }
 
 #[component]
-fn S3Reader(
-    read_call_back: impl Fn(Result<ParquetUnresolved>) + 'static + Send + Copy,
-) -> impl IntoView {
-    let (s3_bucket, set_s3_bucket) = signal(get_stored_value(S3_BUCKET_KEY).unwrap_or_default());
-    let (s3_region, set_s3_region) =
-        signal(get_stored_value(S3_REGION_KEY).unwrap_or("us-east-1".to_string()));
-    let (s3_file_path, set_s3_file_path) =
-        signal(get_stored_value(S3_FILE_PATH_KEY).unwrap_or_default());
+fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
+    let file_input_id = use_signal(|| format!("file-input-{}", uuid::Uuid::new_v4()));
+    let toast_api = use_toast();
+    let mut drag_depth = use_signal(|| 0i32);
+    let is_dragging = move || drag_depth() > 0;
+    let mut selected_file_name = use_signal(|| None::<String>);
 
-    let on_s3_bucket_change = move |ev| {
-        let value = event_target_value(&ev);
-        save_to_storage(S3_BUCKET_KEY, &value);
-        set_s3_bucket.set(value);
-    };
+    let read_web_file = use_callback(move |file: web_sys::File| {
+        let table_name = file.name();
+        if !table_name.to_ascii_lowercase().ends_with(".parquet") {
+            toast_api.error(
+                "Unsupported file type".to_string(),
+                ToastOptions::new().description("Please select a `.parquet` file.".to_string()),
+            );
+            return;
+        }
 
-    let on_s3_region_change = move |ev| {
-        let value = event_target_value(&ev);
-        save_to_storage(S3_REGION_KEY, &value);
-        set_s3_region.set(value);
-    };
+        selected_file_name.set(Some(table_name.clone()));
 
-    let on_s3_file_path_change = move |ev| {
-        let value = event_target_value(&ev);
-        save_to_storage(S3_FILE_PATH_KEY, &value);
-        set_s3_file_path.set(value);
-    };
+        let result = (|| {
+            let path_relative_to_object_store = Path::parse(&table_name)?;
+            let uuid = uuid::Uuid::new_v4();
+            let object_store = Arc::new(WebFileObjectStore::new(file));
+            let object_store_url = ObjectStoreUrl::parse(format!("webfile://{uuid}"))?;
+            ParquetUnresolved::try_new(
+                table_name.clone(),
+                path_relative_to_object_store,
+                object_store_url,
+                object_store,
+            )
+        })();
 
-    let on_s3_submit = move || {
-        let parquet_info = read_from_s3(&s3_bucket.get(), &s3_region.get(), &s3_file_path.get());
-        read_call_back(parquet_info);
-    };
+        read_call_back.call(result);
+    });
 
-    view! {
-        <div>
-            <form
-                on:submit=move |ev| {
-                    ev.prevent_default();
-                    on_s3_submit();
+    let handle_file_data = use_callback(move |file_data: dioxus::html::FileData| {
+        let Some(file) = file_data.inner().downcast_ref::<web_sys::File>().cloned() else {
+            toast_api.error(
+                "Failed to load file".to_string(),
+                ToastOptions::new()
+                    .description("Browser did not provide a readable file handle.".to_string()),
+            );
+            return;
+        };
+        read_web_file.call(file);
+    });
+
+    rsx! {
+        div {
+            class: format!(
+                "rounded-lg border-2 border-dashed p-4 transition-colors {}",
+                if is_dragging() {
+                    "border-green-500 bg-green-50"
+                } else {
+                    "border-gray-300 bg-white"
+                },
+            ),
+            ondragenter: move |ev| {
+                ev.prevent_default();
+                drag_depth.set(drag_depth() + 1);
+            },
+            ondragover: move |ev| {
+                ev.prevent_default();
+                ev.data_transfer().set_drop_effect("copy");
+            },
+            ondragleave: move |ev| {
+                ev.prevent_default();
+                drag_depth.set((drag_depth() - 1).max(0));
+            },
+            ondrop: move |ev| {
+                ev.prevent_default();
+                drag_depth.set(0);
+
+                let files = ev.files();
+                let file_count = files.len();
+                if let Some(file_data) = files.into_iter().next() {
+                    if file_count > 1 {
+                        toast_api
+
+                            .warning(
+                                "Multiple files dropped".to_string(),
+                                ToastOptions::new()
+                                    .description("Using the first file only.".to_string()),
+                            );
+                    }
+                    handle_file_data.call(file_data);
+                    return;
                 }
-                class="space-y-4 w-full"
-            >
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Bucket"</label>
-                        <input
-                            type="text"
-                            on:input=on_s3_bucket_change
-                            prop:value=s3_bucket
-                            class=format!("w-full {}", INPUT_BASE)
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Region"</label>
-                        <input
-                            type="text"
-                            on:input=on_s3_region_change
-                            prop:value=s3_region
-                            class=format!("w-full {}", INPUT_BASE)
-                        />
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            "File Path"
-                        </label>
-                        <input
-                            type="text"
-                            on:input=on_s3_file_path_change
-                            prop:value=s3_file_path
-                            class=format!("w-full {}", INPUT_BASE)
-                        />
-                    </div>
-                </div>
-                <div class="flex justify-end">
-                    <button type="submit" class=format!("{} w-full sm:w-auto text-center", BUTTON_OUTLINE)>
-                        "Read S3"
-                    </button>
-                </div>
-            </form>
-        </div>
+                if let Some(text) = ev
+                    .data_transfer()
+                    .get_data("text/uri-list")
+                    .or_else(|| ev.data_transfer().get_as_text())
+                {
+                    let candidate = text
+                        .lines()
+                        .map(str::trim)
+                        .find(|line| !line.is_empty() && !line.starts_with('#'));
+                    if let Some(url) = candidate {
+                        let looks_like_parquet_url = url.contains(".parquet");
+                        if looks_like_parquet_url {
+                            read_call_back.call(readers::read_from_url(url));
+                        } else {
+                            toast_api
+                                .error(
+                                    "Dropped text is not a Parquet URL".to_string(),
+                                    ToastOptions::new()
+                                        .description(
+                                            "Drop a `.parquet` file, or a URL ending in `.parquet`."
+                                                .to_string(),
+                                        ),
+                                );
+                        }
+                        return;
+                    }
+                }
+                toast_api
+                    .error(
+                        "Nothing to import".to_string(),
+                        ToastOptions::new()
+                            .description("Drop a `.parquet` file here.".to_string()),
+                    );
+            },
+
+            input {
+                id: "{file_input_id()}",
+                r#type: "file",
+                accept: ".parquet",
+                class: "hidden",
+                onchange: move |ev| {
+                    let files = ev.files();
+                    let Some(file_data) = files.into_iter().next() else {
+                        return;
+                    };
+                    handle_file_data.call(file_data);
+                },
+            }
+
+            div { class: "flex flex-col items-center gap-1 text-center",
+                div { class: "space-y-0.5",
+                    p { class: "text-sm font-medium text-gray-900", "Drop a Parquet file here" }
+                }
+
+                label {
+                    r#for: "{file_input_id()}",
+                    class: "btn btn-outline btn-sm",
+                    "Choose file"
+                }
+
+                if let Some(name) = selected_file_name() {
+                    p { class: "text-xs text-gray-500 mt-1",
+                        "Selected: "
+                        span { class: "font-mono", "{name}" }
+                    }
+                }
+            }
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[component]
+pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
+    let mut url = use_signal(|| DEFAULT_URL.to_string());
 
-    #[test]
-    fn test_read_from_url_non_parquet() {
-        let url = "not-a-url";
-        let result = read_from_url(url);
-        assert!(result.is_err(), "Should fail for an invalid URL");
-
-        let url = "https://example.com/file.csv";
-        let result = read_from_url(url);
-
-        assert!(result.is_err(), "Should fail for non-parquet files");
-
-        let url = "file:///path/to/file.parquet";
-        let result = read_from_url(url);
-
-        assert!(result.is_err(), "Should fail for URLs without a host");
+    rsx! {
+        div { class: "h-full flex items-center",
+            form {
+                class: "w-full",
+                onsubmit: move |ev| {
+                    ev.prevent_default();
+                    read_call_back.call(readers::read_from_url(&url()));
+                },
+                div { class: "flex flex-col gap-2 sm:flex-row sm:items-center",
+                    input {
+                        r#type: "url",
+                        placeholder: "Enter Parquet file URL",
+                        value: "{url()}",
+                        class: "flex-1 {INPUT_BASE}",
+                        oninput: move |ev| url.set(ev.value()),
+                    }
+                    button { r#type: "submit", class: "{BUTTON_GHOST}", "Read URL" }
+                }
+            }
+        }
     }
+}
 
-    #[test]
-    fn test_read_from_url_valid_parquet_url() {
-        // This test uses a known public Parquet file
-        let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
-        let result = read_from_url(url);
+#[component]
+fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
+    let mut s3_bucket = use_signal(|| get_stored_value(S3_BUCKET_KEY).unwrap_or_default());
+    let mut s3_region =
+        use_signal(|| get_stored_value(S3_REGION_KEY).unwrap_or("us-east-1".to_string()));
+    let mut s3_file_path = use_signal(|| get_stored_value(S3_FILE_PATH_KEY).unwrap_or_default());
 
-        let result = result.expect("Should successfully parse a valid parquet URL");
-
-        assert_eq!(result.table_name.as_str(), "aws-edge-locations",);
-        assert_eq!(
-            result.path_relative_to_object_store.to_string(),
-            "tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet",
-        );
-        assert_eq!(
-            result.object_store_url.to_string(),
-            "https://raw.githubusercontent.com/",
-        );
+    rsx! {
+        div {
+            form {
+                class: "space-y-3 w-full",
+                onsubmit: move |ev| {
+                    ev.prevent_default();
+                    read_call_back
+                        .call(readers::read_from_s3(&s3_bucket(), &s3_region(), &s3_file_path()));
+                },
+                div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
+                    div {
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "Bucket"
+                        }
+                        input {
+                            r#type: "text",
+                            class: "w-full {INPUT_BASE}",
+                            value: "{s3_bucket()}",
+                            oninput: move |ev| {
+                                let value = ev.value();
+                                save_to_storage(S3_BUCKET_KEY, &value);
+                                s3_bucket.set(value);
+                            },
+                        }
+                    }
+                    div {
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "Region"
+                        }
+                        input {
+                            r#type: "text",
+                            class: "w-full {INPUT_BASE}",
+                            value: "{s3_region()}",
+                            oninput: move |ev| {
+                                let value = ev.value();
+                                save_to_storage(S3_REGION_KEY, &value);
+                                s3_region.set(value);
+                            },
+                        }
+                    }
+                    div { class: "sm:col-span-2",
+                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                            "File Path"
+                        }
+                        input {
+                            r#type: "text",
+                            class: "w-full {INPUT_BASE}",
+                            value: "{s3_file_path()}",
+                            oninput: move |ev| {
+                                let value = ev.value();
+                                save_to_storage(S3_FILE_PATH_KEY, &value);
+                                s3_file_path.set(value);
+                            },
+                        }
+                    }
+                }
+                div { class: "flex justify-end",
+                    button {
+                        r#type: "submit",
+                        class: "{BUTTON_OUTLINE} w-full sm:w-auto text-center",
+                        "Read S3"
+                    }
+                }
+            }
+        }
     }
 }

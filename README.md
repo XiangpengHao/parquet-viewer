@@ -32,13 +32,14 @@ For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubuserconte
 
 It compiles [Parquet](https://github.com/apache/arrow-rs), [Arrow](https://github.com/apache/arrow-rs), [Datafusion](https://github.com/apache/datafusion), [OpenDAL](https://github.com/apache/opendal) to WebAssembly and uses it to explore Parquet files, [more details](https://blog.haoxp.xyz/posts/parquet-viewer/).
 
+Cross-compiling Rust, C++, C to WebAssembly is not easy, you might want to use [nix](https://nixos.org/) to simplify the environment setup.
 
-Checkout the awesome [Leptos](https://github.com/leptos-rs/leptos) framework.
 
 #### Run locally
+Install dioxus: https://dioxuslabs.com/learn/0.7/getting_started/#install-the-dioxus-cli
+
 ```bash
-cargo install trunk --locked
-trunk serve --release --no-autoreload
+dx serve --profile debug-strip
 ```
 
 #### Run tests

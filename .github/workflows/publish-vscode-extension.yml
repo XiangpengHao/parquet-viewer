@@ -1,26 +1,13 @@
 name: Publish Extension
 
 on:
-  workflow_dispatch:
-    inputs:
-      version_bump:
-        description: 'Version bump type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-          - custom
-      custom_version:
-        description: 'Custom version (only used if version_bump is "custom")'
-        required: false
-        default: ''
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual triggering if needed
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
-  actions: write  # Required for cache purging
 
 jobs:
   tests:
@@ -33,74 +20,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch full history for commit hash
+
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/free-disk-space
+      
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+      
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          extra-conf: |
-            keep-env-derivations = true
-            keep-outputs = true
-      - name: Set up Nix cache
-        uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-publish-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 2G
-          purge: true
-          purge-prefixes: nix-publish-${{ runner.os }}-
-          purge-created: 604800  # 7 days
-          purge-last-accessed: 604800  # 7 days
-          purge-primary-key: never
+          shared-key: "publish"
+          cache-on-failure: false
+          cmd-format: "nix develop -c {0}"
+      
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
-      - name: Calculate version
+      
+      - name: Calculate temporal version
         id: calc_version
         run: |
           cd vscode-extension
-          if [ "${{ github.event.inputs.version_bump }}" == "custom" ]; then
-            echo "VERSION=${{ github.event.inputs.custom_version }}" >> $GITHUB_OUTPUT
-          else
-            CURRENT_VERSION=$(node -p "require('./package.json').version")
-            NEW_VERSION=$(npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version)
-            # Strip quotes from the version
-            NEW_VERSION="${NEW_VERSION//\"/}"
-            # Remove 'v' prefix if present
-            NEW_VERSION="${NEW_VERSION#v}"
-            # Reset package.json to original state (we'll update it properly in next step)
-            git checkout -- package.json
-            echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
-          fi
-      - name: Bump extension version
+          # Get base version from package.json
+          BASE_VERSION=$(node -p "require('./package.json').version")
+          # Get short commit hash (7 characters)
+          COMMIT_HASH=$(git rev-parse --short=7 HEAD)
+          # Create temporal version: base_version+commit_hash
+          TEMPORAL_VERSION="${BASE_VERSION}+${COMMIT_HASH}"
+          echo "VERSION=${TEMPORAL_VERSION}" >> $GITHUB_OUTPUT
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_OUTPUT
+          echo "Temporal version: ${TEMPORAL_VERSION}"
+      
+      - name: Update package.json version (in-place, not committed)
         run: |
           cd vscode-extension
-          npm version ${{ steps.calc_version.outputs.VERSION }} --no-git-tag-version
-          cd ..
-      - name: Bump Cargo version
-        run: |
-          sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "${{ steps.calc_version.outputs.VERSION }}"/' Cargo.toml
-      - name: Create PR with version bump
-        id: create_pr
-        run: |
-          BRANCH_NAME="release-v${{ steps.calc_version.outputs.VERSION }}"
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git checkout -b "$BRANCH_NAME"
-          git add vscode-extension/package.json Cargo.toml
-          git commit -m "chore: bump version to ${{ steps.calc_version.outputs.VERSION }}"
-          git push -u origin "$BRANCH_NAME"
-
-          PR_URL=$(gh pr create \
-            --title "Release v${{ steps.calc_version.outputs.VERSION }}" \
-            --body "Automated version bump to ${{ steps.calc_version.outputs.VERSION }}" \
-            --base main \
-            --head "$BRANCH_NAME")
-
-          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Temporarily update package.json for building
+          npm version ${{ steps.calc_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
+          echo "Updated package.json to version ${{ steps.calc_version.outputs.VERSION }}"
+      
       - name: Build and package with Nix
         run: |
           nix develop --command bash -c "
@@ -110,24 +72,28 @@ jobs:
             cd vscode-extension && npm install && npm run compile && 
             vsce package
           "
+      
       - name: Publish to VS Code Marketplace
         run: |
           cd vscode-extension
           nix develop --command bash -c "vsce publish -p ${{ secrets.VSCE_TOKEN }}"
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+      
       - name: Publish to Open VSX Registry
         run: |
           cd vscode-extension
           nix develop --command bash -c "npm install ovsx --no-save && npx ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}"
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+      
       - name: Summary
         run: |
-          echo "### Release Summary :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "### Extension Published :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ steps.calc_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR**: ${{ steps.create_pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Base Version**: ${{ steps.calc_version.outputs.BASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ steps.calc_version.outputs.COMMIT_HASH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit Message**: ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Extension has been published to both marketplaces." >> $GITHUB_STEP_SUMMARY
-          echo "Please merge the PR to update version in main branch." >> $GITHUB_STEP_SUMMARY
+          echo "Extension has been published to both VS Code Marketplace and Open VSX Registry." >> $GITHUB_STEP_SUMMARY

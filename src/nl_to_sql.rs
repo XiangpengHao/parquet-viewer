@@ -1,12 +1,12 @@
 use anyhow::Result;
 use arrow_schema::SchemaRef;
 use gloo_net::http::Request;
-use leptos::logging;
 use serde_json::json;
 
 use crate::{
-    DEFAULT_QUERY, parquet_ctx::ParquetResolved, utils::get_stored_value,
-    views::settings::ANTHROPIC_API_KEY,
+    parquet_ctx::ParquetResolved,
+    utils::get_stored_value,
+    views::{main_layout::DEFAULT_QUERY, settings::ANTHROPIC_API_KEY},
 };
 
 fn nl_cache(key: &str, file_name: &str) -> Option<String> {
@@ -50,10 +50,10 @@ pub(crate) async fn user_input_to_sql(input: &str, context: &ParquetResolved) ->
     let prompt = format!(
         "Generate a SQL query to answer the following question: {input}. You should generate PostgreSQL SQL dialect, all field names and table names should be double quoted, and the output SQL should be executable, be careful about the available columns. The table name is: \"{file_name}\" (without quotes), the schema of the table is: {schema_str}.  ",
     );
-    logging::log!("{}", prompt);
+    tracing::info!("{}", prompt);
 
     let sql = generate_sql_via_claude(&prompt, &api_key).await?;
-    logging::log!("{}", sql);
+    tracing::info!("{}", sql);
     Ok(sql)
 }
 
@@ -69,10 +69,10 @@ async fn generate_sql_via_claude(prompt: &str, api_key: &Option<String>) -> Resu
     if let Some(api_key) = api_key
         && !api_key.trim().is_empty()
     {
-        logging::log!("Using Claude API");
+        tracing::info!("Using Claude API");
         send_request_to_claude(prompt, api_key).await
     } else {
-        logging::log!("No API key provided, using fallback endpoint");
+        tracing::info!("No API key provided, using fallback endpoint");
         send_request_to_cloudflare(prompt).await
     }
 }

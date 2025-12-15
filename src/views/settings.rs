@@ -1,10 +1,9 @@
-use leptos::html::*;
-use leptos::prelude::*;
-use leptos::*;
+use dioxus::prelude::*;
 
-use crate::components::ui::{BUTTON_PRIMARY, INPUT_BASE, Panel, SectionHeader};
-use crate::utils::get_stored_value;
-use crate::utils::save_to_storage;
+use crate::{
+    components::ui::{BUTTON_PRIMARY, INPUT_BASE, PANEL, SectionHeader},
+    utils::{get_stored_value, save_to_storage},
+};
 
 pub(crate) const ANTHROPIC_API_KEY: &str = "claude_api_key";
 pub(crate) const S3_ENDPOINT_KEY: &str = "s3_endpoint";
@@ -12,191 +11,174 @@ pub(crate) const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
 pub(crate) const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 
 #[component]
-pub fn Settings(show: ReadSignal<bool>, set_show: WriteSignal<bool>) -> impl IntoView {
-    let (anthropic_key, set_anthropic_key) =
-        signal(get_stored_value(ANTHROPIC_API_KEY).unwrap_or_default());
-    let (s3_endpoint, set_s3_endpoint) =
-        signal(get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string()));
-    let (s3_access_key_id, set_s3_access_key_id) =
-        signal(get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default());
-    let (s3_secret_key, set_s3_secret_key) =
-        signal(get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default());
+pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
+    let mut anthropic_key = use_signal(|| get_stored_value(ANTHROPIC_API_KEY).unwrap_or_default());
+    let mut s3_endpoint = use_signal(|| {
+        get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string())
+    });
+    let mut s3_access_key_id =
+        use_signal(|| get_stored_value(S3_ACCESS_KEY_ID_KEY).unwrap_or_default());
+    let mut s3_secret_key = use_signal(|| get_stored_value(S3_SECRET_KEY_KEY).unwrap_or_default());
 
-    let close_modal = move |_| {
-        set_show.set(false);
-    };
+    if !show {
+        return rsx! {};
+    }
 
-    let button_close = move |ev: ev::MouseEvent| {
-        ev.stop_propagation();
-        set_show.set(false);
-    };
-
-    let stop_propagation = move |ev: ev::MouseEvent| {
-        ev.stop_propagation();
-    };
-
-    view! {
-        <Show when=move || show.get() fallback=|| ()>
-            <div
-                class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out"
-                on:click=close_modal
-            >
-                <Panel
-                    class="relative rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300"
-                    on:click=stop_propagation
-                >
-                    <SectionHeader
-                        title="Settings"
-                        class="mb-4"
-                        trailing=view! {
-                            <button
-                                class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200"
-                                on:click=close_modal
-                                aria-label="Close"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out",
+            onclick: move |_| on_close.call(()),
+            div {
+                class: "{PANEL} relative rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300",
+                onclick: move |ev| ev.stop_propagation(),
+                SectionHeader {
+                    title: "Settings".to_string(),
+                    subtitle: None,
+                    class: Some("mb-4".to_string()),
+                    trailing: Some(rsx! {
+                        button {
+                            class: "text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200",
+                            onclick: move |ev| {
+                                ev.stop_propagation();
+                                on_close.call(());
+                            },
+                            aria_label: "Close",
+                            svg {
+                                xmlns: "http://www.w3.org/2000/svg",
+                                class: "h-6 w-6",
+                                fill: "none",
+                                view_box: "0 0 24 24",
+                                stroke: "currentColor",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M6 18L18 6M6 6l12 12",
+                                }
+                            }
                         }
-                            .into_any()
-                    />
+                    }),
+                }
 
-                    // Scrollable content with increased spacing
-                    <div
-                        class="space-y-8 overflow-y-auto flex-1"
-                        style="max-height: calc(90vh - 160px)"
-                    >
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            // Anthropic API Section
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <h3 class="text-lg font-medium mb-5">"Natural Language to SQL"</h3>
-                                <div class="mb-5">
-                                    <label class="block font-medium text-gray-700 mb-2">
-                                        "Claude API Key"
-                                        <a
-                                            href="https://console.anthropic.com/account/keys"
-                                            target="_blank"
-                                            class="text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200"
-                                        >
-                                            "(get key)"
-                                        </a>
-                                    </label>
-                                    <input
-                                        type="password"
-                                        on:input=move |ev| {
-                                            let value = event_target_value(&ev);
-                                            save_to_storage(ANTHROPIC_API_KEY, &value);
-                                            set_anthropic_key.set(value);
-                                        }
-                                        prop:value=anthropic_key
-                                        class=format!("w-full {}", INPUT_BASE)
-                                    />
-                                    <p class="mt-3 text-gray-600 italic">
-                                        "If no API key is provided, it uses Xiangpeng's personal token -- \
-                                        use reasonably and "
-                                        <a
-                                            href="https://github.com/XiangpengHao"
-                                            class="text-blue-500 hover:underline"
-                                            target="_blank"
-                                        >
-                                            "consider donating"
-                                        </a>
-                                        "; no data is collected, but CloudFlare may temporarily log the prompt and schema."
-                                    </p>
-                                </div>
-                            </div>
+                div {
+                    class: "space-y-8 overflow-y-auto flex-1",
+                    style: "max-height: calc(90vh - 160px)",
+                    div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                        div { class: "bg-gray-50 p-4 rounded-lg",
+                            h3 { class: "text-lg font-medium mb-5", "Natural Language to SQL" }
+                            div { class: "mb-5",
+                                label { class: "block font-medium text-gray-700 mb-2",
+                                    "Claude API Key"
+                                    a {
+                                        href: "https://console.anthropic.com/account/keys",
+                                        target: "_blank",
+                                        class: "text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200",
+                                        "(get key)"
+                                    }
+                                }
+                                input {
+                                    r#type: "password",
+                                    class: "w-full {INPUT_BASE}",
+                                    value: "{anthropic_key()}",
+                                    oninput: move |ev| {
+                                        let value = ev.value();
+                                        save_to_storage(ANTHROPIC_API_KEY, &value);
+                                        anthropic_key.set(value);
+                                    },
+                                }
+                                p { class: "mt-3 text-gray-600 italic",
+                                    "If no API key is provided, it uses Xiangpeng's personal token -- use reasonably and "
+                                    a {
+                                        href: "https://github.com/XiangpengHao",
+                                        class: "text-blue-500 hover:underline",
+                                        target: "_blank",
+                                        "consider donating"
+                                    }
+                                    "; no data is collected, but CloudFlare may temporarily log the prompt and schema."
+                                }
+                            }
+                        }
 
-                            // S3 Configuration Section
-                            <div class="bg-gray-50 p-6 rounded-lg">
-                                <h3 class="text-lg font-medium mb-5">"S3 Configuration"</h3>
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="block font-medium text-gray-700 mb-1">
-                                            "S3 Endpoint"
-                                        </label>
-                                    <input
-                                        type="text"
-                                        on:input=move |ev| {
-                                            let value = event_target_value(&ev);
+                        div { class: "bg-gray-50 p-6 rounded-lg",
+                            h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
+                            div { class: "space-y-3",
+                                div {
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "S3 Endpoint"
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "w-full {INPUT_BASE}",
+                                        value: "{s3_endpoint()}",
+                                        oninput: move |ev| {
+                                            let value = ev.value();
                                             save_to_storage(S3_ENDPOINT_KEY, &value);
-                                            set_s3_endpoint.set(value);
-                                        }
-                                        prop:value=s3_endpoint
-                                        class=format!("w-full {}", INPUT_BASE)
-                                    />
-                                    </div>
-                                    <div>
-                                        <label class="block font-medium text-gray-700 mb-1">
-                                            "Access Key ID"
-                                        </label>
-                                        <input
-                                            type="text"
-                                            on:input=move |ev| {
-                                                let value = event_target_value(&ev);
-                                                save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
-                                                set_s3_access_key_id.set(value);
-                                            }
-                                            prop:value=s3_access_key_id
-                                            class=format!("w-full {}", INPUT_BASE)
-                                        />
-                                    </div>
-                                    <div>
-                                        <label class="block font-medium text-gray-700 mb-1">
-                                            "Secret Access Key"
-                                        </label>
-                                        <input
-                                            type="password"
-                                            on:input=move |ev| {
-                                                let value = event_target_value(&ev);
-                                                save_to_storage(S3_SECRET_KEY_KEY, &value);
-                                                set_s3_secret_key.set(value);
-                                            }
-                                            prop:value=s3_secret_key
-                                            class=format!("w-full {}", INPUT_BASE)
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                            s3_endpoint.set(value);
+                                        },
+                                    }
+                                }
+                                div {
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "Access Key ID"
+                                    }
+                                    input {
+                                        r#type: "text",
+                                        class: "w-full {INPUT_BASE}",
+                                        value: "{s3_access_key_id()}",
+                                        oninput: move |ev| {
+                                            let value = ev.value();
+                                            save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
+                                            s3_access_key_id.set(value);
+                                        },
+                                    }
+                                }
+                                div {
+                                    label { class: "block font-medium text-gray-700 mb-1",
+                                        "Secret Access Key"
+                                    }
+                                    input {
+                                        r#type: "password",
+                                        class: "w-full {INPUT_BASE}",
+                                        value: "{s3_secret_key()}",
+                                        oninput: move |ev| {
+                                            let value = ev.value();
+                                            save_to_storage(S3_SECRET_KEY_KEY, &value);
+                                            s3_secret_key.set(value);
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-                    // Footer with Done button
-                    <div class="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
-                        <div class="text-gray-600 text-left">
-                            "Built by"
-                            <a
-                                href="https://xiangpeng.systems"
-                                class="text-blue-500"
-                                target="_blank"
-                            >
-                                Xiangpeng Hao
-                            </a> "as a part of "
-                            <a
-                                href="https://github.com/XiangpengHao/liquid-cache"
-                                class="text-blue-500"
-                                target="_blank"
-                            >
-                                LiquidCache
-                            </a>
-                        </div>
-                        <button on:click=button_close class=BUTTON_PRIMARY>
-                            "Done"
-                        </button>
-                    </div>
-                </Panel>
-            </div>
-        </Show>
+                div { class: "mt-3 pt-2 border-t border-gray-200 flex justify-between items-center",
+                    div { class: "text-gray-600 text-left",
+                        "Built by "
+                        a {
+                            href: "https://xiangpeng.systems",
+                            class: "text-blue-500",
+                            target: "_blank",
+                            "Xiangpeng Hao"
+                        }
+                        " as a part of "
+                        a {
+                            href: "https://github.com/XiangpengHao/liquid-cache",
+                            class: "text-blue-500",
+                            target: "_blank",
+                            "LiquidCache"
+                        }
+                    }
+                    button {
+                        class: "{BUTTON_PRIMARY}",
+                        onclick: move |ev| {
+                            ev.stop_propagation();
+                            on_close.call(());
+                        },
+                        "Done"
+                    }
+                }
+            }
+        }
     }
 }

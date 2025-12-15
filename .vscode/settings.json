@@ -20,15 +20,5 @@
 		"strings": true
 	},
 	"css.validate": false,
-	"rust-analyzer.procMacro.ignored": {
-		"leptos_macro": [
-			// optional:
-			// "component",
-			"server"
-		],
-	},
 	"rust-analyzer.cargo.target": "wasm32-unknown-unknown",
-	"rust-analyzer.cargo.features": [
-		// "ssr"
-	],
 }

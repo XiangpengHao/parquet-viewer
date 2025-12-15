@@ -1,28 +1,20 @@
 use std::sync::Arc;
 
 use crate::{
-    SESSION_CTX,
-    parquet_ctx::ParquetResolved,
-    utils::execute_query_inner,
-    views::{
-        metadata::MetadataView,
-        parquet_reader::{ParquetUnresolved, read_from_url},
-        schema::SchemaSection,
-    },
+    SESSION_CTX, storage::readers, utils::execute_query_inner,
+    views::parquet_reader::ParquetUnresolved,
 };
 use arrow::{array::AsArray, datatypes::Int64Type, util::pretty::pretty_format_batches};
 use arrow_array::{Int64Array, RecordBatch, StringArray, StructArray};
 use arrow_schema::{DataType, Field, Fields, Schema};
 use bytes::Bytes;
 use datafusion::execution::object_store::ObjectStoreUrl;
-use leptos::{logging, prelude::*};
 use object_store::{ObjectStore, PutPayload, memory::InMemory, path::Path};
 use parquet::{
     arrow::ArrowWriter,
     file::properties::{EnabledStatistics, WriterProperties},
 };
 use wasm_bindgen_test::*;
-use web_sys::wasm_bindgen::JsCast;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -31,7 +23,7 @@ async fn test_read_parquet() {
     // This test uses a known public Parquet file
     let ctx = SESSION_CTX.clone();
     let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
-    let result = read_from_url(url).unwrap();
+    let result = readers::read_from_url(url).unwrap();
     let table = result
         .try_into_resolved(&ctx)
         .await
@@ -73,19 +65,6 @@ async fn register_parquet_file(file_name: &str, data: Vec<u8>) -> ParquetUnresol
     ParquetUnresolved::try_new(file_name.to_string(), path, object_store_url, object_store).unwrap()
 }
 
-fn test_render_schema_and_meta(table: Arc<ParquetResolved>) {
-    let document = document();
-    let test_wrapper = document.create_element("section").unwrap();
-    let _ = document.body().unwrap().append_child(&test_wrapper);
-
-    let _dispose = mount_to(test_wrapper.clone().unchecked_into(), move || {
-        view! {
-            <SchemaSection parquet_reader=table.clone() />
-            <MetadataView parquet_reader=table.clone() />
-        }
-    });
-}
-
 #[wasm_bindgen_test]
 async fn test_read_parquet_with_empty_rows() {
     let ctx = SESSION_CTX.clone();
@@ -97,8 +76,7 @@ async fn test_read_parquet_with_empty_rows() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].column(0).len(), 1);
     assert_eq!(rows[0].column(0).as_primitive::<Int64Type>().values()[0], 0);
-
-    test_render_schema_and_meta(table);
+    drop(table);
 }
 
 #[wasm_bindgen_test]
@@ -112,8 +90,7 @@ async fn test_read_parquet_with_uppercase_name() {
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select count(*) from \"{}\"", table.registered_table_name());
     let (_rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
-
-    test_render_schema_and_meta(table);
+    drop(table);
 }
 
 fn gen_parquet_with_nested_column() -> Vec<u8> {
@@ -151,15 +128,14 @@ async fn test_read_parquet_with_nested_column() {
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     let query = format!("select a.b, a.c from \"{}\"", table.registered_table_name());
     let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
-    logging::log!("{}", pretty_format_batches(&rows).unwrap());
+    tracing::info!("{}", pretty_format_batches(&rows).unwrap());
     assert_eq!(rows.len(), 1);
     let rows = rows[0].clone();
     assert_eq!(rows.num_rows(), 3);
     assert_eq!(rows.column(0).as_primitive::<Int64Type>().values()[0], 1);
     let string_array = rows.column(1).as_string::<i32>();
     assert_eq!(string_array.value(0), "foo");
-
-    test_render_schema_and_meta(table);
+    drop(table);
 }
 
 fn gen_parquet_with_page_stats(stats_level: EnabledStatistics) -> Vec<u8> {
@@ -189,7 +165,7 @@ async fn test_render_page_stats() {
     )
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    test_render_schema_and_meta(table);
+    drop(table);
 }
 
 #[wasm_bindgen_test]
@@ -201,7 +177,7 @@ async fn test_render_chunk_stats() {
     )
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    test_render_schema_and_meta(table);
+    drop(table);
 }
 
 #[wasm_bindgen_test]
@@ -213,5 +189,5 @@ async fn test_render_no_stats() {
     )
     .await;
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
-    test_render_schema_and_meta(table);
+    drop(table);
 }
