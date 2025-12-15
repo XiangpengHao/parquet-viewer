@@ -9,6 +9,17 @@
     dioxus.url = "github:DioxusLabs/dioxus/v0.7.1";
   };
 
+  nixConfig = {
+    extra-substituters = [
+      "https://nix-community.cachix.org"
+      "https://crane.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "crane.cachix.org-1:8Sw/sLLG+rE9xXFMfOW8qYh5FQwUwhK9j4gT3gqCfNY="
+    ];
+  };
+  
   outputs = { self, nixpkgs, rust-overlay, flake-utils, crane, dioxus, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -46,10 +57,8 @@
             pkg-config
             eza
             fd
-            trunk
             wasm-pack
             wabt
-            leptosfmt
             nodejs
             typescript
             pnpm
@@ -60,7 +69,6 @@
             lld_20
             llvmPackages_20.libcxx
             glibc_multi
-           
           ];
           src = ./.;
         };
