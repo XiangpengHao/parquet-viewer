@@ -44,10 +44,10 @@ jobs:
           cache-on-failure: false
           cmd-format: "nix develop -c {0}"
       
-      - name: Build with Nix and Trunk
+      - name: Build with Nix and Dioxus
         run: |
           nix develop --command bash -c "
-            trunk build --release
+            dx build --release
           "
       
       - name: Setup Pages
@@ -58,7 +58,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './target/dx/parquet-viewer/release/web/public'
       
       - name: Deploy to GitHub Pages 🚀
         id: deploy

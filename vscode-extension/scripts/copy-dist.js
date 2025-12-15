@@ -3,8 +3,8 @@ const path = require('path');
 
 async function copyDistFiles() {
 	try {
-		// Source directory (Rust project dist)
-		const sourceDir = path.resolve(__dirname, '../../dist');
+		// Source directory (Dioxus build output)
+		const sourceDir = path.resolve(__dirname, '../../target/dx/parquet-viewer/release/web/public');
 
 		// Destination directory (VS Code extension dist)
 		const destDir = path.resolve(__dirname, '../dist');

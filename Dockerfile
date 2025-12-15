@@ -16,15 +16,15 @@ RUN git clone https://github.com/XiangpengHao/parquet-viewer && \
 WORKDIR /app/parquet-viewer
 
 # Install specific nightly version to match nix flake
-RUN rustup toolchain install nightly-2025-08-28 && \
-    rustup default nightly-2025-08-28 && \
-    rustup target add wasm32-unknown-unknown --toolchain nightly-2025-08-28 && \
-    cargo +nightly-2025-08-28 install trunk && \
-    trunk build --release --locked
+RUN rustup toolchain install nightly && \
+    rustup default nightly && \
+    rustup target add wasm32-unknown-unknown --toolchain nightly && \
+    cargo +nightly install dioxus-cli && \
+    dx build --release
 
 # Stage 2: Create the final, smaller image with a web server
 FROM nginx:alpine
 WORKDIR /usr/share/nginx/html
-COPY --from=builder /app/parquet-viewer/dist/ .
+COPY --from=builder /app/parquet-viewer/target/dx/parquet-viewer/release/web/public/ .
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

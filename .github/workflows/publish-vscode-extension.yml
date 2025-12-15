@@ -67,7 +67,7 @@ jobs:
         run: |
           nix develop --command bash -c "
             # First build the main Rust app to create dist directory
-            trunk build --release && 
+            dx build --release && 
             # Then build the VS Code extension
             cd vscode-extension && npm install && npm run compile && 
             vsce package
