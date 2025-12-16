@@ -40,6 +40,8 @@ Install dioxus: https://dioxuslabs.com/learn/0.7/getting_started/#install-the-di
 
 ```bash
 dx serve --profile debug-strip
+
+dx bundle --release
 ```
 
 #### Run tests

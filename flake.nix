@@ -14,7 +14,14 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        craneLib = crane.mkLib pkgs;
+        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+          toolchain.default.override {
+            extensions = [ "rust-src" "llvm-tools-preview" ];
+            targets = [ "wasm32-unknown-unknown" ];
+          });
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+
+        version = "0.1.31";
         wasm-bindgen-cli = craneLib.buildPackage {
           version = "0.2.106";
           src = craneLib.downloadCargoPackage {
@@ -35,43 +42,75 @@
           url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui-theme.mjs";
           sha256 = "sha256-PPO2fLQ7eB+ROYnpmK5q2LHIoWUE+EcxYmvjC+gzgSw=";
         };
-      in {
-        packages.default = craneLib.buildPackage {
-          name = "paquet-viewer";
-          version = "0.1.22";
-          cargoHash = "sha256-c+usWtW5cCsTGbQ5g17rSNlycbDky5rEYn/0aSED3FM=";
+
+        src = pkgs.lib.cleanSourceWith {
+          src = ./.;
+          filter = path: type:
+            (craneLib.filterCargoSources path type) ||
+            (builtins.match ".*/assets/.*" path != null) ||
+            (builtins.match ".*/Dioxus.toml$" path != null);
+        };
+
+        commonEnv = {
+          inherit src version;
+          pname = "parquet-viewer";
           hardeningDisable = [ "all" ];
+          NIX_HARDENING_ENABLE = "";
+          strictDeps = true;
+          CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+          CC = "${pkgs.llvmPackages_20.clang}/bin/clang";
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            pkgs.llvmPackages_20.clang
+            pkgs.lld_20
+          ];
           buildInputs = with pkgs; [
             openssl
-            pkg-config
-            eza
-            fd
-            wasm-pack
-            wabt
-            nodejs
-            typescript
-            pnpm
-            vsce
-            geckodriver
-            firefox
-            llvmPackages_20.clang
-            lld_20
-            llvmPackages_20.libcxx
-            glibc_multi
           ];
-          src = ./.;
         };
+
+        cargoArtifacts = craneLib.buildDepsOnly (commonEnv // {
+          cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        });
+      in {
+        packages.web = craneLib.mkCargoDerivation (commonEnv // {
+          pname = "parquet-viewer-web";
+          inherit cargoArtifacts;
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            pkgs.llvmPackages_20.clang
+            pkgs.lld_20
+            dioxus.packages.${system}.dioxus-cli
+            wasm-bindgen-cli
+            pkgs.binaryen
+            pkgs.wabt
+          ];
+          buildInputs = with pkgs; [ openssl ];
+
+          buildPhaseCargoCommand = ''
+            unset NIX_HARDENING_ENABLE
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            export CARGO_NET_OFFLINE=true
+            export DX_LOG=info
+            dx bundle --platform web --release
+          '';
+
+          installPhaseCommand = ''
+            mkdir -p "$out"
+            cp -r target/dx/parquet-viewer/release/web/public/* "$out/"
+          '';
+        });
+
+        packages.default = self.packages.${system}.web;
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.default ];
+          inputsFrom = [ self.packages.${system}.web ];
           packages = [
             wasm-bindgen-cli
             dioxus.packages.${system}.dioxus-cli
             pkgs.binaryen  
             pkgs.tailwindcss_4
-            (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
-                extensions = [ "rust-src" "llvm-tools-preview" ];
-                targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
-              }))
+            rustToolchain
           ];
           shellHook = ''
             unset NIX_HARDENING_ENABLE
