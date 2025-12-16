@@ -81,6 +81,7 @@
             wasm-bindgen-cli
             pkgs.binaryen
             pkgs.wabt
+            pkgs.wasm-pack
           ];
           buildInputs = with pkgs; [ openssl ];
 
