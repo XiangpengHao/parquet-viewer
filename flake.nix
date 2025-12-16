@@ -54,14 +54,11 @@
         commonEnv = {
           inherit src version;
           pname = "parquet-viewer";
-          hardeningDisable = [ "all" ];
-          NIX_HARDENING_ENABLE = "";
           strictDeps = true;
           CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
-          CC = "${pkgs.llvmPackages_20.clang}/bin/clang";
           nativeBuildInputs = [
             pkgs.pkg-config
-            pkgs.llvmPackages_20.clang
+            pkgs.llvmPackages_20.clang-unwrapped
             pkgs.lld_20
           ];
           buildInputs = with pkgs; [
@@ -78,7 +75,7 @@
           inherit cargoArtifacts;
           nativeBuildInputs = [
             pkgs.pkg-config
-            pkgs.llvmPackages_20.clang
+            pkgs.llvmPackages_20.clang-unwrapped
             pkgs.lld_20
             dioxus.packages.${system}.dioxus-cli
             wasm-bindgen-cli
@@ -88,9 +85,12 @@
           buildInputs = with pkgs; [ openssl ];
 
           buildPhaseCargoCommand = ''
-            unset NIX_HARDENING_ENABLE
             export HOME="$TMPDIR/home"
             mkdir -p "$HOME"
+            # Target-specific CC for the cc crate (hyphens become underscores)
+            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+          
             export CARGO_NET_OFFLINE=true
             export DX_LOG=info
             dx bundle --platform web --release
@@ -164,16 +164,16 @@
             pkgs.binaryen  
             pkgs.tailwindcss_4
             rustToolchain
-            pkgs.wasm-pack
           ];
           shellHook = ''
-            unset NIX_HARDENING_ENABLE
-            export CC=${pkgs.llvmPackages_20.clang}/bin/clang
-            
-            # Setup daisyUI vendor files 
+            # Setup clang for wasm32 cross-compilation
+            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+            export CC=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+            # Setup daisyUI vendor files
             VENDOR_DIR="vendor"
             mkdir -p "$VENDOR_DIR"
-              
             # Copy daisyUI files from Nix store if they don't exist or are outdated
             if [ ! -f "$VENDOR_DIR/daisyui.mjs" ] || [ "${daisyui-bundle}" -nt "$VENDOR_DIR/daisyui.mjs" ]; then
               echo "Setting up daisyUI bundle files..."
