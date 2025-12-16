@@ -164,6 +164,7 @@
             pkgs.binaryen  
             pkgs.tailwindcss_4
             rustToolchain
+            pkgs.wasm-pack
           ];
           shellHook = ''
             unset NIX_HARDENING_ENABLE
