@@ -32,11 +32,14 @@ For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubuserconte
 
 It compiles [Parquet](https://github.com/apache/arrow-rs), [Arrow](https://github.com/apache/arrow-rs), [Datafusion](https://github.com/apache/datafusion), [OpenDAL](https://github.com/apache/opendal) to WebAssembly and uses it to explore Parquet files, [more details](https://blog.haoxp.xyz/posts/parquet-viewer/).
 
-Cross-compiling Rust, C++, C to WebAssembly is not easy, you might want to use [nix](https://nixos.org/) to simplify the environment setup.
+After you have installed [nix](https://nixos.org/), the dev environment is setup with:
+```bash
+direnv allow
+```
+Which takes care of the cross-compiling of Rust, C++, C to WebAssembly, and everything else you need to run the project.
 
 
 #### Run locally
-Install dioxus: https://dioxuslabs.com/learn/0.7/getting_started/#install-the-dioxus-cli
 
 ```bash
 dx serve --profile debug-strip
@@ -47,19 +50,29 @@ dx bundle --release
 #### Run tests
 
 ```bash
-cargo install wasm-pack --locked
 wasm-pack test --headless --firefox
 ```
+
+#### Build web static files
+
+```bash
+nix build .#web
+```
+Output will be in result/ directory.
 
 #### Build VS Code extension
 
 ```bash
-cd vscode-extension
-npm install
-npm run compile
-vsce login xiangpeng-systems
-vsce package
-vsce publish
+nix build .#vscode-extension
+```
+Output will be in result/ directory.
+
+#### Build Docker image
+
+```bash
+nix build .#docker
+docker load < result
+docker run -p 8080:80 parquet-viewer:0.1.31
 ```
 
 ## Citation

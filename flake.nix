@@ -21,7 +21,8 @@
           });
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        version = "0.1.31";
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+        version = cargoToml.package.version;
         wasm-bindgen-cli = craneLib.buildPackage {
           version = "0.2.106";
           src = craneLib.downloadCargoPackage {
@@ -154,6 +155,36 @@
             mkdir -p $out
             cp parquet-querier-${version}.vsix $out/
           '';
+        };
+
+        packages.docker = pkgs.dockerTools.buildLayeredImage {
+          name = "parquet-viewer";
+          tag = version;
+          
+          contents = [
+            pkgs.nginx
+            pkgs.fakeNss
+          ];
+          
+          extraCommands = ''
+            # Create nginx directories
+            mkdir -p tmp/nginx_client_body
+            mkdir -p var/log/nginx
+            mkdir -p var/cache/nginx
+            mkdir -p etc/nginx
+            
+            # Copy web files to nginx html directory
+            mkdir -p usr/share/nginx/html
+            cp -r ${self.packages.${system}.web}/* usr/share/nginx/html/
+          '';
+          
+          config = {
+            Cmd = [ "${pkgs.nginx}/bin/nginx" "-g" "daemon off;" ];
+            ExposedPorts = {
+              "80/tcp" = {};
+            };
+            WorkingDir = "/usr/share/nginx/html";
+          };
         };
 
         packages.default = self.packages.${system}.web;
