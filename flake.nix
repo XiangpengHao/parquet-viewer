@@ -26,16 +26,18 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         craneLib = crane.mkLib pkgs;
-        wasm-bindgen-cli = craneLib.buildPackage {
-          version = "0.2.106";
-          src = craneLib.downloadCargoPackage {
-            name = "wasm-bindgen-cli";
-            version = "0.2.106";
-            source = "registry+https://github.com/rust-lang/crates.io-index";
-            checksum = "sha256-W2un/Iw5MRazARFXbZiJ143wcJ/E6loIlrTVQ4DiSzY=";
-          };
-          doCheck = false;
+        wasm-bindgen-cli = pkgs.stdenv.mkDerivation {
           pname = "wasm-bindgen-cli";
+          version = "0.2.106";
+          src = pkgs.fetchurl {
+            url = "https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.106/wasm-bindgen-0.2.106-x86_64-unknown-linux-musl.tar.gz";
+            sha256 = "sha256-Pz564MCnRI/LAOn8KER34DFawPH/gyjzL2v5rH/ksCw=";
+          };
+          nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+          installPhase = ''
+            mkdir -p $out/bin
+            cp wasm-bindgen wasm-bindgen-test-runner wasm2es6js $out/bin/
+          '';
         };
          # Fetch daisyUI bundle files
         daisyui-bundle = pkgs.fetchurl {
@@ -46,44 +48,68 @@
           url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui-theme.mjs";
           sha256 = "sha256-PPO2fLQ7eB+ROYnpmK5q2LHIoWUE+EcxYmvjC+gzgSw=";
         };
-      in {
-        packages.default = craneLib.buildPackage {
-          name = "paquet-viewer";
-          version = "0.1.22";
-          cargoHash = "sha256-c+usWtW5cCsTGbQ5g17rSNlycbDky5rEYn/0aSED3FM=";
+
+        # Filter source to only include files relevant to Rust builds
+        src = craneLib.cleanCargoSource ./.;
+
+        # Common arguments shared between dependency and main builds
+        commonArgs = {
+          inherit src;
+          strictDeps = true;
           hardeningDisable = [ "all" ];
-          buildInputs = with pkgs; [
-            openssl
+
+          # Build-time tools
+          nativeBuildInputs = with pkgs; [
             pkg-config
-            eza
-            fd
-            wasm-pack
-            wabt
-            nodejs
-            typescript
-            pnpm
-            vsce
-            geckodriver
-            firefox
             llvmPackages_20.clang
             lld_20
-            llvmPackages_20.libcxx
-            glibc_multi
+            wasm-pack
           ];
-          src = ./.;
+
+          # Runtime/link-time libraries
+          buildInputs = with pkgs; [
+            openssl
+          ];
         };
+
+        # Build dependencies only (cached separately from source code)
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+      in {
+        packages.default = craneLib.buildPackage (commonArgs // {
+          inherit cargoArtifacts;
+          pname = "paquet-viewer";
+          version = "0.1.22";
+        });
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.default ];
           packages = [
+            # Rust and WASM tooling
             wasm-bindgen-cli
             dioxus.packages.${system}.dioxus-cli
-            wasm-bindgen-cli
-            pkgs.binaryen  
+            pkgs.binaryen
+            pkgs.wabt
             pkgs.tailwindcss_4
             (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
                 extensions = [ "rust-src" "llvm-tools-preview" ];
                 targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
               }))
+
+            # Dev utilities
+            pkgs.eza
+            pkgs.fd
+
+            # JavaScript/TypeScript tooling
+            pkgs.nodejs
+            pkgs.typescript
+            pkgs.pnpm
+
+            # VSCode extension tooling
+            pkgs.vsce
+
+            # Browser testing tools
+            pkgs.geckodriver
+            pkgs.firefox
           ];
           shellHook = ''
             unset NIX_HARDENING_ENABLE
