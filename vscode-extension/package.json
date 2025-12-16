@@ -4,7 +4,7 @@
   "description": "View and query Parquet files with SQL and natural language",
   "version": "0.1.31",
   "publisher": "xiangpeng-systems",
-  "icon": "dist/public/icon-192x192.png",
+  "icon": "dist/assets/icon-192x192.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/XiangpengHao/parquet-viewer"
@@ -19,10 +19,9 @@
   "main": "./out/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npm run copy-dist",
+    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
-    "copy-dist": "node scripts/copy-dist.js"
+    "lint": "eslint src --ext ts"
   },
   "contributes": {
     "customEditors": [

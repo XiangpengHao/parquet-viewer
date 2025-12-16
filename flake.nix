@@ -102,6 +102,59 @@
           '';
         });
 
+        packages.vscode-extension = pkgs.buildNpmPackage {
+          pname = "parquet-viewer-vscode-extension";
+          inherit version;
+          
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              (pkgs.lib.hasInfix "/vscode-extension" path) ||
+              (pkgs.lib.hasInfix "/assets" path) ||
+              (builtins.baseNameOf path == "README.md") ||
+              (builtins.baseNameOf path == "LICENSE-APACHE") ||
+              (builtins.baseNameOf path == "LICENSE-MIT");
+          };
+          sourceRoot = "source/vscode-extension";
+          npmDepsHash = "sha256-e904TJ6sIIuNScRRzb/xzhgd76A1INDcl8m57qXcktM=";
+
+          nativeBuildInputs = with pkgs; [
+            nodejs
+            vsce
+            typescript
+          ];
+
+          postPatch = ''
+            # Copy web build output
+            mkdir -p dist/assets
+            cp -r ${self.packages.${system}.web}/* dist/
+            
+            # Copy icon
+            cp ../assets/icon-192x192.png dist/assets/icon-192x192.png
+            
+            # Replace LICENSE symlink with actual file
+            rm -f LICENSE
+            cp ../LICENSE-APACHE LICENSE
+          '';
+
+          buildPhase = ''
+            runHook preBuild
+            
+            # Compile TypeScript
+            npm run compile
+
+            # Package extension
+            vsce package --out parquet-querier-${version}.vsix
+            
+            runHook postBuild
+          '';
+
+          installPhase = ''
+            mkdir -p $out
+            cp parquet-querier-${version}.vsix $out/
+          '';
+        };
+
         packages.default = self.packages.${system}.web;
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.web ];

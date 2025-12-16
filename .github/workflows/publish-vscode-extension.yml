@@ -10,12 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  tests:
-    name: Run Tests
-    uses: ./.github/workflows/ci.yml
-
   publish:
-    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,54 +27,48 @@ jobs:
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-      
-      - name: Calculate temporal version
-        id: calc_version
+      - name: Calculate unique version
+        id: version
         run: |
           cd vscode-extension
-          # Get base version from package.json
-          BASE_VERSION=$(node -p "require('./package.json').version")
-          # Get short commit hash (7 characters)
+          BASE_VERSION=$(jq -r '.version' package.json)
           COMMIT_HASH=$(git rev-parse --short=7 HEAD)
-          # Create temporal version: base_version+commit_hash
-          TEMPORAL_VERSION="${BASE_VERSION}+${COMMIT_HASH}"
-          echo "VERSION=${TEMPORAL_VERSION}" >> $GITHUB_OUTPUT
+          UNIQUE_VERSION="${BASE_VERSION}+${COMMIT_HASH}"
+          echo "VERSION=${UNIQUE_VERSION}" >> $GITHUB_OUTPUT
           echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
           echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_OUTPUT
-          echo "Temporal version: ${TEMPORAL_VERSION}"
+          echo "Unique version: ${UNIQUE_VERSION}"
       
-      - name: Update package.json version (in-place, not committed)
+      - name: Update package.json with unique version
         run: |
           cd vscode-extension
-          # Temporarily update package.json for building
-          npm version ${{ steps.calc_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
-          echo "Updated package.json to version ${{ steps.calc_version.outputs.VERSION }}"
+          # Create temporary version with commit hash
+          jq --arg version "${{ steps.version.outputs.VERSION }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Updated package.json to version ${{ steps.version.outputs.VERSION }}"
+          
+          # Also update package-lock.json to keep them in sync
+          jq --arg version "${{ steps.version.outputs.VERSION }}" '.version = $version' package-lock.json > package-lock.json.tmp
+          mv package-lock.json.tmp package-lock.json
       
-      - name: Build and package with Nix
+      - name: Build VSCode extension with Nix
+        run: nix build .#vscode-extension
+      
+      - name: Extract built extension
         run: |
-          nix develop --command bash -c "
-            # First build the main Rust app to create dist directory
-            dx build --release && 
-            # Then build the VS Code extension
-            cd vscode-extension && npm install && npm run compile && 
-            vsce package
-          "
+          mkdir -p publish
+          cp result/*.vsix publish/
+          ls -lh publish/
       
       - name: Publish to VS Code Marketplace
         run: |
-          cd vscode-extension
-          nix develop --command bash -c "vsce publish -p ${{ secrets.VSCE_TOKEN }}"
+          nix develop --command bash -c "vsce publish -p ${{ secrets.VSCE_TOKEN }} --packagePath publish/*.vsix"
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
       
       - name: Publish to Open VSX Registry
         run: |
-          cd vscode-extension
-          nix develop --command bash -c "npm install ovsx --no-save && npx ovsx publish *.vsix -p ${{ secrets.OVSX_TOKEN }}"
+          nix develop --command bash -c "npx ovsx publish publish/*.vsix -p ${{ secrets.OVSX_TOKEN }}"
         env:
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
       
@@ -87,9 +76,9 @@ jobs:
         run: |
           echo "### Extension Published :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.calc_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Base Version**: ${{ steps.calc_version.outputs.BASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ steps.calc_version.outputs.COMMIT_HASH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Base Version**: ${{ steps.version.outputs.BASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ steps.version.outputs.COMMIT_HASH }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit Message**: ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Extension has been published to both VS Code Marketplace and Open VSX Registry." >> $GITHUB_STEP_SUMMARY
