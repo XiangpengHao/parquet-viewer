@@ -16,14 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  tests:
-    name: Run Tests
-    uses: ./.github/workflows/ci.yml
-
   deploy:
-    needs: tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -36,19 +30,12 @@ jobs:
       
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
       
-      - name: Set up Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "pages"
-          cache-on-failure: false
-          cmd-format: "nix develop -c {0}"
-      
-      - name: Build with Nix and Dioxus
-        run: |
-          nix develop --command bash -c "
-            dx build --release
-          "
+      - name: Build web app with Nix
+        run: nix build .#web
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -58,7 +45,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './target/dx/parquet-viewer/release/web/public'
+          path: './result'
       
       - name: Deploy to GitHub Pages 🚀
         id: deploy

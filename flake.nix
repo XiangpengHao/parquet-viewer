@@ -8,24 +8,21 @@
     crane.url = "github:ipetkov/crane";
     dioxus.url = "github:DioxusLabs/dioxus/v0.7.1";
   };
-
-  nixConfig = {
-    extra-substituters = [
-      "https://nix-community.cachix.org"
-      "https://crane.cachix.org"
-    ];
-    extra-trusted-public-keys = [
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      "crane.cachix.org-1:8Sw/sLLG+rE9xXFMfOW8qYh5FQwUwhK9j4gT3gqCfNY="
-    ];
-  };
   
   outputs = { self, nixpkgs, rust-overlay, flake-utils, crane, dioxus, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        craneLib = crane.mkLib pkgs;
+        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+          toolchain.default.override {
+            extensions = [ "rust-src" "llvm-tools-preview" ];
+            targets = [ "wasm32-unknown-unknown" ];
+          });
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+        version = cargoToml.package.version;
         wasm-bindgen-cli = craneLib.buildPackage {
           version = "0.2.106";
           src = craneLib.downloadCargoPackage {
@@ -37,7 +34,7 @@
           doCheck = false;
           pname = "wasm-bindgen-cli";
         };
-         # Fetch daisyUI bundle files
+        # Fetch daisyUI bundle files
         daisyui-bundle = pkgs.fetchurl {
           url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui.mjs";
           sha256 = "sha256-ZhCaZQYZiADXoO3UwaAqv3cxiYu87LEiZuonefopRUw=";
@@ -46,53 +43,169 @@
           url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui-theme.mjs";
           sha256 = "sha256-PPO2fLQ7eB+ROYnpmK5q2LHIoWUE+EcxYmvjC+gzgSw=";
         };
-      in {
-        packages.default = craneLib.buildPackage {
-          name = "paquet-viewer";
-          version = "0.1.22";
-          cargoHash = "sha256-c+usWtW5cCsTGbQ5g17rSNlycbDky5rEYn/0aSED3FM=";
-          hardeningDisable = [ "all" ];
+
+        src = pkgs.lib.cleanSourceWith {
+          src = ./.;
+          filter = path: type:
+            (craneLib.filterCargoSources path type) ||
+            (builtins.match ".*/assets/.*" path != null) ||
+            (builtins.match ".*/Dioxus.toml$" path != null);
+        };
+
+        commonEnv = {
+          inherit src version;
+          pname = "parquet-viewer";
+          strictDeps = true;
+          CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            pkgs.llvmPackages_20.clang-unwrapped
+            pkgs.lld_20
+          ];
           buildInputs = with pkgs; [
             openssl
-            pkg-config
-            eza
-            fd
-            wasm-pack
-            wabt
-            nodejs
-            typescript
-            pnpm
-            vsce
-            geckodriver
-            firefox
-            llvmPackages_20.clang
-            lld_20
-            llvmPackages_20.libcxx
-            glibc_multi
           ];
-          src = ./.;
         };
+
+        cargoArtifacts = craneLib.buildDepsOnly (commonEnv // {
+          cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        });
+      in {
+        packages.web = craneLib.mkCargoDerivation (commonEnv // {
+          pname = "parquet-viewer-web";
+          inherit cargoArtifacts;
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            pkgs.llvmPackages_20.clang-unwrapped
+            pkgs.lld_20
+            dioxus.packages.${system}.dioxus-cli
+            wasm-bindgen-cli
+            pkgs.binaryen
+            pkgs.wabt
+            pkgs.wasm-pack
+          ];
+          buildInputs = with pkgs; [ openssl ];
+
+          buildPhaseCargoCommand = ''
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            # Target-specific CC for the cc crate (hyphens become underscores)
+            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+          
+            export CARGO_NET_OFFLINE=true
+            export DX_LOG=info
+            dx bundle --platform web --release
+          '';
+
+          installPhaseCommand = ''
+            mkdir -p "$out"
+            cp -r target/dx/parquet-viewer/release/web/public/* "$out/"
+          '';
+        });
+
+        packages.vscode-extension = pkgs.buildNpmPackage {
+          pname = "parquet-viewer-vscode-extension";
+          inherit version;
+          
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              (pkgs.lib.hasInfix "/vscode-extension" path) ||
+              (pkgs.lib.hasInfix "/assets" path) ||
+              (builtins.baseNameOf path == "README.md") ||
+              (builtins.baseNameOf path == "LICENSE-APACHE") ||
+              (builtins.baseNameOf path == "LICENSE-MIT");
+          };
+          sourceRoot = "source/vscode-extension";
+          npmDepsHash = "sha256-e904TJ6sIIuNScRRzb/xzhgd76A1INDcl8m57qXcktM=";
+
+          nativeBuildInputs = with pkgs; [
+            nodejs
+            vsce
+            typescript
+          ];
+
+          postPatch = ''
+            # Copy web build output
+            mkdir -p dist/assets
+            cp -r ${self.packages.${system}.web}/* dist/
+            
+            # Copy icon
+            cp ../assets/icon-192x192.png dist/assets/icon-192x192.png
+            
+            # Replace LICENSE symlink with actual file
+            rm -f LICENSE
+            cp ../LICENSE-APACHE LICENSE
+          '';
+
+          buildPhase = ''
+            runHook preBuild
+            
+            # Compile TypeScript
+            npm run compile
+
+            # Package extension
+            vsce package --out parquet-querier-${version}.vsix
+            
+            runHook postBuild
+          '';
+
+          installPhase = ''
+            mkdir -p $out
+            cp parquet-querier-${version}.vsix $out/
+          '';
+        };
+
+        packages.docker = pkgs.dockerTools.buildLayeredImage {
+          name = "parquet-viewer";
+          tag = version;
+          
+          contents = [
+            pkgs.nginx
+            pkgs.fakeNss
+          ];
+          
+          extraCommands = ''
+            # Create nginx directories
+            mkdir -p tmp/nginx_client_body
+            mkdir -p var/log/nginx
+            mkdir -p var/cache/nginx
+            mkdir -p etc/nginx
+            
+            # Copy web files to nginx html directory
+            mkdir -p usr/share/nginx/html
+            cp -r ${self.packages.${system}.web}/* usr/share/nginx/html/
+          '';
+          
+          config = {
+            Cmd = [ "${pkgs.nginx}/bin/nginx" "-g" "daemon off;" ];
+            ExposedPorts = {
+              "80/tcp" = {};
+            };
+            WorkingDir = "/usr/share/nginx/html";
+          };
+        };
+
+        packages.default = self.packages.${system}.web;
         devShells.default = pkgs.mkShell {
-          inputsFrom = [ self.packages.${system}.default ];
+          inputsFrom = [ self.packages.${system}.web ];
           packages = [
             wasm-bindgen-cli
             dioxus.packages.${system}.dioxus-cli
-            wasm-bindgen-cli
             pkgs.binaryen  
             pkgs.tailwindcss_4
-            (pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
-                extensions = [ "rust-src" "llvm-tools-preview" ];
-                targets = [ "x86_64-unknown-linux-gnu" "wasm32-unknown-unknown" ];
-              }))
+            rustToolchain
           ];
           shellHook = ''
-            unset NIX_HARDENING_ENABLE
-            export CC=${pkgs.llvmPackages_20.clang}/bin/clang
-            
-            # Setup daisyUI vendor files 
+            # Setup clang for wasm32 cross-compilation
+            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+            export CC=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+            export CFLAGS="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
+            # Setup daisyUI vendor files
             VENDOR_DIR="vendor"
             mkdir -p "$VENDOR_DIR"
-              
             # Copy daisyUI files from Nix store if they don't exist or are outdated
             if [ ! -f "$VENDOR_DIR/daisyui.mjs" ] || [ "${daisyui-bundle}" -nt "$VENDOR_DIR/daisyui.mjs" ]; then
               echo "Setting up daisyUI bundle files..."

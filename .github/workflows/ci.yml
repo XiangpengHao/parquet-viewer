@@ -24,13 +24,9 @@ jobs:
       
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-      
-      - name: Set up Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "ci"
-          cache-on-failure: true
-          cmd-format: "nix develop -c {0}"
+
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
       
       - name: Run tests with Nix
         run: |
