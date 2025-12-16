@@ -23,7 +23,6 @@ jobs:
   deploy:
     needs: tests
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
