@@ -26,10 +26,10 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
 
     rsx! {
         div {
-            class: "fixed inset-0 bg-gray-600 bg-opacity-50 overflow-auto h-full w-full z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out",
+            class: "modal modal-open",
             onclick: move |_| on_close.call(()),
             div {
-                class: "{PANEL} relative rounded-lg shadow-xl p-8 mx-4 my-8 max-w-4xl w-full max-h-[90vh] flex flex-col transform transition-transform duration-300",
+                class: "modal-box max-w-4xl w-full max-h-[90vh] p-8",
                 onclick: move |ev| ev.stop_propagation(),
                 SectionHeader {
                     title: "Settings".to_string(),
@@ -37,7 +37,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                     class: Some("mb-4".to_string()),
                     trailing: Some(rsx! {
                         button {
-                            class: "text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors duration-200",
+                            class: "btn btn-sm btn-circle btn-ghost",
                             onclick: move |ev| {
                                 ev.stop_propagation();
                                 on_close.call(());
@@ -64,10 +64,10 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                     class: "space-y-8 overflow-y-auto flex-1",
                     style: "max-height: calc(90vh - 160px)",
                     div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                        div { class: "bg-gray-50 p-4 rounded-lg",
+                        div { class: "card bg-base-200 p-4",
                             h3 { class: "text-lg font-medium mb-5", "Natural Language to SQL" }
                             div { class: "mb-5",
-                                label { class: "block font-medium text-gray-700 mb-2",
+                                label { class: "label font-medium",
                                     "Claude API Key"
                                     a {
                                         href: "https://console.anthropic.com/account/keys",
@@ -99,11 +99,11 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                             }
                         }
 
-                        div { class: "bg-gray-50 p-6 rounded-lg",
+                        div { class: "card bg-base-200 p-6",
                             h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
                             div { class: "space-y-3",
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1",
+                                    label { class: "label font-medium",
                                         "S3 Endpoint"
                                     }
                                     input {
@@ -118,7 +118,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1",
+                                    label { class: "label font-medium",
                                         "Access Key ID"
                                     }
                                     input {
@@ -133,7 +133,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "block font-medium text-gray-700 mb-1",
+                                    label { class: "label font-medium",
                                         "Secret Access Key"
                                     }
                                     input {
@@ -152,7 +152,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                     }
                 }
 
-                div { class: "mt-3 pt-2 border-t border-gray-200 flex justify-between items-center",
+                div { class: "modal-action mt-3 pt-2 border-t border-base-300 flex justify-between items-center w-full",
                     div { class: "text-gray-600 text-left",
                         "Built by "
                         a {

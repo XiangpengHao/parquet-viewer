@@ -48,29 +48,29 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
     let compression_pct = format!("{:.2}%", metadata_summary.compression_ratio * 100.0);
 
     let stats_class = if has_row_group_stats {
-        "border-green-200 text-green-700"
+        "badge badge-success badge-outline"
     } else {
-        "border-gray-200 text-gray-600"
+        "badge badge-ghost"
     };
     let page_stats_class = if has_column_index {
-        "border-green-200 text-green-700"
+        "badge badge-success badge-outline"
     } else {
-        "border-gray-200 text-gray-600"
+        "badge badge-ghost"
     };
     let page_offsets_class = if has_offset_index {
-        "border-green-200 text-green-700"
+        "badge badge-success badge-outline"
     } else {
-        "border-gray-200 text-gray-600"
+        "badge badge-ghost"
     };
     let bloom_class = if has_bloom_filter {
-        "border-green-200 text-green-700"
+        "badge badge-success badge-outline"
     } else {
-        "border-gray-200 text-gray-600"
+        "badge badge-ghost"
     };
 
     rsx! {
         div { class: "mb-6",
-            div { class: "grid grid-cols-4 gap-x-6 gap-y-3 bg-gray-50 p-2 rounded-md mb-2",
+            div { class: "grid grid-cols-4 gap-x-6 gap-y-3 bg-base-200 p-2 rounded-md mb-2",
                 div { class: "space-y-1",
                     span { class: "text-gray-400 text-xs", "File size" }
                     span { class: "block", "{file_size}" }
@@ -122,7 +122,7 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
             }
 
             div { class: "grid grid-cols-4 gap-2 text-xs",
-                div { class: "p-1 rounded border {stats_class}",
+                div { class: "{stats_class}",
                     if has_row_group_stats {
                         "✓"
                     } else {
@@ -130,7 +130,7 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
                     }
                     " Stats"
                 }
-                div { class: "p-1 rounded border {page_stats_class}",
+                div { class: "{page_stats_class}",
                     if has_column_index {
                         "✓"
                     } else {
@@ -138,7 +138,7 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
                     }
                     " Page stats"
                 }
-                div { class: "p-1 rounded border {page_offsets_class}",
+                div { class: "{page_offsets_class}",
                     if has_offset_index {
                         "✓"
                     } else {
@@ -146,7 +146,7 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
                     }
                     " Page offsets"
                 }
-                div { class: "p-1 rounded border {bloom_class}",
+                div { class: "{bloom_class}",
                     if has_bloom_filter {
                         "✓"
                     } else {

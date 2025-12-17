@@ -39,25 +39,29 @@ jobs:
           echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_OUTPUT
           echo "Unique version: ${UNIQUE_VERSION}"
       
-      - name: Update package.json with unique version
-        run: |
-          cd vscode-extension
-          # Create temporary version with commit hash
-          jq --arg version "${{ steps.version.outputs.VERSION }}" '.version = $version' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          echo "Updated package.json to version ${{ steps.version.outputs.VERSION }}"
-          
-          # Also update package-lock.json to keep them in sync
-          jq --arg version "${{ steps.version.outputs.VERSION }}" '.version = $version' package-lock.json > package-lock.json.tmp
-          mv package-lock.json.tmp package-lock.json
-      
       - name: Build VSCode extension with Nix
         run: nix build .#vscode-extension
       
-      - name: Extract built extension
+      - name: Update version in built extension
         run: |
           mkdir -p publish
-          cp result/*.vsix publish/
+          VSIX_FILE=$(ls result/*.vsix)
+          UNIQUE_VERSION="${{ steps.version.outputs.VERSION }}"
+          
+          # Extract the vsix (it's a zip file)
+          TEMP_DIR=$(mktemp -d)
+          unzip -q "$VSIX_FILE" -d "$TEMP_DIR"
+          
+          # Update version in extension/package.json inside the vsix
+          jq --arg version "$UNIQUE_VERSION" '.version = $version' "$TEMP_DIR/extension/package.json" > "$TEMP_DIR/extension/package.json.tmp"
+          mv "$TEMP_DIR/extension/package.json.tmp" "$TEMP_DIR/extension/package.json"
+          
+          # Repackage the vsix
+          OUTPUT_VSIX="publish/parquet-querier-${UNIQUE_VERSION}.vsix"
+          (cd "$TEMP_DIR" && zip -qr - .) > "$OUTPUT_VSIX"
+          
+          rm -rf "$TEMP_DIR"
+          echo "Created $OUTPUT_VSIX with version $UNIQUE_VERSION"
           ls -lh publish/
       
       - name: Publish to VS Code Marketplace

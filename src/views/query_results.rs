@@ -91,14 +91,14 @@ pub fn QueryResultView(
                     div {
                         div { class: "font-semibold text-gray-900 break-words", "{query_display}" }
                         if let Some(sql) = generated_sql {
-                            pre { class: "mt-2 text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-48",
+                            pre { class: "mt-2 text-xs bg-base-200 border border-base-300 rounded p-2 overflow-auto max-h-48",
                                 "{sql}"
                             }
                         }
                     }
                     div { class: "flex items-center gap-2",
                         button {
-                            class: "p-1 text-gray-500 hover:text-gray-700",
+                            class: "btn btn-xs btn-ghost",
                             title: "Export to CSV",
                             onclick: move |_| {
                                 if let Some(state) = query_execution.read().as_ref()
@@ -110,7 +110,7 @@ pub fn QueryResultView(
                             "CSV"
                         }
                         button {
-                            class: "p-1 text-gray-500 hover:text-gray-700",
+                            class: "btn btn-xs btn-ghost",
                             title: "Export to Parquet",
                             onclick: move |_| {
                                 if let Some(state) = query_execution.read().as_ref()
@@ -122,7 +122,7 @@ pub fn QueryResultView(
                             "Parquet"
                         }
                         button {
-                            class: "p-1 text-gray-500 hover:text-gray-700",
+                            class: "btn btn-xs btn-ghost",
                             title: "Copy SQL",
                             onclick: move |_| {
                                 if let Some(state) = query_execution.read().as_ref()
@@ -136,7 +136,7 @@ pub fn QueryResultView(
                             "Copy"
                         }
                         button {
-                            class: "p-1 text-gray-500 hover:text-gray-700",
+                            class: "btn btn-xs btn-ghost",
                             title: "Execution plan",
                             onclick: move |_| {
                                 let mut show_plan = show_plan;
@@ -145,7 +145,7 @@ pub fn QueryResultView(
                             "Plan"
                         }
                         button {
-                            class: "p-1 text-gray-500 hover:text-red-600",
+                            class: "btn btn-xs btn-ghost hover:text-error",
                             title: "Hide",
                             onclick: move |_| on_hide.call(id),
                             "Hide"
@@ -161,7 +161,9 @@ pub fn QueryResultView(
                         pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress}" }
                     },
                     Some(Err(e)) => rsx! {
-                        pre { class: "text-red-700 text-xs whitespace-pre-wrap", "{e}" }
+                        div { class: "alert alert-error text-xs",
+                            pre { class: "whitespace-pre-wrap", "{e}" }
+                        }
                     },
                     Some(Ok(result)) => {
                         let merged_record_batch = concat_batches(
@@ -180,8 +182,8 @@ pub fn QueryResultView(
 
 
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
-                                table { class: "min-w-full bg-white table-fixed",
-                                    thead { class: "sticky top-0 z-10 bg-gray-50",
+                                table { class: "table table-zebra table-pin-rows table-xs",
+                                    thead {
                                         tr {
                                             for field in schema.fields().iter() {
                                                 th { class: "px-1 py-1 text-left min-w-[200px] leading-tight",
@@ -197,7 +199,7 @@ pub fn QueryResultView(
                                     }
                                     tbody {
                                         for row_idx in 0..show_rows {
-                                            tr { class: "hover:bg-gray-50",
+                                            tr { class: "hover",
                                                 for col_idx in 0..merged_record_batch.num_columns() {
                                                     {
                                                         let column = merged_record_batch.column(col_idx);
@@ -226,7 +228,7 @@ pub fn QueryResultView(
                             if show_rows < total_rows {
                                 div { class: "mt-2 flex justify-center",
                                     button {
-                                        class: "px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs",
+                                        class: "btn btn-sm btn-outline",
                                         onclick: move |_| {
                                             let mut visible_rows = visible_rows;
                                             visible_rows.set(visible_rows() + 20);
