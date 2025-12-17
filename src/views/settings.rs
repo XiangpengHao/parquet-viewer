@@ -72,7 +72,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     a {
                                         href: "https://console.anthropic.com/account/keys",
                                         target: "_blank",
-                                        class: "text-blue-500 hover:text-blue-700 ml-1 transition-colors duration-200",
+                                        class: "link link-primary ml-1",
                                         "(get key)"
                                     }
                                 }
@@ -86,11 +86,11 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                         anthropic_key.set(value);
                                     },
                                 }
-                                p { class: "mt-3 text-gray-600 italic",
+                                p { class: "mt-3 opacity-75 italic text-sm",
                                     "If no API key is provided, it uses Xiangpeng's personal token -- use reasonably and "
                                     a {
                                         href: "https://github.com/XiangpengHao",
-                                        class: "text-blue-500 hover:underline",
+                                        class: "link link-primary hover:underline",
                                         target: "_blank",
                                         "consider donating"
                                     }
@@ -153,18 +153,18 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                 }
 
                 div { class: "modal-action mt-3 pt-2 border-t border-base-300 flex justify-between items-center w-full",
-                    div { class: "text-gray-600 text-left",
+                    div { class: "opacity-75 text-left",
                         "Built by "
                         a {
                             href: "https://xiangpeng.systems",
-                            class: "text-blue-500",
+                            class: "link link-primary",
                             target: "_blank",
                             "Xiangpeng Hao"
                         }
                         " as a part of "
                         a {
                             href: "https://github.com/XiangpengHao/liquid-cache",
-                            class: "text-blue-500",
+                            class: "link link-primary",
                             target: "_blank",
                             "LiquidCache"
                         }

@@ -74,7 +74,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                     a {
                         href: "https://parquet.apache.org/docs/file-format/metadata/",
                         target: "_blank",
-                        class: "text-blue-500 hover:text-blue-700 text-xs ml-1",
+                        class: "link link-primary text-xs ml-1",
                         title: "Parquet Metadata Documentation",
                         "(doc)"
                     }
@@ -87,10 +87,10 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                         div { class: "mt-2 flex flex-col gap-4 md:flex-row md:justify-between",
                             div {
                                 div { class: "flex items-center mb-2",
-                                    label { r#for: "row-group-select", class: "text-gray-700 w-32", "Row Group" }
+                                    label { r#for: "row-group-select", class: "font-medium w-32", "Row Group" }
                                     select {
                                         id: "row-group-select",
-                                        class: "w-full bg-white text-gray-700 rounded-lg border border-gray-200 px-2 py-1 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer",
+                                        class: "select select-bordered w-full",
                                         onchange: move |ev| selected_row_group.set(ev.value().parse::<usize>().unwrap_or(0)),
                                         for i in 0..row_group_count {
                                             option { value: "{i}", class: "py-2", "{i}" }
@@ -101,10 +101,10 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                             }
                             div {
                                 div { class: "flex items-center mb-2",
-                                    label { r#for: "column-select", class: "text-gray-700 w-32", "Column" }
+                                    label { r#for: "column-select", class: "font-medium w-32", "Column" }
                                     select {
                                         id: "column-select",
-                                        class: "w-full bg-white text-gray-700 rounded-lg border border-gray-200 px-2 py-1 hover:border-gray-300 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer",
+                                        class: "select select-bordered w-full",
                                         onchange: move |ev| selected_column.set(ev.value().parse::<usize>().unwrap_or(0)),
                                         for (i, field) in sorted_fields.iter() {
                                             option { value: "{i}", class: "py-2", "{field}" }
@@ -119,7 +119,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                 if row_group_count > 0 {
                     div { class: "flex flex-col space-y-2",
                         div {
-                            div { class: "text-gray-900", "Row Group stats" }
+                            div { class: "font-semibold mb-1", "Row Group stats" }
                             StatisticsDisplay { statistics: column_stats() }
                         }
                         PageInfo { parquet_reader: reader_for_page_info.clone(), row_group_id: selected_row_group(), column_id: selected_column() }
@@ -142,21 +142,21 @@ fn RowGroupInfo(metadata: Arc<ParquetMetaData>, row_group_id: usize) -> Element 
 
     let (compressed_size, uncompressed_size, num_rows) = row_group_info();
     rsx! {
-        div { class: "grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-md",
+        div { class: "grid grid-cols-2 gap-2 bg-base-200 p-2 rounded-md",
             div { class: "space-y-1",
-                div { class: "text-gray-500", "Compressed" }
+                div { class: "text-base-content opacity-60 text-xs", "Compressed" }
                 div { "{Byte::from_u64(compressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
             }
             div { class: "space-y-1",
-                div { class: "text-gray-500", "Uncompressed" }
+                div { class: "text-base-content opacity-60 text-xs", "Uncompressed" }
                 div { "{Byte::from_u64(uncompressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
             }
             div { class: "space-y-1",
-                div { class: "text-gray-500", "Compression%" }
+                div { class: "text-base-content opacity-60 text-xs", "Compression%" }
                 div { "{compressed_size as f64 / uncompressed_size as f64 * 100.0:.1}%" }
             }
             div { class: "space-y-1",
-                div { class: "text-gray-500", "Rows" }
+                div { class: "text-base-content opacity-60 text-xs", "Rows" }
                 div { "{format_rows(num_rows)}" }
             }
         }
@@ -210,26 +210,26 @@ pub fn ColumnInfo(
     rsx! {
         div { class: "space-y-8",
             div { class: "flex flex-col space-y-2",
-                div { class: "grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-md",
+                div { class: "grid grid-cols-3 gap-2 bg-base-200 p-2 rounded-md",
                     div { class: "space-y-1",
-                        div { class: "text-gray-500", "Compressed" }
+                        div { class: "text-base-content opacity-60 text-xs", "Compressed" }
                         div { "{Byte::from_u64(column_info.compressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
                     }
                     div { class: "space-y-1",
-                        div { class: "text-gray-500", "Uncompressed" }
+                        div { class: "text-base-content opacity-60 text-xs", "Uncompressed" }
                         div { "{Byte::from_u64(column_info.uncompressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
                     }
                     div { class: "space-y-1",
-                        div { class: "text-gray-500", "Compression%" }
+                        div { class: "text-base-content opacity-60 text-xs", "Compression%" }
                         div { "{column_info.compressed_size as f64 / column_info.uncompressed_size as f64 * 100.0:.1}%" }
                     }
                     div { class: "space-y-1",
-                        div { class: "text-gray-500", "CompressionType" }
+                        div { class: "text-base-content opacity-60 text-xs", "CompressionType" }
                         div { "{column_info.compression.codec_to_string()}" }
                     }
                     div { class: "space-y-1",
-                        div { class: "text-gray-500", "Pages" }
-                        div { class: "text-gray-700", "{page_count_text}" }
+                        div { class: "text-base-content opacity-60 text-xs", "Pages" }
+                        div { "{page_count_text}" }
                     }
                 }
             }

@@ -89,7 +89,7 @@ pub fn QueryResultView(
             div { class: "flex flex-col gap-2 mb-3",
                 div { class: "flex items-start justify-between gap-4",
                     div {
-                        div { class: "font-semibold text-gray-900 break-words", "{query_display}" }
+                        div { class: "font-semibold break-words", "{query_display}" }
                         if let Some(sql) = generated_sql {
                             pre { class: "mt-2 text-xs bg-base-200 border border-base-300 rounded p-2 overflow-auto max-h-48",
                                 "{sql}"
@@ -158,7 +158,7 @@ pub fn QueryResultView(
 
                 match execution_result {
                     None => rsx! {
-                        pre { class: "text-gray-600 text-xs whitespace-pre-wrap", "{progress}" }
+                        pre { class: "text-base-content opacity-75 text-xs whitespace-pre-wrap", "{progress}" }
                     },
                     Some(Err(e)) => rsx! {
                         div { class: "alert alert-error text-xs",
@@ -189,7 +189,7 @@ pub fn QueryResultView(
                                                 th { class: "px-1 py-1 text-left min-w-[200px] leading-tight",
                                                     div { class: "truncate", title: "{field.name()}", "{field.name()}" }
                                                     div {
-                                                        class: "text-xs text-gray-400 truncate",
+                                                        class: "text-xs opacity-60 truncate",
                                                         title: "{format_arrow_type(field.data_type())}",
                                                         "{format_arrow_type(field.data_type())}"
                                                     }
@@ -207,7 +207,7 @@ pub fn QueryResultView(
                                                             .unwrap_or_else(|_| "NULL".to_string());
                                                         let preview = cell_value.chars().take(200).collect::<String>();
                                                         rsx! {
-                                                            td { class: "px-1 py-1 leading-tight text-gray-700 break-words",
+                                                            td { class: "px-1 py-1 leading-tight break-words",
                                                                 if cell_value.len() > 200 {
                                                                     details {
                                                                         summary { class: "cursor-pointer select-none", "{preview}..." }

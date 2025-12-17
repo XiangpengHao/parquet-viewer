@@ -45,9 +45,9 @@ pub fn SectionHeader(
     rsx! {
         div { class: "{classes}",
             div {
-                h2 { class: "text-gray-900 font-semibold", "{title}" }
+                h2 { class: "text-base-content font-semibold", "{title}" }
                 if let Some(text) = subtitle {
-                    p { class: "text-xs text-gray-500", "{text}" }
+                    p { class: "text-xs text-base-content opacity-60", "{text}" }
                 } else {
                     span {}
                 }

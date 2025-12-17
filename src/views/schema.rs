@@ -168,13 +168,13 @@ fn DistinctCell(field_name: String, registered_table_name: String) -> Element {
 
     if action.pending() {
         return rsx! {
-            span { class: "text-gray-400", "..." }
+            span { class: "opacity-50", "..." }
         };
     }
 
     match action.value() {
         Some(Ok(cnt)) => rsx! {
-            span { class: "font-mono text-gray-800", "{cnt.read()}" }
+            span { class: "font-mono text-base-content", "{cnt.read()}" }
         },
         Some(Err(_e)) => rsx! {
             button {
@@ -187,7 +187,7 @@ fn DistinctCell(field_name: String, registered_table_name: String) -> Element {
         },
         None => rsx! {
             button {
-                class: "text-blue-500 hover:underline focus:outline-none",
+                class: "link link-primary",
                 onclick: move |_| {
                     action.call();
                 },
@@ -206,7 +206,7 @@ fn PageEncodingsCell(parquet_reader: Arc<ParquetResolved>, column_id: usize) -> 
 
     if action.pending() {
         return rsx! {
-            span { class: "text-gray-400", "..." }
+            span { class: "opacity-50", "..." }
         };
     }
 
@@ -225,7 +225,7 @@ fn PageEncodingsCell(parquet_reader: Arc<ParquetResolved>, column_id: usize) -> 
         },
         None => rsx! {
             button {
-                class: "text-blue-500 hover:underline focus:outline-none",
+                class: "link link-primary",
                 onclick: move |_| {
                     action.call();
                 },
@@ -371,14 +371,14 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                 class: Some("mb-1".to_string()),
                 trailing: None,
             }
-            div { class: "rounded-lg border border-gray-200 bg-white overflow-x-auto",
+            div { class: "rounded-lg border border-base-300 bg-base-100 overflow-x-auto",
                 table { class: "min-w-full text-xs",
-                    thead { class: "sticky top-0 bg-gray-50 z-10",
-                        tr { class: "text-[11px] uppercase tracking-wide text-gray-500 text-left border-b-2 border-gray-300",
+                    thead { class: "sticky top-0 bg-base-200 z-10",
+                        tr { class: "text-[11px] uppercase tracking-wide opacity-60 text-left border-b-2 border-base-300",
                             th { class: "py-2 px-3 font-medium", "Arrow Column" }
                             th { class: "py-2 px-3 font-medium", "Arrow Type" }
                             th { class: "py-2 px-3 font-medium", "Null?" }
-                            th { class: "py-2 px-3 font-medium border-r-2 border-gray-300",
+                            th { class: "py-2 px-3 font-medium border-r-2 border-base-300",
                                 "Distinct"
                             }
                             th { class: "py-2 px-3 font-medium", "Parquet Column" }
@@ -402,24 +402,24 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                     rsx! {
                                         tr {
                                             key: "{row.arrow_index}-none",
-                                            class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                                            class: "align-top hover:bg-base-200 border-b border-base-200",
 
 
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
 
                                                 div { class: "flex flex-col gap-0.5",
-                                                    span { class: "font-mono text-[11px] text-gray-500", "#{row.arrow_index}" }
-                                                    span { class: "font-semibold text-gray-900", "{row.arrow_name}" }
+                                                    span { class: "font-mono text-[11px] opacity-60", "#{row.arrow_index}" }
+                                                    span { class: "font-semibold font-semibold", "{row.arrow_name}" }
                                                 }
                                             }
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                                div { class: "font-mono text-gray-800 break-all", "{row.arrow_type}" }
+                                                div { class: "font-mono text-base-content break-all", "{row.arrow_type}" }
                                             }
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                                span { class: "font-semibold text-gray-700", "{row.arrow_nullable}" }
+                                                span { class: "font-semibold opacity-75", "{row.arrow_nullable}" }
                                             }
                                             td {
-                                                class: "py-1.5 px-3 border-r-2 border-gray-300",
+                                                class: "py-1.5 px-3 border-r-2 border-base-300",
                                                 rowspan: "{group_size}",
                                                 DistinctCell {
                                                     field_name: row.arrow_name.clone(),
@@ -430,7 +430,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
 
                                             td { class: "py-1.5 px-3",
 
-                                                span { class: "text-gray-400", "-" }
+                                                span { class: "opacity-50", "-" }
                                             }
                                             td { class: "py-1.5 px-3", "-" }
                                             td { class: "py-1.5 px-3 font-mono", "-" }
@@ -441,7 +441,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             td { class: "py-1.5 px-3 font-mono", "-" }
                                             td { class: "py-1.5 px-3", "-" }
                                             td { class: "py-1.5 px-3",
-                                                span { class: "text-gray-400", "-" }
+                                                span { class: "opacity-50", "-" }
                                             }
                                             td { class: "py-1.5 px-3", "-" }
                                         }
@@ -451,21 +451,21 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                     rsx! {
                                         tr {
                                             key: "{row.arrow_index}-{first_pq_col.id}",
-                                            class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                                            class: "align-top hover:bg-base-200 border-b border-base-200",
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
                                                 div { class: "flex flex-col gap-0.5",
-                                                    span { class: "font-mono text-[11px] text-gray-500", "#{row.arrow_index}" }
-                                                    span { class: "font-semibold text-gray-900", "{row.arrow_name}" }
+                                                    span { class: "font-mono text-[11px] opacity-60", "#{row.arrow_index}" }
+                                                    span { class: "font-semibold font-semibold", "{row.arrow_name}" }
                                                 }
                                             }
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                                div { class: "font-mono text-gray-800 break-all", "{row.arrow_type}" }
+                                                div { class: "font-mono text-base-content break-all", "{row.arrow_type}" }
                                             }
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
-                                                span { class: "font-semibold text-gray-700", "{row.arrow_nullable}" }
+                                                span { class: "font-semibold opacity-75", "{row.arrow_nullable}" }
                                             }
                                             td {
-                                                class: "py-1.5 px-3 border-r-2 border-gray-300",
+                                                class: "py-1.5 px-3 border-r-2 border-base-300",
                                                 rowspan: "{group_size}",
                                                 DistinctCell {
                                                     field_name: row.arrow_name.clone(),
@@ -475,9 +475,9 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
 
                                             td { class: "py-1.5 px-3",
                                                 div { class: "flex flex-col gap-0.5",
-                                                    span { class: "font-mono text-[11px] text-gray-500", "#{first_pq_col.id}" }
-                                                    span { class: "font-semibold text-gray-900", "{first_pq_col.name}" }
-                                                    span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                    span { class: "font-mono text-[11px] opacity-60", "#{first_pq_col.id}" }
+                                                    span { class: "font-semibold font-semibold", "{first_pq_col.name}" }
+                                                    span { class: "font-mono text-[10px] opacity-50 break-all",
                                                         "{first_pq_col.path.join(\".\")}"
                                                     }
                                                 }
@@ -502,12 +502,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                         for pq_col in row.parquet_columns.iter().skip(1) {
                                             tr {
                                                 key: "{row.arrow_index}-{pq_col.id}",
-                                                class: "align-top hover:bg-gray-50 border-b border-gray-100",
+                                                class: "align-top hover:bg-base-200 border-b border-base-200",
                                                 td { class: "py-1.5 px-3",
                                                     div { class: "flex flex-col gap-0.5",
-                                                        span { class: "font-mono text-[11px] text-gray-500", "#{pq_col.id}" }
-                                                        span { class: "font-semibold text-gray-900", "{pq_col.name}" }
-                                                        span { class: "font-mono text-[10px] text-gray-400 break-all",
+                                                        span { class: "font-mono text-[11px] opacity-60", "#{pq_col.id}" }
+                                                        span { class: "font-semibold font-semibold", "{pq_col.name}" }
+                                                        span { class: "font-mono text-[10px] opacity-50 break-all",
                                                             "{pq_col.path.join(\".\")}"
                                                         }
                                                     }
@@ -533,7 +533,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                     }
                 }
             }
-            div { class: "text-xs text-gray-600 space-y-1",
+            div { class: "text-xs opacity-75 space-y-1",
                 p {
                     "*: "
                     strong { "Logical size (L)" }
@@ -558,11 +558,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
             if !schema.metadata().is_empty() {
                 div { class: "mt-2",
                     details {
-                        summary { class: "cursor-pointer text-sm font-medium text-gray-700 py-2",
+                        summary { class: "cursor-pointer text-sm font-medium opacity-75 py-2",
                             "Metadata"
                         }
-                        div { class: "pl-4 pt-2 pb-2 border-l-2 border-gray-200 mt-2 text-sm",
-                            pre { class: "whitespace-pre-wrap break-words bg-gray-50 p-2 rounded font-mono text-xs overflow-auto max-h-60",
+                        div { class: "pl-4 pt-2 pb-2 border-l-2 border-base-300 mt-2 text-sm",
+                            pre { class: "whitespace-pre-wrap break-words bg-base-200 p-2 rounded font-mono text-xs overflow-auto max-h-60",
                                 {format!("{:#?}", schema.metadata())}
                             }
                         }

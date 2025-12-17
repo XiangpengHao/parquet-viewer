@@ -313,7 +313,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
                 if is_dragging() {
                     "border-green-500 bg-green-50"
                 } else {
-                    "border-gray-300 bg-white"
+                    "border-base-300 bg-base-100"
                 },
             ),
             ondragenter: move |ev| {
@@ -398,7 +398,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
 
             div { class: "flex flex-col items-center gap-1 text-center",
                 div { class: "space-y-0.5",
-                    p { class: "text-sm font-medium text-gray-900", "Drop a Parquet file here" }
+                    p { class: "text-sm font-medium", "Drop a Parquet file here" }
                 }
 
                 label {
@@ -408,7 +408,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
                 }
 
                 if let Some(name) = selected_file_name() {
-                    p { class: "text-xs text-gray-500 mt-1",
+                    p { class: "text-xs opacity-60 mt-1",
                         "Selected: "
                         span { class: "font-mono", "{name}" }
                     }

@@ -72,51 +72,51 @@ pub fn FileLevelInfo(metadata_summary: MetadataSummary) -> Element {
         div { class: "mb-6",
             div { class: "grid grid-cols-4 gap-x-6 gap-y-3 bg-base-200 p-2 rounded-md mb-2",
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "File size" }
+                    span { class: "text-base-content opacity-50 text-xs", "File size" }
                     span { class: "block", "{file_size}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Compressed row groups" }
+                    span { class: "text-base-content opacity-50 text-xs", "Compressed row groups" }
                     span { class: "block", "{compressed_row_groups}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Metadata size" }
+                    span { class: "text-base-content opacity-50 text-xs", "Metadata size" }
                     span { class: "block", "{footer_size}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Metadata in memory size" }
+                    span { class: "text-base-content opacity-50 text-xs", "Metadata in memory size" }
                     span { class: "block", "{metadata_memory_size}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Bloom filter size" }
+                    span { class: "text-base-content opacity-50 text-xs", "Bloom filter size" }
                     span { class: "block", "{bloom_filter_size}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Uncompressed" }
+                    span { class: "text-base-content opacity-50 text-xs", "Uncompressed" }
                     span { class: "block", "{uncompressed_size}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Compression%" }
+                    span { class: "text-base-content opacity-50 text-xs", "Compression%" }
                     span { class: "block", "{compression_pct}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Row groups" }
+                    span { class: "text-base-content opacity-50 text-xs", "Row groups" }
                     span { class: "block", "{metadata_summary.row_group_count}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Total rows" }
+                    span { class: "text-base-content opacity-50 text-xs", "Total rows" }
                     span { class: "block", "{format_rows(metadata_summary.row_count)}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Columns" }
+                    span { class: "text-base-content opacity-50 text-xs", "Columns" }
                     span { class: "block", "{metadata_summary.columns}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Created by" }
+                    span { class: "text-base-content opacity-50 text-xs", "Created by" }
                     span { class: "block", "{created_by}" }
                 }
                 div { class: "space-y-1",
-                    span { class: "text-gray-400 text-xs", "Version" }
+                    span { class: "text-base-content opacity-50 text-xs", "Version" }
                     span { class: "block", "{version}" }
                 }
             }

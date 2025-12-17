@@ -52,31 +52,31 @@ pub fn StatisticsDisplay(statistics: Option<Statistics>) -> Element {
                 div { class: "flex flex-wrap gap-2 text-xs",
                     if let Some(val) = min_val {
                         div { class: "flex-1 min-w-[200px] max-h-20 px-2 py-1 rounded border border-gray-200 overflow-y-auto",
-                            span { class: "text-gray-600 font-medium", "Min: " }
-                            span { class: "text-gray-800 break-words", "{val}" }
+                            span { class: "opacity-75 font-medium", "Min: " }
+                            span { class: "text-base-content break-words", "{val}" }
                         }
                     }
                     if let Some(val) = max_val {
                         div { class: "flex-1 min-w-[200px] max-h-20 px-2 py-1 rounded border border-gray-200 overflow-y-auto",
-                            span { class: "text-gray-600 font-medium", "Max: " }
-                            span { class: "text-gray-800 break-words", "{val}" }
+                            span { class: "opacity-75 font-medium", "Max: " }
+                            span { class: "text-base-content break-words", "{val}" }
                         }
                     }
                     if let Some(count) = null_count {
                         div { class: "flex-1 max-w-[50px] px-2 py-1 rounded border border-gray-200",
-                            span { class: "text-gray-600 font-medium", "Nulls: " }
-                            span { class: "text-gray-800", "{format_rows(count)}" }
+                            span { class: "opacity-75 font-medium", "Nulls: " }
+                            span { class: "text-base-content", "{format_rows(count)}" }
                         }
                     }
                     if let Some(count) = distinct_count {
                         div { class: "flex-1 max-w-[50px] px-2 py-1 rounded border border-gray-200",
-                            span { class: "text-gray-600 font-medium", "Distinct: " }
-                            span { class: "text-gray-800", "{format_rows(count)}" }
+                            span { class: "opacity-75 font-medium", "Distinct: " }
+                            span { class: "text-base-content", "{format_rows(count)}" }
                         }
                     }
                 }
             }
         }
-        None => rsx! { div { class: "text-gray-400 text-sm italic", "No statistics available" } },
+        None => rsx! { div { class: "opacity-50 text-sm italic", "No statistics available" } },
     }
 }
