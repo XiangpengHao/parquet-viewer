@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::{
-    components::ui::{BUTTON_PRIMARY, INPUT_BASE, PANEL, SectionHeader},
+    components::ui::{BUTTON_PRIMARY, INPUT_BASE, SectionHeader},
     utils::{get_stored_value, save_to_storage},
 };
 
@@ -25,9 +25,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
     }
 
     rsx! {
-        div {
-            class: "modal modal-open",
-            onclick: move |_| on_close.call(()),
+        div { class: "modal modal-open", onclick: move |_| on_close.call(()),
             div {
                 class: "modal-box max-w-4xl w-full max-h-[90vh] p-8",
                 onclick: move |ev| ev.stop_propagation(),
@@ -103,9 +101,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                             h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
                             div { class: "space-y-3",
                                 div {
-                                    label { class: "label font-medium",
-                                        "S3 Endpoint"
-                                    }
+                                    label { class: "label font-medium", "S3 Endpoint" }
                                     input {
                                         r#type: "text",
                                         class: "w-full {INPUT_BASE}",
@@ -118,9 +114,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "label font-medium",
-                                        "Access Key ID"
-                                    }
+                                    label { class: "label font-medium", "Access Key ID" }
                                     input {
                                         r#type: "text",
                                         class: "w-full {INPUT_BASE}",
@@ -133,9 +127,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                                     }
                                 }
                                 div {
-                                    label { class: "label font-medium",
-                                        "Secret Access Key"
-                                    }
+                                    label { class: "label font-medium", "Secret Access Key" }
                                     input {
                                         r#type: "password",
                                         class: "w-full {INPUT_BASE}",

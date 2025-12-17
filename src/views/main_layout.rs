@@ -7,7 +7,7 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::js_sys;
 
-use crate::components::{QueryInput, use_theme, Theme};
+use crate::components::{QueryInput, Theme, use_theme};
 use crate::parquet_ctx::ParquetResolved;
 use crate::storage::readers;
 use crate::utils::{send_message_to_vscode, vscode_env};

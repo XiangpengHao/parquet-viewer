@@ -5,11 +5,13 @@
 use dioxus::prelude::*;
 
 pub const PANEL: &str = "card bg-base-100 border border-base-300";
-pub const INPUT_BASE: &str = "input input-bordered focus:outline-none focus:ring-2 focus:ring-green-500";
+pub const INPUT_BASE: &str =
+    "input input-bordered focus:outline-none focus:ring-2 focus:ring-green-500";
 
 pub const BUTTON_PRIMARY: &str = "btn bg-green-500 text-white hover:bg-green-600 border-0";
 pub const BUTTON_OUTLINE: &str = "btn btn-outline border-green-500 text-green-500 hover:border-green-600 hover:text-green-600 hover:bg-transparent";
-pub const BUTTON_GHOST: &str = "btn btn-ghost border border-green-500 text-green-500 hover:bg-green-50";
+pub const BUTTON_GHOST: &str =
+    "btn btn-ghost border border-green-500 text-green-500 hover:bg-green-50";
 
 #[component]
 pub fn Panel(class: Option<String>, children: Element) -> Element {
