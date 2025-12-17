@@ -7,7 +7,7 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::js_sys;
 
-use crate::components::QueryInput;
+use crate::components::{QueryInput, Theme, use_theme};
 use crate::parquet_ctx::ParquetResolved;
 use crate::storage::readers;
 use crate::utils::{send_message_to_vscode, vscode_env};
@@ -35,6 +35,9 @@ pub(crate) fn MainLayout() -> Element {
     let parquet_resolved = use_signal(|| None::<Arc<ParquetResolved>>);
     let query_input = use_signal(|| DEFAULT_QUERY.to_string());
     let query_results = use_signal(Vec::<QueryResultEntry>::new);
+
+    // Theme management
+    let (theme, toggle_theme) = use_theme();
 
     let on_hide = {
         move |id: usize| {
@@ -140,28 +143,68 @@ pub(crate) fn MainLayout() -> Element {
         div { class: "container mx-auto px-4 py-4 text-xs",
             h1 { class: "text-2xl font-bold mb-2 flex items-center justify-between",
                 span { "Parquet Viewer" }
-                Link {
-                    to: Route::SettingsRoute {},
-                    class: "btn btn-ghost btn-sm",
-                    title: "Settings",
-                    aria_label: "Settings",
-                    svg {
-                        xmlns: "http://www.w3.org/2000/svg",
-                        class: "h-5 w-5",
-                        fill: "none",
-                        view_box: "0 0 24 24",
-                        stroke: "currentColor",
-                        path {
-                            stroke_linecap: "round",
-                            stroke_linejoin: "round",
-                            stroke_width: "2",
-                            d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+                div { class: "flex items-center gap-2",
+                    // Theme toggle button
+                    button {
+                        class: "btn btn-ghost btn-sm swap swap-rotate",
+                        onclick: move |_| toggle_theme.call(()),
+                        title: if theme() == Theme::Light { "Switch to dark mode" } else { "Switch to light mode" },
+                        aria_label: "Toggle theme",
+                        // Sun icon (shown in dark mode)
+                        if theme() == Theme::Dark {
+                            svg {
+                                xmlns: "http://www.w3.org/2000/svg",
+                                class: "h-5 w-5",
+                                fill: "none",
+                                view_box: "0 0 24 24",
+                                stroke: "currentColor",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
+                                }
+                            }
+                        } else {
+                            // Moon icon (shown in light mode)
+                            svg {
+                                xmlns: "http://www.w3.org/2000/svg",
+                                class: "h-5 w-5",
+                                fill: "none",
+                                view_box: "0 0 24 24",
+                                stroke: "currentColor",
+                                path {
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    stroke_width: "2",
+                                    d: "M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z",
+                                }
+                            }
                         }
-                        path {
-                            stroke_linecap: "round",
-                            stroke_linejoin: "round",
-                            stroke_width: "2",
-                            d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                    }
+                    Link {
+                        to: Route::SettingsRoute {},
+                        class: "btn btn-ghost btn-sm",
+                        title: "Settings",
+                        aria_label: "Settings",
+                        svg {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            class: "h-5 w-5",
+                            fill: "none",
+                            view_box: "0 0 24 24",
+                            stroke: "currentColor",
+                            path {
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                                stroke_width: "2",
+                                d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+                            }
+                            path {
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                                stroke_width: "2",
+                                d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                            }
                         }
                     }
                 }
@@ -212,10 +255,10 @@ pub(crate) fn MainLayout() -> Element {
                         SchemaSection { parquet_reader: table.clone() }
                     }
                 } else if !is_in_vscode {
-                    div { class: "text-center text-gray-500 py-8",
+                    div { class: "text-center opacity-60 py-8",
                         "No file selected, try "
                         a {
-                            class: "text-blue-500",
+                            class: "link link-primary",
                             href: "{DEFAULT_URL}",
                             target: "_blank",
                             "an example?"

@@ -74,11 +74,11 @@ fn plan_node_view(node: PlanTreeNode) -> Element {
     rsx! {
         div { class: "relative",
             div { class: "flex flex-col items-center",
-                div { class: "p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow",
+                div { class: "card bg-base-100 p-4 shadow-sm hover:shadow-md transition-shadow",
                     div { class: "font-medium", "{node.name}" }
-                    div { class: "text-sm text-gray-700 mt-1 font-mono", "{node.label}" }
+                    div { class: "text-sm opacity-75 mt-1 font-mono", "{node.label}" }
                     if let Some(m) = node.metrics.as_ref() {
-                        div { class: "text-sm text-blue-600 mt-1 italic", "{m}" }
+                        div { class: "text-sm text-info mt-1 italic", "{m}" }
                     }
                 }
 

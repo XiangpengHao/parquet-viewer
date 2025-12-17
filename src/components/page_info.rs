@@ -10,7 +10,7 @@ use crate::{
 };
 fn index_display(index: Index) -> Element {
     match index {
-        Index::NONE => rsx! { div { class: "text-gray-500", "No page index available" } },
+        Index::NONE => rsx! { div { class: "opacity-60", "No page index available" } },
         Index::BOOLEAN(native_index) => index_table(native_index.indexes, |v: &bool| v.to_string()),
         Index::INT32(native_index) => index_table(native_index.indexes, |v: &i32| v.to_string()),
         Index::INT64(native_index) => index_table(native_index.indexes, |v: &i64| v.to_string()),
@@ -51,7 +51,7 @@ where
         div { class: "space-y-2",
             if !indexes.is_empty() {
                 div { class: "border border-gray-100 p-2",
-                    div { class: "grid grid-cols-[auto_1fr_1fr_auto] gap-4 text-gray-600",
+                    div { class: "grid grid-cols-[auto_1fr_1fr_auto] gap-4 opacity-75",
                         div { "#" }
                         div { "Min" }
                         div { "Max" }
@@ -64,12 +64,12 @@ where
                                 let max_str = page_index.max().map(format_value).unwrap_or_else(|| "-".to_string());
                                 let null_count_str = page_index.null_count().map(|n| n.to_string()).unwrap_or_else(|| "-".to_string());
                                 rsx! {
-                                    div { class: "py-1.5 last:border-b-0 hover:bg-gray-50",
+                                    div { class: "py-1.5 last:border-b-0 hover:bg-base-200",
                                         div { class: "grid grid-cols-[auto_1fr_1fr_auto] gap-4",
                                             div { class: "font-mono", "{i + 1}" }
-                                            div { class: "font-mono text-gray-700 break-all", "{min_str}" }
-                                            div { class: "font-mono text-gray-700 break-all", "{max_str}" }
-                                            div { class: "font-mono text-gray-600", "{null_count_str}" }
+                                            div { class: "font-mono text-base-content break-all", "{min_str}" }
+                                            div { class: "font-mono text-base-content break-all", "{max_str}" }
+                                            div { class: "font-mono opacity-75", "{null_count_str}" }
                                         }
                                     }
                                 }
@@ -78,7 +78,7 @@ where
                     }
                 }
             } else {
-                div { class: "text-gray-500", "No page data available" }
+                div { class: "opacity-60", "No page data available" }
             }
         }
     }
@@ -110,9 +110,9 @@ pub fn PageInfo(
     rsx! {
         div { class: "col-span-2 space-y-4",
             div { class: "space-y-2",
-                h4 { class: "text-gray-900", "Page info" }
+                h4 { class: "font-semibold", "Page info" }
                 div { class: "border border-gray-100 p-2",
-                    div { class: "grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 text-gray-600 mb-2",
+                    div { class: "grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 opacity-75 mb-2",
                         span { "#" }
                         span { "Type" }
                         span { "Size" }
@@ -123,7 +123,7 @@ pub fn PageInfo(
                         match (page_info.value())() {
                             Some(pages) => rsx! {
                                 for (i, page) in pages.iter().enumerate() {
-                                    div { class: "grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 hover:bg-gray-50",
+                                    div { class: "grid grid-cols-[1rem_7rem_4rem_4rem_1fr] gap-3 hover:bg-base-200",
                                         span { "{i}" }
                                         span { "{page.page_type:?}" }
                                         {
@@ -141,7 +141,7 @@ pub fn PageInfo(
                             },
                             None => rsx! {
                                 div { class: "flex justify-center items-center py-4",
-                                    div { class: "text-gray-500", "Loading page info..." }
+                                    div { class: "opacity-60", "Loading page info..." }
                                 }
                             },
                         }
@@ -149,7 +149,7 @@ pub fn PageInfo(
                 }
             }
             div { class: "space-y-2",
-                h4 { class: "text-gray-900", "Page stats" }
+                h4 { class: "font-semibold", "Page stats" }
                 if let Some(index) = page_index {
                     {index_display(index)}
                 }

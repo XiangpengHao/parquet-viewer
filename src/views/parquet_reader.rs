@@ -208,21 +208,18 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
     }
 
     let tab_button_class = |tab: &str| {
-        let base = "py-2 px-1 border-b-2 font-medium";
         if active_tab() == tab {
-            format!("{base} border-green-500 text-green-600")
+            "tab tab-active text-green-600"
         } else {
-            format!(
-                "{base} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            )
+            "tab"
         }
     };
 
     rsx! {
         Panel { class: Some("rounded-lg p-2".to_string()),
-            div { class: "border-b border-gray-200 mb-2",
-                nav { class: "-mb-px flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
-                    div { class: "flex flex-wrap items-center gap-4 md:gap-8",
+            div { class: "mb-2",
+                nav { class: "flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+                    div { class: "tabs tabs-boxed",
                         button {
                             class: "{tab_button_class(\"file\")}",
                             onclick: move |_| active_tab.set("file".to_string()),
@@ -316,7 +313,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
                 if is_dragging() {
                     "border-green-500 bg-green-50"
                 } else {
-                    "border-gray-300 bg-white"
+                    "border-base-300 bg-base-100"
                 },
             ),
             ondragenter: move |ev| {
@@ -401,7 +398,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
 
             div { class: "flex flex-col items-center gap-1 text-center",
                 div { class: "space-y-0.5",
-                    p { class: "text-sm font-medium text-gray-900", "Drop a Parquet file here" }
+                    p { class: "text-sm font-medium", "Drop a Parquet file here" }
                 }
 
                 label {
@@ -411,7 +408,7 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
                 }
 
                 if let Some(name) = selected_file_name() {
-                    p { class: "text-xs text-gray-500 mt-1",
+                    p { class: "text-xs opacity-60 mt-1",
                         "Selected: "
                         span { class: "font-mono", "{name}" }
                     }
@@ -466,7 +463,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                 },
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
                     div {
-                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                        label { class: "label text-sm font-medium",
                             "Bucket"
                         }
                         input {
@@ -481,7 +478,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                         }
                     }
                     div {
-                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                        label { class: "label text-sm font-medium",
                             "Region"
                         }
                         input {
@@ -496,7 +493,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                         }
                     }
                     div { class: "sm:col-span-2",
-                        label { class: "block text-sm font-medium text-gray-700 mb-1",
+                        label { class: "label text-sm font-medium",
                             "File Path"
                         }
                         input {

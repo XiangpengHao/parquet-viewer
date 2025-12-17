@@ -1,17 +1,17 @@
-//! Shared Tailwind utility bundles reused across components.
-//! All values match the existing visual styling so the UI looks the same,
-//! but the class strings now live in one place for easier maintenance.
+//! Shared DaisyUI component classes reused across components.
+//! Using DaisyUI components while maintaining the existing green color scheme
+//! for consistency with the original design.
 
 use dioxus::prelude::*;
 
-pub const PANEL: &str = "bg-white rounded-md border border-gray-300";
-pub const INPUT_BASE: &str = "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500";
+pub const PANEL: &str = "card bg-base-100 border border-base-300";
+pub const INPUT_BASE: &str =
+    "input input-bordered focus:outline-none focus:ring-2 focus:ring-green-500";
 
-pub const BUTTON_PRIMARY: &str =
-    "px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 whitespace-nowrap";
-pub const BUTTON_OUTLINE: &str = "px-4 py-2 border border-green-500 text-green-500 rounded-md hover:border-green-600 hover:text-green-600";
+pub const BUTTON_PRIMARY: &str = "btn bg-green-500 text-white hover:bg-green-600 border-0";
+pub const BUTTON_OUTLINE: &str = "btn btn-outline border-green-500 text-green-500 hover:border-green-600 hover:text-green-600 hover:bg-transparent";
 pub const BUTTON_GHOST: &str =
-    "px-4 py-2 border border-green-500 text-green-500 rounded-md hover:bg-green-50";
+    "btn btn-ghost border border-green-500 text-green-500 hover:bg-green-50";
 
 #[component]
 pub fn Panel(class: Option<String>, children: Element) -> Element {
@@ -47,9 +47,9 @@ pub fn SectionHeader(
     rsx! {
         div { class: "{classes}",
             div {
-                h2 { class: "text-gray-900 font-semibold", "{title}" }
+                h2 { class: "text-base-content font-semibold", "{title}" }
                 if let Some(text) = subtitle {
-                    p { class: "text-xs text-gray-500", "{text}" }
+                    p { class: "text-xs text-base-content opacity-60", "{text}" }
                 } else {
                     span {}
                 }
