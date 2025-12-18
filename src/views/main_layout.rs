@@ -108,6 +108,13 @@ pub(crate) fn MainLayout() -> Element {
         }
     };
 
+    // Get the URL parameter from the route
+    let route = use_route::<Route>();
+    let url_param = match route {
+        Route::Index { url } => url,
+        _ => None,
+    };
+
     let vscode = vscode_env();
     let is_in_vscode = vscode.is_some();
     let mut vscode_initialized = use_signal(|| false);
@@ -212,7 +219,7 @@ pub(crate) fn MainLayout() -> Element {
 
             div { class: "space-y-3",
                 if !is_in_vscode {
-                    ParquetReader { read_call_back: on_parquet_read }
+                    ParquetReader { read_call_back: on_parquet_read, initial_url: url_param }
                 }
 
                 if let Some(msg) = error_message() {

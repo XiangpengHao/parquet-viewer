@@ -8,7 +8,6 @@ use object_store::ObjectStore;
 use object_store::path::Path;
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
 use std::sync::Arc;
-use url::form_urlencoded;
 
 use crate::components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel};
 use crate::parquet_ctx::{MetadataSummary, ParquetResolved};
@@ -178,21 +177,12 @@ impl ParquetUnresolved {
 }
 
 #[component]
-pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
-    fn query_param(key: &str) -> Option<String> {
-        let window = web_sys::window()?;
-        let search = window.location().search().ok()?;
-        let search = search.strip_prefix('?').unwrap_or(&search);
-        for (k, v) in form_urlencoded::parse(search.as_bytes()) {
-            if k == key {
-                return Some(v.into_owned());
-            }
-        }
-        None
-    }
-
+pub fn ParquetReader(
+    read_call_back: EventHandler<Result<ParquetUnresolved>>,
+    initial_url: Option<String>,
+) -> Element {
     let mut active_tab = use_signal(|| {
-        if query_param("url").is_some() {
+        if initial_url.is_some() {
             "url".to_string()
         } else {
             "file".to_string()
@@ -202,8 +192,8 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
     let mut loaded_url = use_signal(|| false);
     if !loaded_url() {
         loaded_url.set(true);
-        if let Some(url) = query_param("url") {
-            read_call_back.call(readers::read_from_url(&url));
+        if let Some(ref url) = initial_url {
+            read_call_back.call(readers::read_from_url(url));
         }
     }
 
@@ -244,7 +234,7 @@ pub fn ParquetReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) ->
                         FileReader { read_call_back }
                     },
                     "url" => rsx! {
-                        UrlReader { read_call_back }
+                        UrlReader { read_call_back, initial_url }
                     },
                     "s3" => rsx! {
                         S3Reader { read_call_back }
@@ -419,8 +409,11 @@ fn FileReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Elemen
 }
 
 #[component]
-pub fn UrlReader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element {
-    let mut url = use_signal(|| DEFAULT_URL.to_string());
+pub fn UrlReader(
+    read_call_back: EventHandler<Result<ParquetUnresolved>>,
+    initial_url: Option<String>,
+) -> Element {
+    let mut url = use_signal(|| initial_url.unwrap_or_else(|| DEFAULT_URL.to_string()));
 
     rsx! {
         div { class: "h-full flex items-center",

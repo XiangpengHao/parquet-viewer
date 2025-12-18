@@ -40,14 +40,16 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 #[rustfmt::skip]
 enum Route {
     #[layout(MainLayout)]
-    #[route("/")]
-    Index {},
+    #[route("/?:url")]
+    Index { url: Option<String> },
     #[route("/settings")]
     SettingsRoute {},
 }
 
 #[component]
-fn Index() -> Element {
+fn Index(url: Option<String>) -> Element {
+    // The url parameter is passed from the route, but we handle it in MainLayout
+    _ = url;
     rsx! {}
 }
 
@@ -58,7 +60,7 @@ fn SettingsRoute() -> Element {
         Settings {
             show: true,
             on_close: move || {
-                nav.push(Route::Index {});
+                nav.push(Route::Index { url: None });
             },
         }
     }

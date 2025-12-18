@@ -196,6 +196,7 @@
             pkgs.binaryen  
             pkgs.tailwindcss_4
             rustToolchain
+            pkgs.vsce
           ];
           shellHook = ''
             # Setup clang for wasm32 cross-compilation
