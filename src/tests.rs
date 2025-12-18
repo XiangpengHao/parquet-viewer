@@ -191,3 +191,30 @@ async fn test_render_no_stats() {
     let table = Arc::new(parquet_unresolved.try_into_resolved(&ctx).await.unwrap());
     drop(table);
 }
+
+#[wasm_bindgen_test]
+async fn test_url_query_parameter_loading() {
+    // This test verifies that the URL query parameter feature works correctly
+    // by loading a parquet file from a URL
+    let ctx = SESSION_CTX.clone();
+    let url = "https://raw.githubusercontent.com/tobilg/aws-edge-locations/main/data/aws-edge-locations.parquet";
+
+    // Simulate what happens when a user visits /?url=...
+    let result = readers::read_from_url(url).unwrap();
+    let table = result
+        .try_into_resolved(&ctx)
+        .await
+        .expect("Should successfully load parquet file from URL parameter");
+
+    // Verify the file was loaded correctly
+    assert_eq!(table.table_name(), "aws-edge-locations");
+
+    // Verify we can query the loaded table
+    let query = format!("select count(*) from \"{}\"", table.registered_table_name());
+    let (rows, _) = execute_query_inner(&query, &ctx).await.unwrap();
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].column(0).len(), 1);
+    // The count should be greater than 0
+    assert!(rows[0].column(0).as_primitive::<Int64Type>().values()[0] > 0);
+}
