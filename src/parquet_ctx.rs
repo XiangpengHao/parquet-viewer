@@ -7,7 +7,7 @@ use datafusion::execution::object_store::ObjectStoreUrl;
 use object_store::path::Path;
 use parquet::{
     arrow::{async_reader::ParquetObjectReader, parquet_to_arrow_schema},
-    file::{metadata::ParquetMetaData, page_index::index::Index},
+    file::{metadata::ParquetMetaData, page_index::column_index::ColumnIndexMetaData},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +61,7 @@ impl MetadataSummary {
                 ci.first().map(|row_group_indexes| {
                     row_group_indexes
                         .iter()
-                        .any(|index| !matches!(index, Index::NONE))
+                        .any(|index| !matches!(index, ColumnIndexMetaData::NONE))
                 })
             })
             .unwrap_or(false);
