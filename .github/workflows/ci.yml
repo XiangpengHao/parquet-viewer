@@ -31,6 +31,7 @@ jobs:
       - name: Run tests with Nix
         run: |
           nix develop --command bash -c "
+            tailwindcss -i tailwind.css -o assets/tailwind.css && \
             cargo fmt --all -- --check && \
             cargo clippy -- -D warnings && \
             wasm-pack test --headless --firefox

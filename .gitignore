@@ -4,4 +4,7 @@ dist
 .direnv
 vendor
 
+# Generated CSS (built from tailwind.css source)
+assets/tailwind.css
+
 
