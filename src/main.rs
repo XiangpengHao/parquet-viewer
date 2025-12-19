@@ -2,6 +2,7 @@ use std::sync::{Arc, LazyLock};
 
 use components::toast::ToastProvider;
 use datafusion::prelude::{SessionConfig, SessionContext};
+use datafusion_common::config::Dialect;
 use dioxus::prelude::*;
 use views::main_layout::MainLayout;
 use views::settings::Settings;
@@ -19,7 +20,7 @@ pub(crate) use parquet_ctx::ParquetResolved;
 
 pub(crate) static SESSION_CTX: LazyLock<Arc<SessionContext>> = LazyLock::new(|| {
     let mut config = SessionConfig::new().with_target_partitions(1);
-    config.options_mut().sql_parser.dialect = "PostgreSQL".to_string();
+    config.options_mut().sql_parser.dialect = Dialect::PostgreSQL;
     config.options_mut().execution.parquet.pushdown_filters = true;
     Arc::new(SessionContext::new_with_config(config))
 });

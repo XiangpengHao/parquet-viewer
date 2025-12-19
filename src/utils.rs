@@ -5,6 +5,7 @@ use arrow_array::RecordBatch;
 use arrow_schema::{DataType, Field};
 use bytes::{Buf, Bytes};
 use datafusion::{
+    dataframe::DataFrame,
     physical_plan::{ExecutionPlan, collect},
     prelude::SessionContext,
 };
@@ -72,14 +73,14 @@ pub(crate) async fn execute_query_inner(
     query: &str,
     ctx: &SessionContext,
 ) -> Result<(Vec<RecordBatch>, Arc<dyn ExecutionPlan>)> {
-    let plan = ctx.sql(query).await?;
+    let df: DataFrame = ctx.sql(query).await?;
 
-    let (state, plan) = plan.into_parts();
+    let (state, plan) = df.into_parts();
     let plan = state.optimize(&plan)?;
 
     tracing::info!("{}", &plan.display_indent());
 
-    let physical_plan = state.create_physical_plan(&plan).await?;
+    let physical_plan: Arc<dyn ExecutionPlan> = state.create_physical_plan(&plan).await?;
 
     let results = collect(physical_plan.clone(), ctx.task_ctx().clone()).await?;
     Ok((results, physical_plan))

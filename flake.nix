@@ -49,7 +49,8 @@
           filter = path: type:
             (craneLib.filterCargoSources path type) ||
             (builtins.match ".*/assets/.*" path != null) ||
-            (builtins.match ".*/Dioxus.toml$" path != null);
+            (builtins.match ".*/Dioxus.toml$" path != null) ||
+            (builtins.match ".*/tailwind.css$" path != null);
         };
 
         commonEnv = {
@@ -74,6 +75,7 @@
         packages.web = craneLib.mkCargoDerivation (commonEnv // {
           pname = "parquet-viewer-web";
           inherit cargoArtifacts;
+          doInstallCargoArtifacts = false;  # Don't include target.tar.zst in output
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.llvmPackages_20.clang-unwrapped
@@ -93,6 +95,14 @@
             export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
             export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
           
+            # Setup daisyUI vendor files for tailwind
+            mkdir -p vendor
+            cp ${daisyui-bundle} vendor/daisyui.mjs
+            cp ${daisyui-theme-bundle} vendor/daisyui-theme.mjs
+
+            # Generate Tailwind CSS (source file is tailwind.css at root)
+            ${pkgs.tailwindcss_4}/bin/tailwindcss -i tailwind.css -o assets/tailwind.css
+
             export CARGO_NET_OFFLINE=true
             export DX_LOG=info
             dx bundle --platform web --release
