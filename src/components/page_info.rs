@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use byte_unit::{Byte, UnitType};
 use dioxus::prelude::*;
-use parquet::file::page_index::column_index::{ColumnIndexMetaData, PrimitiveColumnIndex, ByteArrayColumnIndex};
+use parquet::file::page_index::column_index::{
+    ByteArrayColumnIndex, ColumnIndexMetaData, PrimitiveColumnIndex,
+};
 
 use crate::{
     parquet_ctx::ParquetResolved,
@@ -13,9 +15,15 @@ fn index_display(index: ColumnIndexMetaData) -> Element {
         ColumnIndexMetaData::NONE => rsx! {
             div { class: "opacity-60", "No page index available" }
         },
-        ColumnIndexMetaData::BOOLEAN(native_index) => primitive_index_table(native_index, |v: &bool| v.to_string()),
-        ColumnIndexMetaData::INT32(native_index) => primitive_index_table(native_index, |v: &i32| v.to_string()),
-        ColumnIndexMetaData::INT64(native_index) => primitive_index_table(native_index, |v: &i64| v.to_string()),
+        ColumnIndexMetaData::BOOLEAN(native_index) => {
+            primitive_index_table(native_index, |v: &bool| v.to_string())
+        }
+        ColumnIndexMetaData::INT32(native_index) => {
+            primitive_index_table(native_index, |v: &i32| v.to_string())
+        }
+        ColumnIndexMetaData::INT64(native_index) => {
+            primitive_index_table(native_index, |v: &i64| v.to_string())
+        }
         ColumnIndexMetaData::INT96(native_index) => {
             primitive_index_table(native_index, |v: &parquet::data_type::Int96| {
                 format!("{v:?}")
@@ -28,14 +36,13 @@ fn index_display(index: ColumnIndexMetaData) -> Element {
             primitive_index_table(native_index, |v: &f64| format!("{v:.6}"))
         }
         ColumnIndexMetaData::BYTE_ARRAY(native_index) => byte_array_index_table(native_index),
-        ColumnIndexMetaData::FIXED_LEN_BYTE_ARRAY(native_index) => byte_array_index_table(native_index),
+        ColumnIndexMetaData::FIXED_LEN_BYTE_ARRAY(native_index) => {
+            byte_array_index_table(native_index)
+        }
     }
 }
 
-fn primitive_index_table<T, F>(
-    index: PrimitiveColumnIndex<T>,
-    format_value: F,
-) -> Element
+fn primitive_index_table<T, F>(index: PrimitiveColumnIndex<T>, format_value: F) -> Element
 where
     T: Clone + 'static,
     F: Fn(&T) -> String + Copy + 'static,
