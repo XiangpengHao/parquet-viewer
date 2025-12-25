@@ -31,13 +31,16 @@ jobs:
         id: version
         run: |
           cd vscode-extension
+          # Get major.minor from package.json, use commit count as patch
           BASE_VERSION=$(jq -r '.version' package.json)
+          MAJOR_MINOR=$(echo "$BASE_VERSION" | cut -d. -f1,2)
+          COMMIT_COUNT=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short=7 HEAD)
-          UNIQUE_VERSION="${BASE_VERSION}+${COMMIT_HASH}"
+          UNIQUE_VERSION="${MAJOR_MINOR}.${COMMIT_COUNT}"
           echo "VERSION=${UNIQUE_VERSION}" >> $GITHUB_OUTPUT
           echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_OUTPUT
           echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_OUTPUT
-          echo "Unique version: ${UNIQUE_VERSION}"
+          echo "Unique version: ${UNIQUE_VERSION} (commit: ${COMMIT_HASH})"
       
       - name: Build VSCode extension with Nix
         run: nix build .#vscode-extension
