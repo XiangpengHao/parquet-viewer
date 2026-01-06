@@ -8,17 +8,32 @@
     crane.url = "github:ipetkov/crane";
     dioxus.url = "github:DioxusLabs/dioxus/v0.7.1";
   };
-  
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, crane, dioxus, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+      crane,
+      dioxus,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (
+          toolchain:
           toolchain.default.override {
-            extensions = [ "rust-src" "llvm-tools-preview" ];
+            extensions = [
+              "rust-src"
+              "llvm-tools-preview"
+            ];
             targets = [ "wasm32-unknown-unknown" ];
-          });
+          }
+        );
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
@@ -46,11 +61,12 @@
 
         src = pkgs.lib.cleanSourceWith {
           src = ./.;
-          filter = path: type:
-            (craneLib.filterCargoSources path type) ||
-            (builtins.match ".*/assets/.*" path != null) ||
-            (builtins.match ".*/Dioxus.toml$" path != null) ||
-            (builtins.match ".*/tailwind.css$" path != null);
+          filter =
+            path: type:
+            (craneLib.filterCargoSources path type)
+            || (builtins.match ".*/assets/.*" path != null)
+            || (builtins.match ".*/Dioxus.toml$" path != null)
+            || (builtins.match ".*/tailwind.css$" path != null);
         };
 
         commonEnv = {
@@ -68,64 +84,85 @@
           ];
         };
 
-        cargoArtifacts = craneLib.buildDepsOnly (commonEnv // {
-          cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-        });
-      in {
-        packages.web = craneLib.mkCargoDerivation (commonEnv // {
-          pname = "parquet-viewer-web";
-          inherit cargoArtifacts;
-          doInstallCargoArtifacts = false;  # Don't include target.tar.zst in output
-          nativeBuildInputs = [
-            pkgs.pkg-config
-            pkgs.llvmPackages_20.clang-unwrapped
-            pkgs.lld_20
-            dioxus.packages.${system}.dioxus-cli
-            wasm-bindgen-cli
-            pkgs.binaryen
-            pkgs.wabt
-            pkgs.wasm-pack
-          ];
-          buildInputs = with pkgs; [ openssl ];
+        cargoArtifacts = craneLib.buildDepsOnly (
+          commonEnv
+          // {
+            cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+          }
+        );
 
-          buildPhaseCargoCommand = ''
-            export HOME="$TMPDIR/home"
-            mkdir -p "$HOME"
-            # Target-specific CC for the cc crate (hyphens become underscores)
-            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
-            export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
-          
-            # Setup daisyUI vendor files for tailwind
-            mkdir -p vendor
-            cp ${daisyui-bundle} vendor/daisyui.mjs
-            cp ${daisyui-theme-bundle} vendor/daisyui-theme.mjs
+        # CLI-specific setup (builds for native target, not wasm)
+        cliSrc = pkgs.lib.cleanSourceWith {
+          src = ./cli;
+          filter = path: type: craneLib.filterCargoSources path type;
+        };
 
-            # Generate Tailwind CSS (source file is tailwind.css at root)
-            ${pkgs.tailwindcss_4}/bin/tailwindcss -i tailwind.css -o assets/tailwind.css
+        cliCargoArtifacts = craneLib.buildDepsOnly {
+          src = cliSrc;
+          pname = "parquet-viewer-cli";
+          version = "0.1.0";
+          strictDeps = true;
+        };
+      in
+      {
+        packages.web = craneLib.mkCargoDerivation (
+          commonEnv
+          // {
+            pname = "parquet-viewer-web";
+            inherit cargoArtifacts;
+            doInstallCargoArtifacts = false; # Don't include target.tar.zst in output
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.llvmPackages_20.clang-unwrapped
+              pkgs.lld_20
+              dioxus.packages.${system}.dioxus-cli
+              wasm-bindgen-cli
+              pkgs.binaryen
+              pkgs.wabt
+              pkgs.wasm-pack
+            ];
+            buildInputs = with pkgs; [ openssl ];
 
-            export CARGO_NET_OFFLINE=true
-            export DX_LOG=info
-            dx bundle --platform web --release
-          '';
+            buildPhaseCargoCommand = ''
+              export HOME="$TMPDIR/home"
+              mkdir -p "$HOME"
+              # Target-specific CC for the cc crate (hyphens become underscores)
+              export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_20.clang-unwrapped}/bin/clang
+              export CFLAGS_wasm32_unknown_unknown="-isystem ${pkgs.llvmPackages_20.clang-unwrapped.lib}/lib/clang/20/include"
 
-          installPhaseCommand = ''
-            mkdir -p "$out"
-            cp -r target/dx/parquet-viewer/release/web/public/* "$out/"
-          '';
-        });
+              # Setup daisyUI vendor files for tailwind
+              mkdir -p vendor
+              cp ${daisyui-bundle} vendor/daisyui.mjs
+              cp ${daisyui-theme-bundle} vendor/daisyui-theme.mjs
+
+              # Generate Tailwind CSS (source file is tailwind.css at root)
+              ${pkgs.tailwindcss_4}/bin/tailwindcss -i tailwind.css -o assets/tailwind.css
+
+              export CARGO_NET_OFFLINE=true
+              export DX_LOG=info
+              dx bundle --platform web --release
+            '';
+
+            installPhaseCommand = ''
+              mkdir -p "$out"
+              cp -r target/dx/parquet-viewer/release/web/public/* "$out/"
+            '';
+          }
+        );
 
         packages.vscode-extension = pkgs.buildNpmPackage {
           pname = "parquet-viewer-vscode-extension";
           inherit version;
-          
+
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
-            filter = path: type:
-              (pkgs.lib.hasInfix "/vscode-extension" path) ||
-              (pkgs.lib.hasInfix "/assets" path) ||
-              (builtins.baseNameOf path == "README.md") ||
-              (builtins.baseNameOf path == "LICENSE-APACHE") ||
-              (builtins.baseNameOf path == "LICENSE-MIT");
+            filter =
+              path: type:
+              (pkgs.lib.hasInfix "/vscode-extension" path)
+              || (pkgs.lib.hasInfix "/assets" path)
+              || (builtins.baseNameOf path == "README.md")
+              || (builtins.baseNameOf path == "LICENSE-APACHE")
+              || (builtins.baseNameOf path == "LICENSE-MIT");
           };
           sourceRoot = "source/vscode-extension";
           npmDepsHash = "sha256-e904TJ6sIIuNScRRzb/xzhgd76A1INDcl8m57qXcktM=";
@@ -140,10 +177,10 @@
             # Copy web build output
             mkdir -p dist/assets
             cp -r ${self.packages.${system}.web}/* dist/
-            
+
             # Copy icon
             cp ../assets/icon-192x192.png dist/assets/icon-192x192.png
-            
+
             # Replace LICENSE symlink with actual file
             rm -f LICENSE
             cp ../LICENSE-APACHE LICENSE
@@ -151,13 +188,13 @@
 
           buildPhase = ''
             runHook preBuild
-            
+
             # Compile TypeScript
             npm run compile
 
             # Package extension
             vsce package --out parquet-querier-${version}.vsix
-            
+
             runHook postBuild
           '';
 
@@ -167,31 +204,48 @@
           '';
         };
 
+        packages.cli = craneLib.buildPackage {
+          src = cliSrc;
+          pname = "parquet-viewer-cli";
+          version = "0.1.0";
+          cargoArtifacts = cliCargoArtifacts;
+          strictDeps = true;
+
+          meta = {
+            description = "CLI to serve local parquet files and open them in parquet-viewer";
+            mainProgram = "parquet-viewer-cli";
+          };
+        };
+
         packages.docker = pkgs.dockerTools.buildLayeredImage {
           name = "parquet-viewer";
           tag = version;
-          
+
           contents = [
             pkgs.nginx
             pkgs.fakeNss
           ];
-          
+
           extraCommands = ''
             # Create nginx directories
             mkdir -p tmp/nginx_client_body
             mkdir -p var/log/nginx
             mkdir -p var/cache/nginx
             mkdir -p etc/nginx
-            
+
             # Copy web files to nginx html directory
             mkdir -p usr/share/nginx/html
             cp -r ${self.packages.${system}.web}/* usr/share/nginx/html/
           '';
-          
+
           config = {
-            Cmd = [ "${pkgs.nginx}/bin/nginx" "-g" "daemon off;" ];
+            Cmd = [
+              "${pkgs.nginx}/bin/nginx"
+              "-g"
+              "daemon off;"
+            ];
             ExposedPorts = {
-              "80/tcp" = {};
+              "80/tcp" = { };
             };
             WorkingDir = "/usr/share/nginx/html";
           };
@@ -203,7 +257,7 @@
           packages = [
             wasm-bindgen-cli
             dioxus.packages.${system}.dioxus-cli
-            pkgs.binaryen  
+            pkgs.binaryen
             pkgs.tailwindcss_4
             rustToolchain
             pkgs.vsce
@@ -226,5 +280,6 @@
             fi
           '';
         };
-      });
+      }
+    );
 }

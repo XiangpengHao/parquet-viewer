@@ -6,11 +6,10 @@ Online at: https://parquet-viewer.xiangpeng.systems
 
 Parquet viewer is made possible with the [funding](https://xiangpeng.systems/fund/) from [InfluxData](https://www.influxdata.com/).
 
-
 ### Features
 
 - Query parquet data with SQL ✅
-- Query parquet data with natural language through LLM  ✅
+- Query parquet data with natural language through LLM ✅
 - View Parquet metadata ✅
 - View Parquet files from anywhere -- local file, S3, or any URLs ✅
 - Everything runs in the browser, no server, no external dependencies, just a web page ✅
@@ -20,24 +19,42 @@ Parquet viewer is made possible with the [funding](https://xiangpeng.systems/fun
 
 ![screenshot](https://raw.githubusercontent.com/XiangpengHao/parquet-viewer/458f4cd8994843a56a1c896c9df99ee9f5b12e4b/doc/parquet-viewer.gif)
 
-### Tips 
+### Tips
 
 - You can use `?url=` to load a file from a url.
-For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet`](https://parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet) will load the file from github.
-`parquet-viewer` is smart enough to only download the data that is relevant to your query, usually a few KBs, even if the file is large.
+  For example, [`parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet`](https://parquet-viewer.xiangpeng.systems/?url=https://raw.githubusercontent.com/tobilg/public-cloud-provider-ip-ranges/main/data/providers/all.parquet) will load the file from github.
+  `parquet-viewer` is smart enough to only download the data that is relevant to your query, usually a few KBs, even if the file is large.
 
 - If you have parquet files on remote servers, a useful tip is to use [sshfs](https://github.com/libfuse/sshfs) to mount the folder from the server to your local machine. This allows you to access your remote parquet files without opening additional ports for this tool.
+
+### Local cli
+
+```
+nix run .#cli -- --bind 0.0.0.0 --port 8080 file.parquet
+```
+
+```
+2026-01-06T19:19:02.943957Z  INFO parquet_viewer_cli: Serving Posts.parquet on http://0.0.0.0:8080
+2026-01-06T19:19:02.943970Z  INFO parquet_viewer_cli: Opening viewer at: https://parquet-viewer.xiangpeng.systems/?url=http%3A%2F%2Flocalhost%3A8080%2Ffile.parquet
+
+Serving: file.parquet
+Local URL: http://localhost:8080/file.parquet
+Viewer URL: https://parquet-viewer.xiangpeng.systems/?url=http%3A%2F%2Flocalhost%3A8080%2Ffile.parquet
+
+Press Ctrl+C to stop the server.
+```
 
 ## Development
 
 It compiles [Parquet](https://github.com/apache/arrow-rs), [Arrow](https://github.com/apache/arrow-rs), [Datafusion](https://github.com/apache/datafusion), [OpenDAL](https://github.com/apache/opendal) to WebAssembly and uses it to explore Parquet files, [more details](https://blog.haoxp.xyz/posts/parquet-viewer/).
 
 After you have installed [nix](https://nixos.org/), the dev environment is setup with:
+
 ```bash
 direnv allow
 ```
-Which takes care of the cross-compiling of Rust, C++, C to WebAssembly, and everything else you need to run the project.
 
+Which takes care of the cross-compiling of Rust, C++, C to WebAssembly, and everything else you need to run the project.
 
 #### Run locally
 
@@ -58,6 +75,7 @@ wasm-pack test --headless --firefox
 ```bash
 nix build .#web
 ```
+
 Output will be in result/ directory.
 
 #### Build VS Code extension
@@ -65,6 +83,7 @@ Output will be in result/ directory.
 ```bash
 nix build .#vscode-extension
 ```
+
 Output will be in result/ directory.
 
 #### Build Docker image
@@ -93,8 +112,8 @@ If you use Parquet Viewer in your research or wish to refer to it in your public
 
 Licensed under either of
 
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
 

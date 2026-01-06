@@ -1,0 +1,18 @@
+[package]
+name = "parquet-viewer-cli"
+version = "0.1.0"
+edition = "2024"
+description = "CLI to serve local parquet files and open them in parquet-viewer"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+open = "5"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+urlencoding = "2"
+tokio-util = { version = "0.7", features = ["io"] }
