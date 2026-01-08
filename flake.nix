@@ -6,7 +6,6 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
     crane.url = "github:ipetkov/crane";
-    dioxus.url = "github:DioxusLabs/dioxus/v0.7.1";
   };
 
   outputs =
@@ -16,7 +15,6 @@
       rust-overlay,
       flake-utils,
       crane,
-      dioxus,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
@@ -115,7 +113,7 @@
               pkgs.pkg-config
               pkgs.llvmPackages_20.clang-unwrapped
               pkgs.lld_20
-              dioxus.packages.${system}.dioxus-cli
+              pkgs.dioxus-cli
               wasm-bindgen-cli
               pkgs.binaryen
               pkgs.wabt
@@ -256,11 +254,12 @@
           inputsFrom = [ self.packages.${system}.web ];
           packages = [
             wasm-bindgen-cli
-            dioxus.packages.${system}.dioxus-cli
+            pkgs.dioxus-cli
             pkgs.binaryen
             pkgs.tailwindcss_4
             rustToolchain
             pkgs.vsce
+            pkgs.nixd
           ];
           shellHook = ''
             # Setup clang for wasm32 cross-compilation
