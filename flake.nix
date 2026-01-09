@@ -95,8 +95,16 @@
           filter = path: type: craneLib.filterCargoSources path type;
         };
 
+        # CLI source with embedded web assets
+        cliSrcWithWeb = pkgs.runCommand "cli-src-with-web" { } ''
+          cp -r ${cliSrc} $out
+          chmod -R u+w $out
+          mkdir -p $out/web
+          cp -r ${self.packages.${system}.web}/* $out/web/
+        '';
+
         cliCargoArtifacts = craneLib.buildDepsOnly {
-          src = cliSrc;
+          src = cliSrcWithWeb;
           pname = "parquet-viewer-cli";
           version = "0.1.0";
           strictDeps = true;
@@ -203,7 +211,7 @@
         };
 
         packages.cli = craneLib.buildPackage {
-          src = cliSrc;
+          src = cliSrcWithWeb;
           pname = "parquet-viewer-cli";
           version = "0.1.0";
           cargoArtifacts = cliCargoArtifacts;

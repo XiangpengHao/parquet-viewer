@@ -1,0 +1,3 @@
+[build]
+# Override parent config - CLI needs native target, not wasm
+target = "x86_64-unknown-linux-gnu"

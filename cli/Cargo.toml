@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["cors", "fs"] }
+tower-http = { version = "0.6", features = ["cors"] }
 open = "5"
 clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
@@ -16,3 +16,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
 urlencoding = "2"
 tokio-util = { version = "0.7", features = ["io"] }
+rust-embed = "8"
+mime_guess = "2"
+gethostname = "1"

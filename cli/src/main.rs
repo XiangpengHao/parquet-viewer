@@ -8,6 +8,7 @@ use axum::{
     routing::get,
 };
 use clap::Parser;
+use rust_embed::{Embed, EmbeddedFile};
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::{
     fs::File,
@@ -18,7 +19,9 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-const VIEWER_URL: &str = "https://parquet-viewer.xiangpeng.systems";
+#[derive(Embed)]
+#[folder = "web/"]
+struct WebAssets;
 
 #[derive(Parser, Debug)]
 #[command(name = "parquet-viewer-cli")]
@@ -28,9 +31,9 @@ struct Args {
     /// Path to the parquet file to serve
     file: PathBuf,
 
-    /// Port to serve the file on (default: random available port)
-    #[arg(short, long)]
-    port: Option<u16>,
+    /// Port to serve the file on
+    #[arg(short, long, default_value = "53703")]
+    port: u16,
 
     /// Don't open the browser automatically
     #[arg(long)]
@@ -45,6 +48,41 @@ struct Args {
 struct AppState {
     file_path: PathBuf,
     file_name: String,
+}
+
+fn get_asset(path: &str) -> Option<EmbeddedFile> {
+    <WebAssets as Embed>::get(path)
+}
+
+async fn serve_embedded(path: Option<Path<String>>) -> Response {
+    let path = path.map(|p| p.0).unwrap_or_default();
+    let path = if path.is_empty() { "index.html" } else { &path };
+
+    match get_asset(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_str(mime.as_ref()).unwrap(),
+            );
+            (StatusCode::OK, headers, content.data.into_owned()).into_response()
+        }
+        None => {
+            // SPA fallback: serve index.html for unknown routes
+            match get_asset("index.html") {
+                Some(content) => {
+                    let mut headers = HeaderMap::new();
+                    headers.insert(
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static("text/html; charset=utf-8"),
+                    );
+                    (StatusCode::OK, headers, content.data.into_owned()).into_response()
+                }
+                None => StatusCode::NOT_FOUND.into_response(),
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -73,7 +111,7 @@ async fn main() -> Result<()> {
         file_name: file_name.clone(),
     });
 
-    // Setup CORS
+    // Setup CORS (needed for parquet file requests)
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::HEAD, Method::OPTIONS])
@@ -84,30 +122,58 @@ async fn main() -> Result<()> {
             header::ACCEPT_RANGES,
         ]);
 
-    let app = Router::new()
+    // Serve the parquet file under /file/ prefix
+    let file_routes = Router::new()
         .route("/{file_name}", get(serve_file).head(serve_file_head))
         .layer(cors)
         .with_state(state.clone());
 
-    // Bind to the specified port or use a random one
-    let addr: SocketAddr = format!("{}:{}", args.bind, args.port.unwrap_or(0)).parse()?;
+    // Serve embedded web assets
+    let app = Router::new()
+        .nest("/file", file_routes)
+        .route("/", get(|| serve_embedded(None)))
+        .route("/{*path}", get(|path| serve_embedded(Some(path))));
+
+    // Bind to the specified address and port
+    let addr: SocketAddr = format!("{}:{}", args.bind, args.port).parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    let local_addr = listener.local_addr()?;
+    let port = listener.local_addr()?.port();
 
-    info!("Serving {} on http://{}", file_name, local_addr);
+    // Get hostname for convenience URL
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
 
-    // Construct the viewer URL
-    let file_url = format!(
-        "http://localhost:{}/{}",
-        local_addr.port(),
-        urlencoding::encode(&file_name)
+    let encoded_file_name = urlencoding::encode(&file_name);
+
+    // Construct viewer URLs for different access methods
+    let file_url_localhost = format!("http://localhost:{}/file/{}", port, encoded_file_name);
+    let viewer_url_bind = format!(
+        "http://{}:{}/?url={}",
+        args.bind,
+        port,
+        urlencoding::encode(&format!(
+            "http://{}:{}/file/{}",
+            args.bind, port, encoded_file_name
+        ))
     );
-    let viewer_url = format!("{}/?url={}", VIEWER_URL, urlencoding::encode(&file_url));
+    let viewer_url_localhost = format!(
+        "http://localhost:{}/?url={}",
+        port,
+        urlencoding::encode(&file_url_localhost)
+    );
+    let viewer_url_hostname = format!(
+        "http://{}:{}/?url={}",
+        hostname,
+        port,
+        urlencoding::encode(&format!(
+            "http://{}:{}/file/{}",
+            hostname, port, encoded_file_name
+        ))
+    );
 
-    info!("Opening viewer at: {}", viewer_url);
+    info!("Serving {} on http://{}:{}", file_name, args.bind, port);
 
     if !args.no_open {
-        if let Err(e) = open::that(&viewer_url) {
+        if let Err(e) = open::that(&viewer_url_localhost) {
             tracing::warn!(
                 "Failed to open browser: {}. Please open the URL manually.",
                 e
@@ -116,8 +182,10 @@ async fn main() -> Result<()> {
     }
 
     println!("\nServing: {}", state.file_path.display());
-    println!("Local URL: {}", file_url);
-    println!("Viewer URL: {}", viewer_url);
+    println!("\nViewer URLs:");
+    println!("  {}", viewer_url_bind);
+    println!("  {}", viewer_url_localhost);
+    println!("  {}", viewer_url_hostname);
     println!("\nPress Ctrl+C to stop the server.");
 
     axum::serve(listener, app).await?;

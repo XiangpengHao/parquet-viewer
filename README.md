@@ -30,16 +30,18 @@ Parquet viewer is made possible with the [funding](https://xiangpeng.systems/fun
 ### Local cli
 
 ```
-nix run .#cli -- --bind 0.0.0.0 --port 8080 file.parquet
+nix run .#cli -- file.parquet
 ```
 
 ```
-2026-01-06T19:19:02.943957Z  INFO parquet_viewer_cli: Serving Posts.parquet on http://0.0.0.0:8080
-2026-01-06T19:19:02.943970Z  INFO parquet_viewer_cli: Opening viewer at: https://parquet-viewer.xiangpeng.systems/?url=http%3A%2F%2Flocalhost%3A8080%2Ffile.parquet
+2026-01-09T15:20:13.357327Z  INFO parquet_viewer_cli: Serving Posts.parquet on http://0.0.0.0:53703
 
 Serving: file.parquet
-Local URL: http://localhost:8080/file.parquet
-Viewer URL: https://parquet-viewer.xiangpeng.systems/?url=http%3A%2F%2Flocalhost%3A8080%2Ffile.parquet
+
+Viewer URLs:
+  http://0.0.0.0:53703/?url=http%3A%2F%2F0.0.0.0%3A53703%2Ffile%2Ffile.parquet
+  http://localhost:53703/?url=http%3A%2F%2Flocalhost%3A53703%2Ffile%2Ffile.parquet
+  http://xiangpeng-madison:53703/?url=http%3A%2F%2Fxiangpeng-madison%3A53703%2Ffile%2Ffile.parquet
 
 Press Ctrl+C to stop the server.
 ```
