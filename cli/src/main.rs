@@ -15,7 +15,10 @@ use tokio::{
     io::{AsyncReadExt, AsyncSeekExt},
 };
 use tokio_util::io::ReaderStream;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    compression::CompressionLayer,
+    cors::{Any, CorsLayer},
+};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -128,11 +131,12 @@ async fn main() -> Result<()> {
         .layer(cors)
         .with_state(state.clone());
 
-    // Serve embedded web assets
+    // Serve embedded web assets with gzip compression
     let app = Router::new()
         .nest("/file", file_routes)
         .route("/", get(|| serve_embedded(None)))
-        .route("/{*path}", get(|path| serve_embedded(Some(path))));
+        .route("/{*path}", get(|path| serve_embedded(Some(path))))
+        .layer(CompressionLayer::new());
 
     // Bind to the specified address and port
     let addr: SocketAddr = format!("{}:{}", args.bind, args.port).parse()?;
