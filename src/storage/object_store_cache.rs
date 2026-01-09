@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::HashMap,
     fmt::{Display, Formatter},
     ops::Range,
 };
@@ -74,25 +74,9 @@ impl ObjectStore for ObjectStoreCache {
         location: &Path,
         range: Range<u64>,
     ) -> Result<Bytes, object_store::Error> {
-        let key = (location.clone(), range);
-        let mut cache = self.cache.lock().await;
-        let bytes = match cache.entry(key) {
-            Entry::Occupied(o) => {
-                tracing::info!(
-                    "Request hit cache, path {}, range: {:?}",
-                    location,
-                    o.key().1
-                );
-                o.get().clone()
-            }
-            Entry::Vacant(v) => {
-                let k = v.key();
-                let bs = self.inner.get_range(location, k.1.clone()).await?;
-                v.insert(bs.clone());
-                bs
-            }
-        };
-        Ok(bytes)
+        self.get_ranges(location, &[range])
+            .await
+            .map(|mut v| v.remove(0))
     }
 
     async fn get_ranges(
@@ -100,12 +84,51 @@ impl ObjectStore for ObjectStoreCache {
         location: &Path,
         ranges: &[Range<u64>],
     ) -> object_store::Result<Vec<Bytes>> {
-        let mut tasks = Vec::with_capacity(ranges.len());
+        // Check cache for all ranges
+        let cache = self.cache.lock().await;
+        let mut missing_ranges = Vec::new();
+        let mut results = Vec::with_capacity(ranges.len());
+
         for range in ranges {
-            let task = self.get_range(location, range.clone());
-            tasks.push(task);
+            let key = (location.clone(), range.clone());
+            if let Some(bytes) = cache.get(&key) {
+                tracing::info!("Request hit cache, path {}, range: {:?}", location, range);
+                results.push(Some(bytes.clone()));
+            } else {
+                results.push(None);
+                missing_ranges.push(range.clone());
+            }
         }
-        let results = futures::future::join_all(tasks).await;
+
+        // Release lock before making network requests
+        drop(cache);
+
+        // Fetch all missing ranges in parallel
+        if !missing_ranges.is_empty() {
+            let fetch_tasks: Vec<_> = missing_ranges
+                .iter()
+                .map(|range| self.inner.get_range(location, range.clone()))
+                .collect();
+
+            let fetched = futures::future::join_all(fetch_tasks).await;
+
+            // Update cache with fetched results
+            let mut cache = self.cache.lock().await;
+            for (range, fetch_result) in missing_ranges.iter().zip(fetched.into_iter()) {
+                let bytes = fetch_result?;
+                let key = (location.clone(), range.clone());
+                cache.insert(key, bytes.clone());
+
+                // Fill in the results
+                for (i, r) in ranges.iter().enumerate() {
+                    if r == range && results[i].is_none() {
+                        results[i] = Some(bytes.clone());
+                        break;
+                    }
+                }
+            }
+        }
+
         Ok(results.into_iter().map(|r| r.unwrap()).collect())
     }
 
