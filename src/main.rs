@@ -5,7 +5,7 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion_common::config::Dialect;
 use dioxus::prelude::*;
 use views::main_layout::MainLayout;
-use views::parquet_utils::ParquetUtils;
+use views::parquet_rewriter::ParquetRewriter;
 
 mod components;
 mod nl_to_sql;
@@ -43,8 +43,8 @@ enum Route {
     #[layout(MainLayout)]
     #[route("/?:url")]
     Index { url: Option<String> },
-    #[route("/utils")]
-    UtilsRoute {},
+    #[route("/rewriter")]
+    RewriterRoute {},
 }
 
 #[component]
@@ -55,9 +55,9 @@ fn Index(url: Option<String>) -> Element {
 }
 
 #[component]
-fn UtilsRoute() -> Element {
+fn RewriterRoute() -> Element {
     rsx! {
-        ParquetUtils {}
+        ParquetRewriter {}
     }
 }
 

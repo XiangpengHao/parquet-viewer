@@ -169,7 +169,7 @@ pub(crate) fn MainLayout() -> Element {
 
     // Determine which view is active based on route
     let is_viewer = matches!(route, Route::Index { .. });
-    let is_utils = matches!(route, Route::UtilsRoute {});
+    let is_rewriter = matches!(route, Route::RewriterRoute {});
 
     rsx! {
         div { class: "flex h-screen overflow-hidden",
@@ -196,11 +196,11 @@ pub(crate) fn MainLayout() -> Element {
                         }
                     }
 
-                    // Utils icon
+                    // Rewriter icon
                     Link {
-                        to: Route::UtilsRoute {},
-                        class: if is_utils { "sidebar-icon active" } else { "sidebar-icon" },
-                        title: "Utils",
+                        to: Route::RewriterRoute {},
+                        class: if is_rewriter { "sidebar-icon active" } else { "sidebar-icon" },
+                        title: "Parquet Rewriter",
                         svg {
                             xmlns: "http://www.w3.org/2000/svg",
                             class: "w-[18px] h-[18px]",
@@ -285,8 +285,8 @@ pub(crate) fn MainLayout() -> Element {
             // Main content area - scrollable
             main { class: "main-content flex-1 overflow-y-auto h-screen",
                 div { class: "max-w-7xl mx-auto px-8 py-6",
-                    if is_utils {
-                        // Utils view
+                    if is_rewriter {
+                        // Rewriter view
                         Outlet::<Route> {}
                     } else {
                         // Viewer content
@@ -333,16 +333,28 @@ pub(crate) fn MainLayout() -> Element {
                                                     class: "dropdown-content z-50 mt-1 p-3 shadow-lg bg-base-100 rounded-lg border border-base-300 min-w-[280px]",
                                                     div { class: "space-y-2 text-sm",
                                                         div {
-                                                            span { class: "text-tertiary", "Table: " }
-                                                            span { class: "text-primary font-mono select-all", "{file.registered_table_name()}" }
+                                                            span { class: "text-tertiary",
+                                                                "Table: "
+                                                            }
+                                                            span { class: "text-primary font-mono select-all",
+                                                                "{file.registered_table_name()}"
+                                                            }
                                                         }
                                                         div {
-                                                            span { class: "text-tertiary", "Rows: " }
-                                                            span { class: "text-primary", "{format_rows(file.metadata().row_count)}" }
+                                                            span { class: "text-tertiary",
+                                                                "Rows: "
+                                                            }
+                                                            span { class: "text-primary",
+                                                                "{format_rows(file.metadata().row_count)}"
+                                                            }
                                                         }
                                                         div {
-                                                            span { class: "text-tertiary", "Columns: " }
-                                                            span { class: "text-primary", "{file.metadata().columns}" }
+                                                            span { class: "text-tertiary",
+                                                                "Columns: "
+                                                            }
+                                                            span { class: "text-primary",
+                                                                "{file.metadata().columns}"
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -353,12 +365,17 @@ pub(crate) fn MainLayout() -> Element {
                             }
 
                             if !is_in_vscode {
-                                ParquetReader { read_call_back: on_parquet_read, initial_url: url_param }
+                                ParquetReader {
+                                    read_call_back: on_parquet_read,
+                                    initial_url: url_param,
+                                }
                             }
 
                             if let Some(msg) = error_message() {
                                 div { class: "panel-soft p-4 border-l-2 border-red-400",
-                                    pre { class: "text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap break-words", "{msg}" }
+                                    pre { class: "text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap break-words",
+                                        "{msg}"
+                                    }
                                 }
                             }
 
@@ -377,8 +394,7 @@ pub(crate) fn MainLayout() -> Element {
 
                             div { class: "space-y-3",
                                 for entry in query_results().iter().rev().filter(|r| r.display) {
-                                    div {
-                                        key: "{entry.id}",
+                                    div { key: "{entry.id}",
                                         QueryResultView {
                                             id: entry.id,
                                             query: entry.query.clone(),
@@ -406,7 +422,6 @@ pub(crate) fn MainLayout() -> Element {
                                 }
                             }
                         }
-
                     }
                 }
             }

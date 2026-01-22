@@ -64,12 +64,8 @@ where
                     div { class: "max-h-32 overflow-y-auto",
                         for i in 0..num_pages {
                             {
-                                let min_str = min_values[i]
-                                    .map(format_value)
-                                    .unwrap_or_else(|| "-".to_string());
-                                let max_str = max_values[i]
-                                    .map(format_value)
-                                    .unwrap_or_else(|| "-".to_string());
+                                let min_str = min_values[i].map(format_value).unwrap_or_else(|| "-".to_string());
+                                let max_str = max_values[i].map(format_value).unwrap_or_else(|| "-".to_string());
                                 let null_count_str = index
                                     .null_count(i)
                                     .map(|n| n.to_string())
@@ -111,10 +107,12 @@ fn byte_array_index_table(index: ByteArrayColumnIndex) -> Element {
                     div { class: "max-h-32 overflow-y-auto",
                         for i in 0..num_pages {
                             {
-                                let min_str = index.min_value(i)
+                                let min_str = index
+                                    .min_value(i)
                                     .map(|v| String::from_utf8_lossy(v).to_string())
                                     .unwrap_or_else(|| "-".to_string());
-                                let max_str = index.max_value(i)
+                                let max_str = index
+                                    .max_value(i)
                                     .map(|v| String::from_utf8_lossy(v).to_string())
                                     .unwrap_or_else(|| "-".to_string());
                                 let null_count_str = index

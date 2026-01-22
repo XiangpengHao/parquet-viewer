@@ -77,6 +77,8 @@ pub fn StatisticsDisplay(statistics: Option<Statistics>) -> Element {
                 }
             }
         }
-        None => rsx! { div { class: "opacity-50 text-sm italic", "No statistics available" } },
+        None => rsx! {
+            div { class: "opacity-50 text-sm italic", "No statistics available" }
+        },
     }
 }

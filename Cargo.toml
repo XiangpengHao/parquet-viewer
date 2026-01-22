@@ -67,6 +67,7 @@ panic = "abort"
 inherits = "dev"
 strip = true
 panic = "abort"
+opt-level = 2
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.56"

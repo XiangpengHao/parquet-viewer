@@ -11,14 +11,10 @@ pub const INPUT_BASE: &str = "input-soft px-3 py-2 text-sm w-full";
 
 // Button variants
 pub const BUTTON_PRIMARY: &str = "btn-primary-soft cursor-pointer";
-pub const BUTTON_SOFT: &str = "btn-soft cursor-pointer";
 pub const BUTTON_GHOST: &str = "btn-soft cursor-pointer";
 pub const BUTTON_OUTLINE: &str = "btn-soft cursor-pointer";
 
 // Text styles
-pub const TEXT_PRIMARY: &str = "text-primary";
-pub const TEXT_SECONDARY: &str = "text-secondary";
-pub const TEXT_TERTIARY: &str = "text-tertiary";
 
 #[component]
 pub fn Panel(class: Option<String>, children: Element) -> Element {
@@ -49,7 +45,10 @@ pub fn SectionHeader(
         format!("{base} {extra}")
     };
 
-    let trailing = trailing.unwrap_or_else(|| rsx!(span {}));
+    let trailing = trailing.unwrap_or_else(|| rsx!(
+        span {}
+
+    ));
 
     rsx! {
         div { class: "{classes}",
@@ -68,11 +67,7 @@ pub fn SectionHeader(
 
 /// Sidebar navigation icon button
 #[component]
-pub fn SidebarIcon(
-    icon: Element,
-    active: bool,
-    tooltip: String,
-) -> Element {
+pub fn SidebarIcon(icon: Element, active: bool, tooltip: String) -> Element {
     let class = if active {
         "sidebar-icon active"
     } else {
@@ -80,10 +75,6 @@ pub fn SidebarIcon(
     };
 
     rsx! {
-        div {
-            class: "{class}",
-            title: "{tooltip}",
-            {icon}
-        }
+        div { class: "{class}", title: "{tooltip}", {icon} }
     }
 }

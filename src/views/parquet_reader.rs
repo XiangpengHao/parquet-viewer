@@ -456,9 +456,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                 },
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
                     div {
-                        label { class: "label text-sm font-medium",
-                            "Bucket"
-                        }
+                        label { class: "label text-sm font-medium", "Bucket" }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
@@ -471,9 +469,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                         }
                     }
                     div {
-                        label { class: "label text-sm font-medium",
-                            "Region"
-                        }
+                        label { class: "label text-sm font-medium", "Region" }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
@@ -486,9 +482,7 @@ fn S3Reader(read_call_back: EventHandler<Result<ParquetUnresolved>>) -> Element 
                         }
                     }
                     div { class: "sm:col-span-2",
-                        label { class: "label text-sm font-medium",
-                            "File Path"
-                        }
+                        label { class: "label text-sm font-medium", "File Path" }
                         input {
                             r#type: "text",
                             class: "w-full {INPUT_BASE}",
