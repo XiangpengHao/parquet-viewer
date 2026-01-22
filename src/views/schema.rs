@@ -404,11 +404,14 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             key: "{row.arrow_index}-none",
                                             class: "align-top hover:bg-base-200 border-b border-base-200",
 
-            
 
-            
+
+
+
+
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
-            
+
+
 
                                                 div { class: "flex flex-col gap-0.5",
                                                     span { class: "font-mono text-[11px] opacity-60", "#{row.arrow_index}" }
@@ -430,10 +433,12 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                                 }
                                             }
 
-            
-            
+
+
+
                                             td { class: "py-1.5 px-3",
-            
+
+
 
                                                 span { class: "opacity-50", "-" }
                                             }
@@ -477,7 +482,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                                     registered_table_name: registered_table_name.clone(),
                                                 }
                                             }
-            
+
                                             td { class: "py-1.5 px-3",
                                                 div { class: "flex flex-col gap-0.5",
                                                     span { class: "font-mono text-[11px] opacity-60", "#{first_pq_col.id}" }
@@ -503,7 +508,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             }
                                             td { class: "py-1.5 px-3", "{first_pq_col.compression_summary}" }
                                         }
-            
+
                                         for pq_col in row.parquet_columns.iter().skip(1) {
                                             tr {
                                                 key: "{row.arrow_index}-{pq_col.id}",

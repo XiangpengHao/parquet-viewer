@@ -45,10 +45,7 @@ pub fn SectionHeader(
         format!("{base} {extra}")
     };
 
-    let trailing = trailing.unwrap_or_else(|| rsx!(
-        span {}
-
-    ));
+    let trailing = trailing.unwrap_or_else(|| rsx!(span {}));
 
     rsx! {
         div { class: "{classes}",
