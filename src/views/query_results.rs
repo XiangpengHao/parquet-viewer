@@ -181,6 +181,8 @@ pub fn QueryResultView(
 
 
 
+
+
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
                                 table { class: "table table-zebra table-pin-rows table-xs",
                                     thead {

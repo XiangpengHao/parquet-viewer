@@ -405,7 +405,13 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             class: "align-top hover:bg-base-200 border-b border-base-200",
 
 
+
+
+
+
                                             td { class: "py-1.5 px-3", rowspan: "{group_size}",
+
+
 
                                                 div { class: "flex flex-col gap-0.5",
                                                     span { class: "font-mono text-[11px] opacity-60", "#{row.arrow_index}" }
@@ -428,7 +434,11 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                             }
 
 
+
+
                                             td { class: "py-1.5 px-3",
+
+
 
                                                 span { class: "opacity-50", "-" }
                                             }
@@ -507,9 +517,7 @@ pub fn SchemaSection(parquet_reader: Arc<ParquetResolved>) -> Element {
                                                     div { class: "flex flex-col gap-0.5",
                                                         span { class: "font-mono text-[11px] opacity-60", "#{pq_col.id}" }
                                                         span { class: "font-semibold font-semibold", "{pq_col.name}" }
-                                                        span { class: "font-mono text-[10px] opacity-50 break-all",
-                                                            "{pq_col.path.join(\".\")}"
-                                                        }
+                                                        span { class: "font-mono text-[10px] opacity-50 break-all", "{pq_col.path.join(\".\")}" }
                                                     }
                                                 }
                                                 td { class: "py-1.5 px-3", "{pq_col.physical_type}" }

@@ -78,7 +78,7 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                         title: "Parquet Metadata Documentation",
                         "(doc)"
                     }
-                })
+                }),
             }
             div { class: "grid gap-6 lg:grid-cols-2",
                 div {
@@ -87,7 +87,11 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                         div { class: "mt-2 flex flex-col gap-4 md:flex-row md:justify-between",
                             div {
                                 div { class: "flex items-center mb-2",
-                                    label { r#for: "row-group-select", class: "font-medium w-32", "Row Group" }
+                                    label {
+                                        r#for: "row-group-select",
+                                        class: "font-medium w-32",
+                                        "Row Group"
+                                    }
                                     select {
                                         id: "row-group-select",
                                         class: "select select-bordered w-full",
@@ -97,21 +101,32 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                                         }
                                     }
                                 }
-                                RowGroupInfo { metadata: metadata_display.metadata.clone(), row_group_id: selected_row_group() }
+                                RowGroupInfo {
+                                    metadata: metadata_display.metadata.clone(),
+                                    row_group_id: selected_row_group(),
+                                }
                             }
                             div {
                                 div { class: "flex items-center mb-2",
-                                    label { r#for: "column-select", class: "font-medium w-32", "Column" }
+                                    label {
+                                        r#for: "column-select",
+                                        class: "font-medium w-32",
+                                        "Column"
+                                    }
                                     select {
                                         id: "column-select",
                                         class: "select select-bordered w-full",
                                         onchange: move |ev| selected_column.set(ev.value().parse::<usize>().unwrap_or(0)),
-                                        for (i, field) in sorted_fields.iter() {
+                                        for (i , field) in sorted_fields.iter() {
                                             option { value: "{i}", class: "py-2", "{field}" }
                                         }
                                     }
                                 }
-                                ColumnInfo { parquet_reader: reader_for_column_info.clone(), row_group_id: selected_row_group(), column_id: selected_column() }
+                                ColumnInfo {
+                                    parquet_reader: reader_for_column_info.clone(),
+                                    row_group_id: selected_row_group(),
+                                    column_id: selected_column(),
+                                }
                             }
                         }
                     }
@@ -122,7 +137,11 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                             div { class: "font-semibold mb-1", "Row Group stats" }
                             StatisticsDisplay { statistics: column_stats() }
                         }
-                        PageInfo { parquet_reader: reader_for_page_info.clone(), row_group_id: selected_row_group(), column_id: selected_column() }
+                        PageInfo {
+                            parquet_reader: reader_for_page_info.clone(),
+                            row_group_id: selected_row_group(),
+                            column_id: selected_column(),
+                        }
                     }
                 }
             }
@@ -213,15 +232,21 @@ pub fn ColumnInfo(
                 div { class: "grid grid-cols-3 gap-2 bg-base-200 p-2 rounded-md",
                     div { class: "space-y-1",
                         div { class: "text-base-content opacity-60 text-xs", "Compressed" }
-                        div { "{Byte::from_u64(column_info.compressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
+                        div {
+                            "{Byte::from_u64(column_info.compressed_size).get_appropriate_unit(UnitType::Binary):.2}"
+                        }
                     }
                     div { class: "space-y-1",
                         div { class: "text-base-content opacity-60 text-xs", "Uncompressed" }
-                        div { "{Byte::from_u64(column_info.uncompressed_size).get_appropriate_unit(UnitType::Binary):.2}" }
+                        div {
+                            "{Byte::from_u64(column_info.uncompressed_size).get_appropriate_unit(UnitType::Binary):.2}"
+                        }
                     }
                     div { class: "space-y-1",
                         div { class: "text-base-content opacity-60 text-xs", "Compression%" }
-                        div { "{column_info.compressed_size as f64 / column_info.uncompressed_size as f64 * 100.0:.1}%" }
+                        div {
+                            "{column_info.compressed_size as f64 / column_info.uncompressed_size as f64 * 100.0:.1}%"
+                        }
                     }
                     div { class: "space-y-1",
                         div { class: "text-base-content opacity-60 text-xs", "CompressionType" }
