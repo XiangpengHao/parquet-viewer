@@ -1,17 +1,24 @@
-//! Shared DaisyUI component classes reused across components.
-//! Using DaisyUI components while maintaining the existing green color scheme
-//! for consistency with the original design.
+//! Shared UI component classes - Notion/Descript inspired styling
+//! Subtle shadows, soft colors, refined typography
 
 use dioxus::prelude::*;
 
-pub const PANEL: &str = "card bg-base-100 border border-base-300";
-pub const INPUT_BASE: &str =
-    "input input-bordered focus:outline-none focus:ring-2 focus:ring-green-500";
+// Soft panel with subtle shadow instead of hard border
+pub const PANEL: &str = "panel-soft";
 
-pub const BUTTON_PRIMARY: &str = "btn bg-green-500 text-white hover:bg-green-600 border-0";
-pub const BUTTON_OUTLINE: &str = "btn btn-outline border-green-500 text-green-500 hover:border-green-600 hover:text-green-600 hover:bg-transparent";
-pub const BUTTON_GHOST: &str =
-    "btn btn-ghost border border-green-500 text-green-500 hover:bg-green-50";
+// Input with soft styling
+pub const INPUT_BASE: &str = "input-soft px-3 py-2 text-sm w-full";
+
+// Button variants
+pub const BUTTON_PRIMARY: &str = "btn-primary-soft cursor-pointer";
+pub const BUTTON_SOFT: &str = "btn-soft cursor-pointer";
+pub const BUTTON_GHOST: &str = "btn-soft cursor-pointer";
+pub const BUTTON_OUTLINE: &str = "btn-soft cursor-pointer";
+
+// Text styles
+pub const TEXT_PRIMARY: &str = "text-primary";
+pub const TEXT_SECONDARY: &str = "text-secondary";
+pub const TEXT_TERTIARY: &str = "text-tertiary";
 
 #[component]
 pub fn Panel(class: Option<String>, children: Element) -> Element {
@@ -47,14 +54,36 @@ pub fn SectionHeader(
     rsx! {
         div { class: "{classes}",
             div {
-                h2 { class: "text-base-content font-semibold", "{title}" }
+                h2 { class: "text-primary font-semibold text-sm", "{title}" }
                 if let Some(text) = subtitle {
-                    p { class: "text-xs text-base-content opacity-60", "{text}" }
+                    p { class: "text-tertiary text-xs", "{text}" }
                 } else {
                     span {}
                 }
             }
             div { class: "flex items-center gap-2", {trailing} }
+        }
+    }
+}
+
+/// Sidebar navigation icon button
+#[component]
+pub fn SidebarIcon(
+    icon: Element,
+    active: bool,
+    tooltip: String,
+) -> Element {
+    let class = if active {
+        "sidebar-icon active"
+    } else {
+        "sidebar-icon"
+    };
+
+    rsx! {
+        div {
+            class: "{class}",
+            title: "{tooltip}",
+            {icon}
         }
     }
 }

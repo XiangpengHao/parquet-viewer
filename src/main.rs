@@ -5,7 +5,7 @@ use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion_common::config::Dialect;
 use dioxus::prelude::*;
 use views::main_layout::MainLayout;
-use views::settings::Settings;
+use views::parquet_utils::ParquetUtils;
 
 mod components;
 mod nl_to_sql;
@@ -43,8 +43,8 @@ enum Route {
     #[layout(MainLayout)]
     #[route("/?:url")]
     Index { url: Option<String> },
-    #[route("/settings")]
-    SettingsRoute {},
+    #[route("/utils")]
+    UtilsRoute {},
 }
 
 #[component]
@@ -55,15 +55,9 @@ fn Index(url: Option<String>) -> Element {
 }
 
 #[component]
-fn SettingsRoute() -> Element {
-    let nav = use_navigator();
+fn UtilsRoute() -> Element {
     rsx! {
-        Settings {
-            show: true,
-            on_close: move || {
-                nav.push(Route::Index { url: None });
-            },
-        }
+        ParquetUtils {}
     }
 }
 

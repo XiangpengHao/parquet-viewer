@@ -1,0 +1,306 @@
+/* Notion/Descript-inspired styling */
+
+/* Sidebar */
+.sidebar {
+  width: 48px;
+  background: rgba(247, 247, 245, 0.8);
+  border-right: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .sidebar {
+  background: rgba(32, 32, 32, 0.95);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: rgba(55, 53, 47, 0.5);
+  transition: all 0.15s ease;
+}
+
+.sidebar-icon:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(55, 53, 47, 0.8);
+}
+
+.sidebar-icon.active {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(55, 53, 47, 0.9);
+}
+
+[data-theme="dark"] .sidebar-icon {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .sidebar-icon:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .sidebar-icon.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Main content area */
+.main-content {
+  background: #ffffff;
+  min-height: 100vh;
+}
+
+[data-theme="dark"] .main-content {
+  background: #191919;
+}
+
+/* Refined panels - subtle shadow instead of border */
+.panel-soft {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .panel-soft {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Subtle input styling */
+.input-soft {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.input-soft:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.input-soft:focus {
+  background: #ffffff;
+  border-color: rgba(35, 131, 226, 0.5);
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.1);
+  outline: none;
+}
+
+[data-theme="dark"] .input-soft {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .input-soft:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .input-soft:focus {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(35, 131, 226, 0.6);
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.15);
+}
+
+/* Subtle button styling */
+.btn-soft {
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  border-radius: 6px;
+  color: rgba(55, 53, 47, 0.8);
+  font-weight: 500;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.btn-soft:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .btn-soft {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .btn-soft:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Primary action button */
+.btn-primary-soft {
+  background: rgba(35, 131, 226, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: rgb(35, 131, 226);
+  font-weight: 500;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.btn-primary-soft:hover {
+  background: rgba(35, 131, 226, 0.15);
+}
+
+[data-theme="dark"] .btn-primary-soft {
+  background: rgba(35, 131, 226, 0.2);
+  color: rgb(82, 156, 232);
+}
+
+[data-theme="dark"] .btn-primary-soft:hover {
+  background: rgba(35, 131, 226, 0.3);
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.01);
+  transition: all 0.15s ease;
+}
+
+.drop-zone:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.drop-zone.dragging {
+  border-color: rgba(35, 131, 226, 0.5);
+  background: rgba(35, 131, 226, 0.04);
+}
+
+[data-theme="dark"] .drop-zone {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+[data-theme="dark"] .drop-zone:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .drop-zone.dragging {
+  border-color: rgba(35, 131, 226, 0.6);
+  background: rgba(35, 131, 226, 0.08);
+}
+
+/* Text colors - Notion style */
+.text-primary {
+  color: rgba(55, 53, 47, 1);
+}
+
+.text-secondary {
+  color: rgba(55, 53, 47, 0.65);
+}
+
+.text-tertiary {
+  color: rgba(55, 53, 47, 0.45);
+}
+
+[data-theme="dark"] .text-primary {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .text-secondary {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .text-tertiary {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Divider */
+.divider-soft {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .divider-soft {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Tooltip */
+.tooltip-soft {
+  background: rgba(55, 53, 47, 0.9);
+  color: #ffffff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .tooltip-soft {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(55, 53, 47, 1);
+}
+
+/* File list item */
+.file-item {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  padding: 8px 12px;
+  transition: all 0.15s ease;
+}
+
+.file-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .file-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .file-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Tabs - refined */
+.tab-soft {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: rgba(55, 53, 47, 0.6);
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.tab-soft:hover {
+  color: rgba(55, 53, 47, 0.8);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tab-soft.active {
+  color: rgba(55, 53, 47, 0.9);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .tab-soft {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .tab-soft:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .tab-soft.active {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* File indicator */
+.file-indicator {
+  background: rgba(34, 197, 94, 0.1);
+  color: rgb(21, 128, 61);
+}
+
+[data-theme="dark"] .file-indicator {
+  background: rgba(34, 197, 94, 0.15);
+  color: rgb(74, 222, 128);
+}
