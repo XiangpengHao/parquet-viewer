@@ -7,6 +7,8 @@ use dioxus_primitives::toast::{ToastOptions, use_toast};
 use object_store::ObjectStore;
 use object_store::path::Path;
 use parquet::arrow::async_reader::{AsyncFileReader, ParquetObjectReader};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::components::ui::{BUTTON_GHOST, BUTTON_OUTLINE, INPUT_BASE, Panel};
@@ -139,13 +141,8 @@ impl ParquetUnresolved {
             );
         }
 
-        let url_hash = self
-            .object_store_url
-            .as_str()
-            .replace("://", "_")
-            .replace('/', "")
-            .replace('-', "_");
-        let registered_table_name = format!("{}_{}", self.table_name.as_str(), url_hash); // The unique name for registration in DataFusion 
+        let url_tag = short_object_store_tag(&self.object_store_url);
+        let registered_table_name = format!("{}_{}", self.table_name.as_str(), url_tag); // The unique name for registration in DataFusion
         ctx.register_parquet(
             format!("\"{}\"", registered_table_name),
             &table_path,
@@ -174,6 +171,19 @@ impl ParquetUnresolved {
             )?,
         ))
     }
+}
+
+fn short_object_store_tag(object_store_url: &ObjectStoreUrl) -> String {
+    let raw = object_store_url.as_str();
+    if let Some(rest) = raw.strip_prefix("webfile://") {
+        let compact: String = rest.chars().filter(|c| *c != '-').collect();
+        return compact.chars().take(4).collect();
+    }
+
+    let mut hasher = DefaultHasher::new();
+    raw.hash(&mut hasher);
+    let hash = hasher.finish();
+    format!("{:06x}", hash & 0xFFFFFF)
 }
 
 #[component]
