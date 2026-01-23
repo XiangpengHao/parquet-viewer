@@ -1,0 +1,10 @@
+name = "parquet-viewer-llm"
+main = "build/index.js"
+compatibility_date = "2025-01-01"
+
+[build]
+command = "worker-build --release"
+
+[observability.logs]
+enabled = true
+invocation_logs = true

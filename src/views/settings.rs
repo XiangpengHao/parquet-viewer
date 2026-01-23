@@ -5,14 +5,12 @@ use crate::{
     utils::{get_stored_value, save_to_storage},
 };
 
-pub(crate) const ANTHROPIC_API_KEY: &str = "claude_api_key";
 pub(crate) const S3_ENDPOINT_KEY: &str = "s3_endpoint";
 pub(crate) const S3_ACCESS_KEY_ID_KEY: &str = "s3_access_key_id";
 pub(crate) const S3_SECRET_KEY_KEY: &str = "s3_secret_key";
 
 #[component]
 pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
-    let mut anthropic_key = use_signal(|| get_stored_value(ANTHROPIC_API_KEY).unwrap_or_default());
     let mut s3_endpoint = use_signal(|| {
         get_stored_value(S3_ENDPOINT_KEY).unwrap_or("https://s3.amazonaws.com".to_string())
     });
@@ -27,7 +25,7 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
     rsx! {
         div { class: "modal modal-open", onclick: move |_| on_close.call(()),
             div {
-                class: "modal-box max-w-4xl w-full max-h-[90vh] p-8",
+                class: "modal-box max-w-2xl w-full max-h-[90vh] p-8",
                 onclick: move |ev| ev.stop_propagation(),
                 SectionHeader {
                     title: "Settings".to_string(),
@@ -61,83 +59,46 @@ pub fn Settings(show: bool, on_close: EventHandler<()>) -> Element {
                 div {
                     class: "space-y-8 overflow-y-auto flex-1",
                     style: "max-height: calc(90vh - 160px)",
-                    div { class: "grid grid-cols-1 md:grid-cols-2 gap-4",
-                        div { class: "card bg-base-200 p-4",
-                            h3 { class: "text-lg font-medium mb-5", "Natural Language to SQL" }
-                            div { class: "mb-5",
-                                label { class: "label font-medium",
-                                    "Claude API Key"
-                                    a {
-                                        href: "https://console.anthropic.com/account/keys",
-                                        target: "_blank",
-                                        class: "link link-primary ml-1",
-                                        "(get key)"
-                                    }
+                    div { class: "card bg-base-200 p-6",
+                        h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
+                        div { class: "space-y-3",
+                            div {
+                                label { class: "label font-medium", "S3 Endpoint" }
+                                input {
+                                    r#type: "text",
+                                    class: "w-full {INPUT_BASE}",
+                                    value: "{s3_endpoint()}",
+                                    oninput: move |ev| {
+                                        let value = ev.value();
+                                        save_to_storage(S3_ENDPOINT_KEY, &value);
+                                        s3_endpoint.set(value);
+                                    },
                                 }
+                            }
+                            div {
+                                label { class: "label font-medium", "Access Key ID" }
+                                input {
+                                    r#type: "text",
+                                    class: "w-full {INPUT_BASE}",
+                                    value: "{s3_access_key_id()}",
+                                    oninput: move |ev| {
+                                        let value = ev.value();
+                                        save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
+                                        s3_access_key_id.set(value);
+                                    },
+                                }
+                            }
+                            div {
+                                label { class: "label font-medium", "Secret Access Key" }
                                 input {
                                     r#type: "password",
                                     class: "w-full {INPUT_BASE}",
-                                    value: "{anthropic_key()}",
+                                    value: "{s3_secret_key()}",
                                     oninput: move |ev| {
                                         let value = ev.value();
-                                        save_to_storage(ANTHROPIC_API_KEY, &value);
-                                        anthropic_key.set(value);
+                                        save_to_storage(S3_SECRET_KEY_KEY, &value);
+                                        s3_secret_key.set(value);
                                     },
-                                }
-                                p { class: "mt-3 opacity-75 italic text-sm",
-                                    "If no API key is provided, it uses Xiangpeng's personal token -- use reasonably and "
-                                    a {
-                                        href: "https://github.com/XiangpengHao",
-                                        class: "link link-primary hover:underline",
-                                        target: "_blank",
-                                        "consider donating"
-                                    }
-                                    "; no data is collected, but CloudFlare may temporarily log the prompt and schema."
-                                }
-                            }
-                        }
-
-                        div { class: "card bg-base-200 p-6",
-                            h3 { class: "text-lg font-medium mb-5", "S3 Configuration" }
-                            div { class: "space-y-3",
-                                div {
-                                    label { class: "label font-medium", "S3 Endpoint" }
-                                    input {
-                                        r#type: "text",
-                                        class: "w-full {INPUT_BASE}",
-                                        value: "{s3_endpoint()}",
-                                        oninput: move |ev| {
-                                            let value = ev.value();
-                                            save_to_storage(S3_ENDPOINT_KEY, &value);
-                                            s3_endpoint.set(value);
-                                        },
-                                    }
-                                }
-                                div {
-                                    label { class: "label font-medium", "Access Key ID" }
-                                    input {
-                                        r#type: "text",
-                                        class: "w-full {INPUT_BASE}",
-                                        value: "{s3_access_key_id()}",
-                                        oninput: move |ev| {
-                                            let value = ev.value();
-                                            save_to_storage(S3_ACCESS_KEY_ID_KEY, &value);
-                                            s3_access_key_id.set(value);
-                                        },
-                                    }
-                                }
-                                div {
-                                    label { class: "label font-medium", "Secret Access Key" }
-                                    input {
-                                        r#type: "password",
-                                        class: "w-full {INPUT_BASE}",
-                                        value: "{s3_secret_key()}",
-                                        oninput: move |ev| {
-                                            let value = ev.value();
-                                            save_to_storage(S3_SECRET_KEY_KEY, &value);
-                                            s3_secret_key.set(value);
-                                        },
-                                    }
                                 }
                             }
                         }

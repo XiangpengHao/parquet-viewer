@@ -47,6 +47,19 @@
           doCheck = false;
           pname = "wasm-bindgen-cli";
         };
+        worker-build = craneLib.buildPackage {
+          version = "0.7.4";
+          src = craneLib.downloadCargoPackage {
+            name = "worker-build";
+            version = "0.7.4";
+            source = "registry+https://github.com/rust-lang/crates.io-index";
+            checksum = "sha256-EtyNPH8dNbZ/xjWKWWaru584SYrF8mZkG2nuNugrZZI=";
+          };
+          doCheck = false;
+          pname = "worker-build";
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = [ pkgs.openssl ];
+        };
         # Fetch daisyUI bundle files
         daisyui-bundle = pkgs.fetchurl {
           url = "https://github.com/saadeghi/daisyui/releases/download/v5.5.14/daisyui.mjs";
@@ -262,12 +275,14 @@
           inputsFrom = [ self.packages.${system}.web ];
           packages = [
             wasm-bindgen-cli
+            worker-build
             pkgs.dioxus-cli
             pkgs.binaryen
             pkgs.tailwindcss_4
             rustToolchain
             pkgs.vsce
             pkgs.nixd
+            pkgs.nodejs
           ];
           shellHook = ''
             # Setup clang for wasm32 cross-compilation
