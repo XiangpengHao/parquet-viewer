@@ -215,12 +215,7 @@ pub fn ColumnInfo(
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
         async move {
-            count_column_chunk_pages(
-                &mut column_reader,
-                &metadata,
-                row_group_id(),
-                column_id(),
-            )
+            count_column_chunk_pages(&mut column_reader, &metadata, row_group_id(), column_id())
                 .await
                 .unwrap_or_default()
         }
