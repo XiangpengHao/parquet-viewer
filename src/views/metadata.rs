@@ -1,10 +1,10 @@
 use crate::{
-    ParquetResolved,
     components::{
-        FileLevelInfo, PageInfo, StatisticsDisplay,
         ui::{Panel, SectionHeader},
+        FileLevelInfo, PageInfo, StatisticsDisplay,
     },
     utils::count_column_chunk_pages,
+    ParquetResolved,
 };
 use byte_unit::{Byte, UnitType};
 use dioxus::prelude::*;
@@ -211,15 +211,19 @@ pub fn ColumnInfo(
         }
     };
 
-    let page_count = use_resource(move || {
-        let mut column_reader = parquet_reader.reader().clone();
+    let page_count = {
+        let parquet_reader = parquet_reader.clone();
         let metadata = metadata.clone();
-        async move {
-            count_column_chunk_pages(&mut column_reader, &metadata, row_group_id, column_id)
-                .await
-                .unwrap_or_default()
-        }
-    });
+        use_resource(use_reactive!(|(row_group_id, column_id)| {
+            let mut column_reader = parquet_reader.reader().clone();
+            let metadata = metadata.clone();
+            async move {
+                count_column_chunk_pages(&mut column_reader, &metadata, row_group_id, column_id)
+                    .await
+                    .unwrap_or_default()
+            }
+        }))
+    };
 
     let page_count_text = match (page_count.value())() {
         Some(value) => value.to_string(),

@@ -153,15 +153,19 @@ pub fn PageInfo(
         .flatten()
         .cloned();
 
-    let page_info = use_resource(move || {
-        let mut column_reader = parquet_reader.reader().clone();
+    let page_info = {
+        let parquet_reader = parquet_reader.clone();
         let metadata = metadata.clone();
-        async move {
-            get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id)
-                .await
-                .unwrap_or_default()
-        }
-    });
+        use_resource(use_reactive!(|(row_group_id, column_id)| {
+            let mut column_reader = parquet_reader.reader().clone();
+            let metadata = metadata.clone();
+            async move {
+                get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id)
+                    .await
+                    .unwrap_or_default()
+            }
+        }))
+    };
 
     rsx! {
         div { class: "col-span-2 space-y-4",
