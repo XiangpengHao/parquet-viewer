@@ -143,13 +143,15 @@ fn byte_array_index_table(index: ByteArrayColumnIndex) -> Element {
 #[component]
 pub fn PageInfo(
     parquet_reader: Arc<ParquetResolved>,
-    row_group_id: usize,
-    column_id: usize,
+    row_group_id: ReadSignal<usize>,
+    column_id: ReadSignal<usize>,
 ) -> Element {
     let metadata = parquet_reader.metadata().metadata.clone();
+    let row_group_id_value = row_group_id();
+    let column_id_value = column_id();
     let page_index = metadata
         .column_index()
-        .and_then(|v| v.get(row_group_id).map(|v| v.get(column_id)))
+        .and_then(|v| v.get(row_group_id_value).map(|v| v.get(column_id_value)))
         .flatten()
         .cloned();
 
@@ -157,7 +159,7 @@ pub fn PageInfo(
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
         async move {
-            get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id, column_id)
+            get_column_chunk_page_info(&mut column_reader, &metadata, row_group_id(), column_id())
                 .await
                 .unwrap_or_default()
         }

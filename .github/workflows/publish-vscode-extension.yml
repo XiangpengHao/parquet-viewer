@@ -56,6 +56,13 @@ jobs:
                   jq --arg version "$UNIQUE_VERSION" '.version = $version' "$TEMP_DIR/extension/package.json" > "$TEMP_DIR/extension/package.json.tmp"
                   mv "$TEMP_DIR/extension/package.json.tmp" "$TEMP_DIR/extension/package.json"
 
+                  # Update version in the VSIX manifest (version is read from here when publishing)
+                  for manifest in "$TEMP_DIR/extension.vsixmanifest" "$TEMP_DIR/extension/extension.vsixmanifest"; do
+                    if [ -f "$manifest" ]; then
+                      perl -0pi -e 's/(Version=")[^"]+(")/${1}'"$UNIQUE_VERSION"'${2}/g' "$manifest"
+                    fi
+                  done
+
                   # Repackage the vsix
                   OUTPUT_VSIX="publish/parquet-querier-${UNIQUE_VERSION}.vsix"
                   (cd "$TEMP_DIR" && zip -qr - .) > "$OUTPUT_VSIX"

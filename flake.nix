@@ -36,17 +36,6 @@
 
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         version = cargoToml.package.version;
-        wasm-bindgen-cli = craneLib.buildPackage {
-          version = "0.2.106";
-          src = craneLib.downloadCargoPackage {
-            name = "wasm-bindgen-cli";
-            version = "0.2.106";
-            source = "registry+https://github.com/rust-lang/crates.io-index";
-            checksum = "sha256-W2un/Iw5MRazARFXbZiJ143wcJ/E6loIlrTVQ4DiSzY=";
-          };
-          doCheck = false;
-          pname = "wasm-bindgen-cli";
-        };
         worker-build = craneLib.buildPackage {
           version = "0.7.4";
           src = craneLib.downloadCargoPackage {
@@ -135,7 +124,7 @@
               pkgs.llvmPackages_20.clang-unwrapped
               pkgs.lld_20
               pkgs.dioxus-cli
-              wasm-bindgen-cli
+              pkgs.wasm-bindgen-cli_0_2_108
               pkgs.binaryen
               pkgs.wabt
               pkgs.wasm-pack
@@ -274,7 +263,7 @@
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.web ];
           packages = [
-            wasm-bindgen-cli
+            pkgs.wasm-bindgen-cli_0_2_108
             worker-build
             pkgs.dioxus-cli
             pkgs.binaryen
