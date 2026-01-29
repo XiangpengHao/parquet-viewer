@@ -1,42 +1,43 @@
 name: CI
 
 on:
-  workflow_call:  # Allow this workflow to be called by other workflows
-  pull_request:   # Still run on PRs but not on every push to main
-    branches: [main]
-  workflow_dispatch: # Allow manual triggering
+    workflow_call: # Allow this workflow to be called by other workflows
+    pull_request: # Still run on PRs but not on every push to main
+        branches: [main]
+    workflow_dispatch: # Allow manual triggering
 
 permissions:
-  contents: read
-  id-token: write
+    contents: read
+    id-token: write
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-    outputs:
-      success: ${{ steps.result.outputs.success }}
-    steps:
-      - uses: actions/checkout@v4
+    tests:
+        runs-on: ubuntu-latest
+        outputs:
+            success: ${{ steps.result.outputs.success }}
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Free disk space
-        if: runner.os == 'Linux'
-        uses: ./.github/actions/free-disk-space
-      
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+            - name: Free disk space
+              if: runner.os == 'Linux'
+              uses: ./.github/actions/free-disk-space
 
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
-      
-      - name: Run tests with Nix
-        run: |
-          nix develop --command bash -c "
-            tailwindcss -i tailwind.css -o assets/tailwind.css && \
-            cargo fmt --all -- --check && \
-            cargo clippy -- -D warnings && \
-            wasm-pack test --headless --firefox
-          "
-      
-      - name: Set result output
-        id: result
-        run: echo "success=true" >> $GITHUB_OUTPUT 
+            - name: Install Nix
+              uses: DeterminateSystems/nix-installer-action@main
+
+            - name: Magic Nix Cache
+              uses: DeterminateSystems/magic-nix-cache-action@main
+
+            - name: Run tests with Nix
+              run: |
+                  nix develop --command bash -c "
+                    tailwindcss -i tailwind.css -o assets/tailwind.css && \
+                    cargo fmt --all -- --check && \
+                    cargo clippy -- -D warnings && \
+                    wasm-pack test --headless --firefox
+                    dx bundle --release
+                  "
+
+            - name: Set result output
+              id: result
+              run: echo "success=true" >> $GITHUB_OUTPUT
