@@ -6,3 +6,6 @@
 - Use DaisyUI (https://daisyui.com) for components.
 - Consider both dark and light themes.
 - Every visible text must be copiable, meaning that if you hover any text, make sure it's selectable.
+
+# Reactivity guideline
+- Prefer explicit reactivity: pass signals/ReadSignal props and read them inside hooks instead of wrapping with `use_reactive!`.

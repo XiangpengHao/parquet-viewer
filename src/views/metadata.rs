@@ -124,8 +124,8 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                                 }
                                 ColumnInfo {
                                     parquet_reader: reader_for_column_info.clone(),
-                                    row_group_id: selected_row_group(),
-                                    column_id: selected_column(),
+                                    row_group_id: selected_row_group,
+                                    column_id: selected_column,
                                 }
                             }
                         }
@@ -139,8 +139,8 @@ pub fn MetadataView(parquet_reader: Arc<ParquetResolved>) -> Element {
                         }
                         PageInfo {
                             parquet_reader: reader_for_page_info.clone(),
-                            row_group_id: selected_row_group(),
-                            column_id: selected_column(),
+                            row_group_id: selected_row_group,
+                            column_id: selected_column,
                         }
                     }
                 }
@@ -192,14 +192,14 @@ struct ColumnInfoData {
 #[component]
 pub fn ColumnInfo(
     parquet_reader: Arc<ParquetResolved>,
-    row_group_id: usize,
-    column_id: usize,
+    row_group_id: ReadSignal<usize>,
+    column_id: ReadSignal<usize>,
 ) -> Element {
     let metadata = parquet_reader.metadata().metadata.clone();
 
     let column_info = {
-        let rg = metadata.row_group(row_group_id);
-        let col = rg.column(column_id);
+        let rg = metadata.row_group(row_group_id());
+        let col = rg.column(column_id());
         let compressed_size = col.compressed_size() as u64;
         let uncompressed_size = col.uncompressed_size() as u64;
         let compression = col.compression();
@@ -215,7 +215,12 @@ pub fn ColumnInfo(
         let mut column_reader = parquet_reader.reader().clone();
         let metadata = metadata.clone();
         async move {
-            count_column_chunk_pages(&mut column_reader, &metadata, row_group_id, column_id)
+            count_column_chunk_pages(
+                &mut column_reader,
+                &metadata,
+                row_group_id(),
+                column_id(),
+            )
                 .await
                 .unwrap_or_default()
         }

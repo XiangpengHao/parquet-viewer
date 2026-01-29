@@ -156,6 +156,7 @@ fn gen_parquet_with_page_stats(stats_level: EnabledStatistics) -> Vec<u8> {
     writer.close().unwrap();
     buf
 }
+
 #[wasm_bindgen_test]
 async fn test_render_page_stats() {
     let ctx = SESSION_CTX.clone();
