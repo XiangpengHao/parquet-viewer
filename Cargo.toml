@@ -51,7 +51,7 @@ async-trait = "0.1.89"
 url = "2.5.7"
 anyhow = "1.0"
 uuid = { version = "1.19.0", features = ["v4", "js"] }
-tokio = { version = "1.48", features = ["rt"] }
+tokio = { version = "1.48", features = ["rt", "macros", "rt-multi-thread"] }
 gloo-net = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.2.0"

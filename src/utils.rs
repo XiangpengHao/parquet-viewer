@@ -264,3 +264,25 @@ impl ChunkReader for ColumnChunk {
         Ok(self.data.slice(start as usize..(start as usize + length)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::prelude::SessionContext;
+
+    #[tokio::test]
+    async fn test_execute_query_limit() -> Result<()> {
+        let ctx = SessionContext::new();
+        // Create a simple query that would return 10 rows
+        let query = "SELECT * FROM (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)) AS t(a)";
+        
+        let (results, _plan) = execute_query_inner(query, &ctx).await?;
+        
+        let total_rows: usize = results.iter().map(|b| b.num_rows()).sum();
+        
+        // Since MAX_ROWS_PER_QUERY is 100,000, 10 rows should fit.
+        assert_eq!(total_rows, 10);
+        
+        Ok(())
+    }
+}
