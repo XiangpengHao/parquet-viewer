@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 use crate::components::ui::Panel;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
 use crate::views::plan_visualizer::physical_plan_view;
-use crate::{ParquetResolved, SESSION_CTX, utils::execute_query_inner};
+use crate::{ParquetResolved, SESSION_CTX, utils::{execute_query_inner, MAX_ROWS_PER_QUERY}};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ExecutionResult {
@@ -177,6 +177,12 @@ pub fn QueryResultView(
                         rsx! {
                             if show_plan() {
                                 div { class: "mb-4", {physical_plan_view(result.physical_plan.clone())} }
+                            }
+
+                            if total_rows >= MAX_ROWS_PER_QUERY {
+                                div { class: "text-xs opacity-60 mb-2 italic",
+                                    "Showing first {MAX_ROWS_PER_QUERY} rows (in-memory limit reached). Filter your results using SQL for more specific analysis."
+                                }
                             }
 
 

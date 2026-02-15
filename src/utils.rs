@@ -69,11 +69,17 @@ pub fn format_struct_type(fields: &[Arc<Field>]) -> String {
     format!("Struct{{{}}}", field_strs.join(", "))
 }
 
+pub(crate) const MAX_ROWS_PER_QUERY: usize = 100_000;
+
 pub(crate) async fn execute_query_inner(
     query: &str,
     ctx: &SessionContext,
 ) -> Result<(Vec<RecordBatch>, Arc<dyn ExecutionPlan>)> {
-    let df: DataFrame = ctx.sql(query).await?;
+    let mut df: DataFrame = ctx.sql(query).await?;
+
+    // Safety limit to avoid OOM in WASM
+    // MAX_ROWS_PER_QUERY rows is usually safe and enough for preview and export in-memory
+    df = df.limit(0, Some(MAX_ROWS_PER_QUERY))?;
 
     let (state, plan) = df.into_parts();
     let plan = state.optimize(&plan)?;
