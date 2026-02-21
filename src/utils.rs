@@ -6,9 +6,10 @@ use arrow_schema::{DataType, Field};
 use bytes::{Buf, Bytes};
 use datafusion::{
     dataframe::DataFrame,
-    physical_plan::{ExecutionPlan, collect},
+    physical_plan::{ExecutionPlan, SendableRecordBatchStream, collect, execute_stream},
     prelude::SessionContext,
 };
+use futures::StreamExt;
 use parquet::{
     arrow::{ArrowWriter, async_reader::AsyncFileReader},
     errors::ParquetError,
@@ -84,6 +85,36 @@ pub(crate) async fn execute_query_inner(
 
     let results = collect(physical_plan.clone(), ctx.task_ctx().clone()).await?;
     Ok((results, physical_plan))
+}
+
+pub(crate) async fn execute_query_first_batch_inner(
+    query: &str,
+    ctx: &SessionContext,
+) -> Result<(
+    Vec<RecordBatch>,
+    Option<SendableRecordBatchStream>,
+    Arc<dyn ExecutionPlan>,
+)> {
+    let df: DataFrame = ctx.sql(query).await?;
+
+    let (state, plan) = df.into_parts();
+    let plan = state.optimize(&plan)?;
+
+    tracing::info!("{}", &plan.display_indent());
+
+    let physical_plan: Arc<dyn ExecutionPlan> = state.create_physical_plan(&plan).await?;
+    let mut stream = execute_stream(physical_plan.clone(), ctx.task_ctx().clone())?;
+
+    let first_batch = stream.next().await.transpose()?;
+    let mut first_batches = Vec::new();
+    let remaining_stream = if let Some(batch) = first_batch {
+        first_batches.push(batch);
+        Some(stream)
+    } else {
+        None
+    };
+
+    Ok((first_batches, remaining_stream, physical_plan))
 }
 
 pub(crate) fn vscode_env() -> Option<JsValue> {
