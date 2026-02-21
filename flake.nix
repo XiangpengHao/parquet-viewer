@@ -124,7 +124,7 @@
               pkgs.llvmPackages_20.clang-unwrapped
               pkgs.lld_20
               pkgs.dioxus-cli
-              pkgs.wasm-bindgen-cli_0_2_108
+              pkgs.wasm-bindgen-cli_0_2_106
               pkgs.binaryen
               pkgs.wabt
               pkgs.wasm-pack
@@ -263,7 +263,7 @@
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.web ];
           packages = [
-            pkgs.wasm-bindgen-cli_0_2_108
+            pkgs.wasm-bindgen-cli_0_2_106
             worker-build
             pkgs.dioxus-cli
             pkgs.binaryen
