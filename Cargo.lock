@@ -3333,6 +3333,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mimetype-detector"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a34f91272994b89ad81a1f11cc7358da2767e52af7b389bcde7a3cf86270987"
+
+[[package]]
 name = "minicov"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3676,6 +3682,7 @@ dependencies = [
  "futures",
  "getrandom 0.3.4",
  "gloo-net",
+ "mimetype-detector",
  "object_store",
  "object_store_opendal",
  "opendal",

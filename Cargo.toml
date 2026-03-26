@@ -57,6 +57,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 byte-unit = "5.2.0"
 tracing = "0.1.44"
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
+mimetype-detector = "0.3.7"
 
 [profile.release]
 strip = true

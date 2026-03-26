@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
+use arrow::array::AsArray;
 use arrow::compute::concat_batches;
+use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
+use arrow_cast::base64::{BASE64_STANDARD, Engine};
 use arrow_cast::display::array_value_to_string;
 use datafusion::physical_plan::{ExecutionPlan, SendableRecordBatchStream};
 use dioxus::prelude::*;
 use futures::StreamExt;
+use mimetype_detector::detect;
 
 use crate::components::ui::Panel;
 use crate::utils::{export_to_csv_inner, export_to_parquet_inner, format_arrow_type};
@@ -60,6 +64,9 @@ pub fn QueryResultView(
     let physical_plan = use_signal(|| None::<Arc<dyn ExecutionPlan>>);
     let record_batches = use_signal(Vec::<RecordBatch>::new);
     let remaining_stream = use_signal(|| None::<SendableRecordBatchStream>);
+
+    let mut decode_images = use_signal(|| false);
+    let mut expanded_image_url = use_signal(|| None::<Arc<str>>);
 
     if !initialized() {
         initialized.set(true);
@@ -204,6 +211,12 @@ pub fn QueryResultView(
                             onclick: move |_| on_hide.call(id),
                             "Hide"
                         }
+                        button {
+                            class: if decode_images() { "btn btn-xs btn-primary" } else { "btn btn-xs btn-ghost" },
+                            title: "Decode bytes as images",
+                            onclick: move |_| decode_images.set(!decode_images()),
+                            "Decode bytes as images"
+                        }
                     }
                 }
             }
@@ -221,6 +234,18 @@ pub fn QueryResultView(
                     div { class: "mb-4", {physical_plan_view(plan)} }
                 }
 
+                if let Some(url) = expanded_image_url() {
+                    div {
+                        class: "modal modal-open",
+                        onclick: move |_| expanded_image_url.set(None),
+                        div {
+                            class: "modal-box w-fit max-w-[80vw] max-h-[80vh] overflow-auto",
+                            onclick: move |ev| ev.stop_propagation(),
+                            img { src: "{url}" }
+                        }
+                    }
+                }
+
                 if batches.is_empty() {
                     div { class: "text-xs text-base-content opacity-75",
                         "Query executed successfully, no rows returned."
@@ -235,6 +260,7 @@ pub fn QueryResultView(
                         let schema = merged_record_batch.schema();
                         let total_rows = merged_record_batch.num_rows();
                         let show_rows = visible_rows().min(total_rows);
+                        let decode_images = decode_images();
                         rsx! {
                             div { class: "max-h-[32rem] overflow-auto overflow-x-auto relative",
                                 table { class: "table table-zebra table-pin-rows table-xs",
@@ -261,9 +287,43 @@ pub fn QueryResultView(
                                                         let cell_value = array_value_to_string(column.as_ref(), row_idx)
                                                             .unwrap_or_else(|_| "NULL".to_string());
                                                         let preview = cell_value.chars().take(200).collect::<String>();
+
+                                                        let image_data_url: Option<String> = if decode_images {
+                                                            let column_value: Option<&[u8]> = if column.is_null(row_idx){
+                                                                None
+                                                            } else {
+                                                                match column.data_type() {
+                                                                    DataType::BinaryView => Some(column.as_binary_view().value(row_idx)),
+                                                                    DataType::Binary => Some(column.as_binary::<i32>().value(row_idx)),
+                                                                    DataType::LargeBinary => Some(column.as_binary::<i64>().value(row_idx)),
+                                                                    _ => None,
+                                                                }
+                                                            };
+
+                                                            column_value.and_then(|bytes| {
+                                                                let mime = detect(bytes);
+                                                                if !mime.kind().is_image() {
+                                                                    return None;
+                                                                }
+
+                                                                let b64_string = BASE64_STANDARD.encode(bytes);
+                                                                Some(format!("data:{};base64,{}", mime.mime(), b64_string))
+                                                            })
+                                                        } else {
+                                                            None
+                                                        };
                                                         rsx! {
                                                             td { class: "px-1 py-1 leading-tight break-words",
-                                                                if cell_value.len() > 200 {
+                                                                if let Some(url) = &image_data_url {
+                                                                    img {
+                                                                        class: "max-h-24 max-w-xs object-contain cursor-pointer hover:opacity-80 transition-opacity",
+                                                                        src: "{url}",
+                                                                        onclick: {
+                                                                            let url = Arc::from(url.as_str());
+                                                                            move |_| expanded_image_url.set(Some(Arc::clone(&url)))
+                                                                        },
+                                                                    }
+                                                                } else if cell_value.len() > 200 {
                                                                     details {
                                                                         summary { class: "cursor-pointer select-none", "{preview}..." }
                                                                         pre { class: "whitespace-pre-wrap", "{cell_value}" }
